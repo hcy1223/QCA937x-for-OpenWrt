@@ -1,0 +1,44 @@
+From dc3210c7f87f03216b0f6bffadb975ca86d3ba29 Mon Sep 17 00:00:00 2001
+From: Lukasz Rymanowski <lukasz.rymanowski@tieto.com>
+Date: Thu, 14 Aug 2014 09:35:34 +0200
+Subject: [PATCH 18/25] Bluetooth: Fix ERTM L2CAP resend packet
+
+I-Frame which is going to be resend already has FCS field added and set
+(if it was required). Adding additional FCS field calculated from data +
+old FCS in resend function is incorrect. This patch fix that.
+
+Issue has been found during PTS testing.
+
+Change-Id: Iba211a180665c5f2fa2fa462f5d5c48e2d980a21
+Signed-off-by: Lukasz Rymanowski <lukasz.rymanowski@tieto.com>
+Signed-off-by: Marcel Holtmann <marcel@holtmann.org>
+Git-commit: 13cac15296afe7e42088ecfcd0f1d4b658248c46
+Git-repo: git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
+Signed-off-by: Kamal Negi <kamaln@codeaurora.org>
+---
+ net/bluetooth/l2cap_core.c |    8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/net/bluetooth/l2cap_core.c b/net/bluetooth/l2cap_core.c
+index 68843a2..64881ca 100644
+--- a/net/bluetooth/l2cap_core.c
++++ b/net/bluetooth/l2cap_core.c
+@@ -2098,10 +2098,12 @@ static void l2cap_ertm_resend(struct l2cap_chan *chan)
+ 					   tx_skb->data + L2CAP_HDR_SIZE);
+ 		}
+ 
++		/* Update FCS */
+ 		if (chan->fcs == L2CAP_FCS_CRC16) {
+-			u16 fcs = crc16(0, (u8 *) tx_skb->data, tx_skb->len);
+-			put_unaligned_le16(fcs, skb_put(tx_skb,
+-							L2CAP_FCS_SIZE));
++			u16 fcs = crc16(0, (u8 *) tx_skb->data,
++					tx_skb->len - L2CAP_FCS_SIZE);
++			put_unaligned_le16(fcs, skb_tail_pointer(tx_skb) -
++						L2CAP_FCS_SIZE);
+ 		}
+ 
+ 		l2cap_do_send(chan, tx_skb);
+-- 
+1.7.9.5
+

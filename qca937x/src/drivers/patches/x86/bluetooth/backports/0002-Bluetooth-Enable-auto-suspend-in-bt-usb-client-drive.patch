@@ -1,0 +1,29 @@
+From 535de11f978c013a187cef69c104be23d05c1fe2 Mon Sep 17 00:00:00 2001
+From: Bhasker Neti <bneti@codeaurora.org>
+Date: Tue, 13 May 2014 19:09:41 +0530
+Subject: [PATCH 02/25] Bluetooth: Enable auto suspend in bt usb client driver
+
+This allows BT firmware/host to go low power when there
+is no tx/rx activity.
+
+Change-Id: I03da27e40f194bfaba5969c859ba447b242a51c2
+Signed-off-by: Bhasker Neti <bneti@codeaurora.org>
+---
+ drivers/bluetooth/btusb.c |    1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/drivers/bluetooth/btusb.c b/drivers/bluetooth/btusb.c
+index 610d168..8024ac9 100644
+--- a/drivers/bluetooth/btusb.c
++++ b/drivers/bluetooth/btusb.c
+@@ -1482,6 +1482,7 @@ static int btusb_probe(struct usb_interface *intf,
+ 	}
+ 
+ 	usb_set_intfdata(intf, data);
++	usb_enable_autosuspend(data->udev);
+ 
+ 	return 0;
+ }
+-- 
+1.7.9.5
+

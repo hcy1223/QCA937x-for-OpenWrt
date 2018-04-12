@@ -1,0 +1,26 @@
+/*
+* Copyright (c) 2014 Linux Foundation
+* All Rights Reserved.
+*
+* Permission to use, copy, modify, and/or distribute this software for any purpose with or without fee is hereby granted, provided that the above copyright notice and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+*/
+
+diff -Naur qcacld-new.old/CORE/HDD/src/wlan_hdd_wext.c qcacld-new/CORE/HDD/src/wlan_hdd_wext.c
+--- qcacld-new.old/CORE/HDD/src/wlan_hdd_wext.c	2014-09-13 00:33:55.973031636 +0800
++++ qcacld-new/CORE/HDD/src/wlan_hdd_wext.c	2014-09-13 00:35:20.445033898 +0800
+@@ -9599,10 +9599,12 @@
+    (iw_handler) NULL,             /* SIOCGIWPRIV */
+    (iw_handler) NULL,             /* SIOCSIWSTATS */
+    (iw_handler) NULL,             /* SIOCGIWSTATS */
++#ifdef CONFIG_WEXT_SPY
+    iw_handler_set_spy,             /* SIOCSIWSPY */
+    iw_handler_get_spy,             /* SIOCGIWSPY */
+    iw_handler_set_thrspy,         /* SIOCSIWTHRSPY */
+    iw_handler_get_thrspy,         /* SIOCGIWTHRSPY */
++#endif
+    (iw_handler) iw_set_ap_address,   /* SIOCSIWAP */
+    (iw_handler) iw_get_ap_address,   /* SIOCGIWAP */
+    (iw_handler) iw_set_mlme,              /* SIOCSIWMLME */

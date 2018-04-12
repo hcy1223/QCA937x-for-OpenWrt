@@ -1,0 +1,51 @@
+/*
+* Copyright (c) 2015 Qualcomm Atheros, Inc.
+* All Rights Reserved.
+* Qualcomm Atheros Confidential and Proprietary.
+* NOT A CONTRIBUTION
+*/
+
+diff -Nuar KK-BT-TF-orig/kernel/arch/x86/configs/android-x86_defconfig KK-BT-TF-work/kernel/arch/x86/configs/android-x86_defconfig
+--- KK-BT-TF-orig/kernel/arch/x86/configs/android-x86_defconfig	2014-10-21 15:19:31.000000000 +0800
++++ KK-BT-TF-work/kernel/arch/x86/configs/android-x86_defconfig	2015-04-22 13:59:30.871321885 +0800
+@@ -1039,8 +1039,8 @@
+ # CONFIG_HAMRADIO is not set
+ # CONFIG_CAN is not set
+ # CONFIG_IRDA is not set
+-CONFIG_BT=m
+-CONFIG_BT_RFCOMM=m
++CONFIG_BT=y
++CONFIG_BT_RFCOMM=y
+ CONFIG_BT_RFCOMM_TTY=y
+ CONFIG_BT_BNEP=m
+ CONFIG_BT_BNEP_MC_FILTER=y
+@@ -1050,9 +1050,10 @@
+ #
+ # Bluetooth device drivers
+ #
+-CONFIG_BT_HCIBTUSB=m
++#CONFIG_SS1BTUSB=y
++#CONFIG_BT_HCIBTUSB=y
+ CONFIG_BT_HCIBTSDIO=m
+-CONFIG_BT_HCIUART=m
++CONFIG_BT_HCIUART=y
+ CONFIG_BT_HCIUART_H4=y
+ CONFIG_BT_HCIUART_BCSP=y
+ CONFIG_BT_HCIUART_ATH3K=y
+@@ -1064,7 +1065,7 @@
+ CONFIG_BT_HCIDTL1=m
+ CONFIG_BT_HCIBT3C=m
+ CONFIG_BT_HCIBLUECARD=m
+-CONFIG_BT_HCIBTUART=m
++CONFIG_BT_HCIBTUART=y
+ CONFIG_BT_HCIVHCI=m
+ CONFIG_BT_MRVL=m
+ CONFIG_BT_MRVL_SDIO=m
+@@ -1079,7 +1080,6 @@
+ CONFIG_WEXT_SPY=y
+ CONFIG_WEXT_PRIV=y
+ CONFIG_CFG80211=m
+-# CONFIG_NL80211_TESTMODE is not set
+ # CONFIG_CFG80211_DEVELOPER_WARNINGS is not set
+ # CONFIG_CFG80211_REG_DEBUG is not set
+ # CONFIG_CFG80211_CERTIFICATION_ONUS is not set

@@ -1,0 +1,70 @@
+From 14cef6dc3b6652f9f7d2bf4db882e90de4ade871 Mon Sep 17 00:00:00 2001
+From: Anantha Krishnan <ananthk@codeaurora.org>
+Date: Tue, 1 Jul 2014 18:51:11 +0530
+Subject: [PATCH 04/25] bluetooth: Check FW status before downloading the
+ firmware
+
+As part of firmware download process, query the firmware for
+the RamPatch and NVM download status. Download the firmware
+only if the Firmware says they are not done.
+
+CRs-Fixed: 667416
+Change-Id: I842b527991c2e973a747c84a87a4e2bdbe7434b2
+Signed-off-by: Anantha Krishnan <ananthk@codeaurora.org>
+---
+ drivers/bluetooth/ath3k.c |   24 +++++++++++++++++++-----
+ 1 file changed, 19 insertions(+), 5 deletions(-)
+
+diff --git a/drivers/bluetooth/ath3k.c b/drivers/bluetooth/ath3k.c
+index 3524824..b870544 100644
+--- a/drivers/bluetooth/ath3k.c
++++ b/drivers/bluetooth/ath3k.c
+@@ -55,8 +55,10 @@
+ #define ATH3K_MODE_MASK				0x3F
+ #define ATH3K_NORMAL_MODE			0x0E
+ 
+-#define ATH3K_PATCH_UPDATE			0x80
+-#define ATH3K_SYSCFG_UPDATE			0x40
++#define ATH3K_PATCH_UPDATE			0xA0
++#define ATH3K_SYSCFG_UPDATE			0x60
++#define ATH3K_PATCH_SYSCFG_UPDATE		(ATH3K_PATCH_UPDATE | \
++							ATH3K_SYSCFG_UPDATE)
+ 
+ #define ATH3K_XTAL_FREQ_26M			0x00
+ #define ATH3K_XTAL_FREQ_40M			0x01
+@@ -375,10 +377,14 @@ static int ath3k_load_patch(struct usb_device *udev)
+ 		return ret;
+ 	}
+ 
+-	if (fw_state & ATH3K_PATCH_UPDATE) {
+-		BT_DBG("Patch was already downloaded");
++	if ((fw_state == ATH3K_PATCH_UPDATE) ||
++		(fw_state == ATH3K_PATCH_SYSCFG_UPDATE)) {
++		BT_INFO("%s: Patch already downloaded(fw_state: %d)", __func__,
++			fw_state);
+ 		return 0;
+-	}
++	} else
++		BT_DBG("%s: Downloading RamPatch(fw_state: %d)", __func__,
++			fw_state);
+ 
+ 	ret = ath3k_get_version(udev, &fw_version);
+ 	if (ret < 0) {
+@@ -459,6 +465,14 @@ static int ath3k_load_syscfg(struct usb_device *udev)
+ 		return -EBUSY;
+ 	}
+ 
++	if ((fw_state == ATH3K_SYSCFG_UPDATE) ||
++		(fw_state == ATH3K_PATCH_SYSCFG_UPDATE)) {
++		BT_INFO("%s: NVM already downloaded(fw_state: %d)", __func__,
++			fw_state);
++		return 0;
++	} else
++		BT_DBG("%s: Downloading NVM(fw_state: %d)", __func__, fw_state);
++
+ 	ret = ath3k_get_version(udev, &fw_version);
+ 	if (ret < 0) {
+ 		BT_ERR("Can't get version to change to load ram patch err");
+-- 
+1.7.9.5
+

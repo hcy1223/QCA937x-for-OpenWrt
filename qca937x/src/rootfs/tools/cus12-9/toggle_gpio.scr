@@ -1,0 +1,52 @@
+#!/bin/sh
+
+cat <<-DESCRIPTION
+
+    This script is used to toggle specific GPIO with athdiag tool.
+    Please make sure load wlan.ko in FTM mode by "./wlan.ko con_mode=5"
+
+DESCRIPTION
+
+
+# change as per your need
+# currently support GPIO 35/34/11
+TARGET_GPIO=11
+SLEEP_TIME=5
+
+echo "TEST GPIO$TARGET_GPIO. You have $SLEEP_TIME second(s) to check GPIO status"
+
+ #GPIO35
+if [ "$TARGET_GPIO" -eq 35 ]
+then
+	./athdiag --set --address=0xb14 --and=0xfffffff7     #config GPIO35 to wlan side
+	./athdiag --set --address=0x50f4 --value=0x28        #config GPIO_PIN35
+	./athdiag --set --address=0x5028 --or=0x8            #config GPIO35 output
+	./athdiag --set --address=0x5014 --or=0x8            #driver GPIO35 to low
+	echo "Time to check GPIO$TARGET_GPIO"
+	sleep $SLEEP_TIME
+	./athdiag --set --address=0x5010 --or=0x8            #driver GPIO35 to high
+fi
+
+#GPIO34
+if [ "$TARGET_GPIO" -eq 34 ]
+then
+	./athdiag --set --address=0xb14 --and=0xfffffffb     #config GPIO34 to wlan side
+	./athdiag --set --address=0xb60 --and=0xfffffffb     #disable GPIO34 radio_en
+	./athdiag --set --address=0x50f0 --value=0x38        #config GPIO_PIN34
+	./athdiag --set --address=0x5028 --or=0x4            #config GPIO34 output
+	./athdiag --set --address=0x5010 --or=0x4            #driver GPIO34 to high
+	echo "Time to check GPIO$TARGET_GPIO"
+	sleep $SLEEP_TIME
+	./athdiag --set --address=0x5014 --or=0x4            #driver GPIO34 to low
+fi
+
+#GPIO11
+if [ "$TARGET_GPIO" -eq 11 ]
+then
+	./athdiag --set --address=0x5094 --value=0x6048      #config GPIO_PIN11
+	./athdiag --set --address=0x501c --or=0x800          #config GPIO11 output
+	./athdiag --set --address=0x5004 --or=0x800          #driver GPIO11 to high
+	echo "Time to check GPIO$TARGET_GPIO"
+	sleep $SLEEP_TIME
+	./athdiag --set --address=0x5008 --or=0x800          #driver GPIO11 to low
+fi

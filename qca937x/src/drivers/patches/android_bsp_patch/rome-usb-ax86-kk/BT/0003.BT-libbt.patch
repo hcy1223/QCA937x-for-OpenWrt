@@ -1,0 +1,309 @@
+/*
+* Copyright (c) 2015 Qualcomm Atheros, Inc.
+* All Rights Reserved.
+* Qualcomm Atheros Confidential and Proprietary.
+* NOT A CONTRIBUTION
+*/
+
+diff -Nuar 3_open source/hardware/qcom/bt/Android.mk 4_open+Ananth/hardware/qcom/bt/Android.mk
+--- 3_open source/hardware/qcom/bt/Android.mk	2014-09-07 23:20:24.000000000 +0800
++++ 4_open+Ananth/hardware/qcom/bt/Android.mk	2015-01-24 10:00:03.500174303 +0800
+@@ -1,3 +1,3 @@
+-ifeq ($(call is-vendor-board-platform,QCOM),true)
++ifeq ($(BOARD_HAVE_BLUETOOTH_QCOM),true)
+ include $(call all-named-subdir-makefiles,libbt-vendor)
+-endif # is-vendor-board-platform
++endif # BOARD_HAVE_BLUETOOTH_QCOM
+diff -Nuar 3_open source/hardware/qcom/bt/libbt-vendor/include/bt_nv.h 4_open+Ananth/hardware/qcom/bt/libbt-vendor/include/bt_nv.h
+--- 3_open source/hardware/qcom/bt/libbt-vendor/include/bt_nv.h	1970-01-01 08:00:00.000000000 +0800
++++ 4_open+Ananth/hardware/qcom/bt/libbt-vendor/include/bt_nv.h	2015-01-23 13:20:40.379704500 +0800
+@@ -0,0 +1,109 @@
++#ifndef BT_NV_H
++#define BT_NV_H
++/*============================================================================
++  Copyright (c) 2011-2012 Qualcomm Technologies, Inc.  All Rights Reserved.
++  Qualcomm Technologies Proprietary and Confidential.
++
++  FILE: bt_nv.h
++
++  OVERVIEW: Public declarations for the NV parser module.
++
++*==============================================================================
++                        EDIT HISTORY FOR MODULE
++
++  This section contains comments describing changes made to the module.
++  Notice that changes are listed in reverse chronological order. Please
++  use ISO format for dates.
++
++when        who  what, where, why
++----------  ---  -----------------------------------------------------------
++2010-02-15   ss  Intial version
++2011-09-28  rrr  Moved the implementation to CPP, for having BD address being
++                 programmed twice if previous BD address was random generated.
++2012-02-22  rrr  Added macro related to persistent file path.
++============================================================================*/
++#ifdef __cplusplus
++extern "C" {
++#endif
++
++#include <linux/limits.h>
++
++/* To Enable the logging define the BTNV_DEBUG */
++//#define BTNV_DEBUG
++
++#define TRUE 1
++#define FALSE 0
++#define NV_BD_ADDR_SIZE 6
++#define PERSISTENCE_PATH "/persist"
++#define BT_NV_FILE_NAME ".bt_nv.bin"
++
++/* BTS Master Clock Reference Value */
++typedef long int nv_ps_bt_soc_refclock_enum_type;
++#define NV_PS_BT_SOC_REFCLOCK_32MHZ ((nv_ps_bt_soc_refclock_enum_type)0)
++#define NV_PS_BT_SOC_REFCLOCK_19P2MHZ ((nv_ps_bt_soc_refclock_enum_type)1)
++
++/* Provides Information of BTS clk sharing */
++typedef long int nv_ps_bt_soc_clock_sharing_enum_type;
++#define  NV_PS_BT_SOC_CLOCK_SHARING_DISABLED ((nv_ps_bt_soc_clock_sharing_enum_type)0)
++#define  NV_PS_BT_SOC_CLOCK_SHARING_ENABLED ((nv_ps_bt_soc_clock_sharing_enum_type)1)
++
++
++typedef union{
++  /* Provides the BT Address */
++  unsigned char bd_addr[NV_BD_ADDR_SIZE];
++  /* Provides the BTS Master Reference Clock */
++  nv_ps_bt_soc_refclock_enum_type bt_soc_refclock_type;
++  /* Provides Information of BTS Clk sharing  */
++  nv_ps_bt_soc_clock_sharing_enum_type bt_soc_clk_sharing_type;
++} nv_persist_item_type;
++
++typedef enum {
++  NV_BT_ITEM_MIN,
++  NV_BD_ADDR_I,
++  NV_BT_SOC_REFCLOCK_TYPE_I,
++  NV_BT_SOC_CLK_SHARING_TYPE_I,
++  NV_BT_ITEM_MAX
++} nv_persist_items_enum_type;
++
++
++/*  Command codes when command is issued to the NV task.                   */
++typedef enum {
++  NV_READ_F,          /* Read item */
++  NV_WRITE_F          /* Write item */
++} nv_persist_func_enum_type;
++
++/*  Returned status codes for requested operation.                         */
++typedef enum {
++  NV_SUCCESS=0,          /* Request completed okay */
++  NV_FAILURE,          /* Command failed, reason other than NVM was full */
++  NV_BADCMD,        /* Unrecognizable command field */
++  NV_READONLY,      /* Parameter is write-protected and thus read only */
++} nv_persist_stat_enum_type;
++
++
++/*==============================================================
++FUNCTION:  bt_nv_cmd
++==============================================================*/
++/**
++  This function is to do the read and write the NV item.
++
++  @see  nv_persist_func_enum_type -> For Read or Write (nv_persist_func_enum_type)
++    nv_persist_items_enum_type  -> NV ID number (refer the nv_persist_items_enum_type enum)
++    nv_persist_item_type    -> Structure which contains the variables to read or write.
++    bIsRandom -> Used only in case of BD address NV item being written.
++      bIsRandom = 1 implies that BD address programmed is random generated
++      bIsRandom = 0 (default) implies it to be user programmed
++
++  @return  Returns the nagative value on failure.
++
++  @sideeffects Undetermined.
++*/
++int bt_nv_cmd(nv_persist_func_enum_type nvReadWriteFunc,  nv_persist_items_enum_type nvitem,
++                nv_persist_item_type *my_nv_item, int bIsRandom = 0);
++
++
++#ifdef __cplusplus
++}
++#endif
++
++#endif
+diff -Nuar 3_open source/hardware/qcom/bt/libbt-vendor/include/bt_vendor_qcom.h 4_open+Ananth/hardware/qcom/bt/libbt-vendor/include/bt_vendor_qcom.h
+--- 3_open source/hardware/qcom/bt/libbt-vendor/include/bt_vendor_qcom.h	2014-09-07 23:20:24.000000000 +0800
++++ 4_open+Ananth/hardware/qcom/bt/libbt-vendor/include/bt_vendor_qcom.h	2015-01-24 10:08:05.139717464 +0800
+@@ -32,7 +32,8 @@
+ typedef enum {
+     BT_SOC_DEFAULT = 0,
+     BT_SOC_SMD = BT_SOC_DEFAULT,
+-    BT_SOC_ROME,
++    BT_SOC_ROME_USB,
++	BT_SOC_ROME_UART,
+     BT_SOC_AR3K,
+     /* Add chipset type here */
+     BT_SOC_RESERVED
+diff -Nuar 3_open source/hardware/qcom/bt/libbt-vendor/include/hw_rome.h 4_open+Ananth/hardware/qcom/bt/libbt-vendor/include/hw_rome.h
+--- 3_open source/hardware/qcom/bt/libbt-vendor/include/hw_rome.h	2014-09-07 23:20:24.000000000 +0800
++++ 4_open+Ananth/hardware/qcom/bt/libbt-vendor/include/hw_rome.h	2015-01-24 10:09:32.552810450 +0800
+@@ -197,6 +197,8 @@
+     unsigned char tlv_length1;
+     unsigned char tlv_length2;
+     unsigned char tlv_length3;
++    unsigned int  tlv_data_len;
++    unsigned int  tlv_patch_data_len;
+ 
+     union{
+         tlv_patch_hdr patch;
+diff -Nuar 3_open source/hardware/qcom/bt/libbt-vendor/src/bt_vendor_qcom.c 4_open+Ananth/hardware/qcom/bt/libbt-vendor/src/bt_vendor_qcom.c
+--- 3_open source/hardware/qcom/bt/libbt-vendor/src/bt_vendor_qcom.c	2014-09-07 23:20:24.000000000 +0800
++++ 4_open+Ananth/hardware/qcom/bt/libbt-vendor/src/bt_vendor_qcom.c	2015-01-24 10:15:04.413350733 +0800
+@@ -183,9 +183,12 @@
+     ret = property_get("qcom.bluetooth.soc", bt_soc_type, NULL);
+     if (ret != 0) {
+         ALOGI("qcom.bluetooth.soc set to %s\n", bt_soc_type);
+-        if (!strncasecmp(bt_soc_type, "rome", sizeof("rome"))) {
+-            return BT_SOC_ROME;
++        if (!strncasecmp(bt_soc_type, "rome_uart", sizeof("rome_uart"))) {
++            return BT_SOC_ROME_UART;
+         }
++		else if (!strncasecmp(bt_soc_type, "rome_usb", sizeof("rome_usb"))) {
++		    return BT_SOC_ROME_USB;
++		}
+         else if (!strncasecmp(bt_soc_type, "ath3k", sizeof("ath3k"))) {
+             return BT_SOC_AR3K;
+         }
+@@ -491,11 +494,14 @@
+ 
+     switch(btSocType)
+     {
+-        case BT_SOC_ROME:
++        case BT_SOC_ROME_UART:
+         case BT_SOC_AR3K:
+             ALOGI("bt-vendor : Initializing UART transport layer");
+             userial_vendor_init();
+             break;
++		case BT_SOC_ROME_USB:
++		    ALOGI("bt-vendor : init: Initializing USB transport layer");
++			break;
+         case BT_SOC_DEFAULT:
+             break;
+         default:
+@@ -609,10 +615,13 @@
+                             retval = -1;
+                         }
+                         break;
+-                    case BT_SOC_ROME:
++                    case BT_SOC_ROME_UART:
+                     case BT_SOC_AR3K:
+                         /* BT Chipset Power Control through Device Tree Node */
+                         retval = bt_powerup(nState);
++                    case BT_SOC_ROME_USB:
++                        ALOGI("##### bt-vendor : BT_VND_OP_POWER_CTRL: Check how to keep ROME-USB in low power state #####");
++                        break;
+                     default:
+                         break;
+                 }
+@@ -691,7 +700,23 @@
+                                 retval = -1;
+                         }
+                         break;
+-                    case BT_SOC_ROME:
++                    case BT_SOC_ROME_USB:
++                        ALOGI("bt-vendor : SOC type is ROME-USB");
++                        ALOGI("userial vendor open: opening %s", vnd_userial.port_name);
++                        strlcpy(vnd_userial.port_name, "/dev/SS1BTUSB0", sizeof(vnd_userial.port_name));
++                        if ((vnd_userial.fd = open("/dev/SS1BTUSB0", O_RDWR)) == -1) {
++                            ALOGE("bt-vendor : Failed to open the USB Character driver");
++                            return -1;
++                        } else
++                            ALOGI("bt-vendor : Succesfully opened handle to USB Driver. vnd_userial.fd = %d", vnd_userial.fd);
++                        fd = vnd_userial.fd;
++                        if (fd != -1) {
++                            for (idx=0; idx < CH_MAX; idx++)
++                                (*fd_array)[idx] = fd;
++                                retval = 1;								
++                        }
++                        break;
++                    case BT_SOC_ROME_UART:
+                         {
+                             if (!is_soc_initialized()) {
+                                 fd = userial_vendor_open((tUSERIAL_CFG *) &userial_init_cfg);
+@@ -794,11 +819,21 @@
+                          bt_hci_deinit_transport(pFd);
+                          break;
+ 
+-                     case BT_SOC_ROME:
+-                     case BT_SOC_AR3K:
++                     
++                    case BT_SOC_AR3K:
++                    case BT_SOC_ROME_UART:
+                         property_set("wc_transport.clean_up","1");
+                         userial_vendor_close();
+                         break;
++                    case BT_SOC_ROME_USB:
++                        if (vnd_userial.fd == -1)
++                            ALOGE("%s: FD is already released", __func__);
++                        else {
++                            ALOGE("%s: Releasing the file handle to the BT USB driver", __func__);
++                            close(vnd_userial.fd);
++                            vnd_userial.fd = -1;
++                        }
++                        break;
+                     default:
+                         ALOGE("Unknown btSocType: 0x%x", btSocType);
+                         break;
+@@ -836,7 +871,7 @@
+             {
+                 switch(btSocType)
+                 {
+-                    case BT_SOC_ROME:
++                    case BT_SOC_ROME_UART:
+                         {
+                             uint8_t *state = (uint8_t *) param;
+                             uint8_t wake_assert = (*state == BT_VND_LPM_WAKE_ASSERT) ? \
+@@ -855,6 +890,9 @@
+ #endif
+                         }
+                         break;
++					case BT_SOC_ROME_USB:
++					    ALOGI("bt-vendor : BT_VND_OP_LPM_WAKE_SET_STATE: ROME-USB already awake");
++						break;
+                     case BT_SOC_AR3K:
+                         {
+                             uint8_t *state = (uint8_t *) param;
+@@ -863,6 +901,7 @@
+                             lpm_set_ar3k(UPIO_BT_WAKE, wake_assert, 0);
+                         }
+                     case BT_SOC_DEFAULT:
++					    ALOGE("btSocType: (default) 0x%x", btSocType);
+                         break;
+                     default:
+                         ALOGE("Unknown btSocType: 0x%x", btSocType);
+@@ -880,7 +919,7 @@
+ #else
+                 switch(btSocType)
+                 {
+-                  case BT_SOC_ROME:
++                  case BT_SOC_ROME_UART:
+                        {
+                            char value[PROPERTY_VALUE_MAX] = {'\0'};
+                            property_get("wc_transport.hci_filter_status", value, "0");
+@@ -910,7 +949,7 @@
+                 retval = -1;
+                 switch(btSocType)
+                 {
+-                    case BT_SOC_ROME:
++                    case BT_SOC_ROME_UART:
+                         if(!is_soc_initialized()) {
+                             ALOGE("BT_VND_OP_GET_LINESPEED: error"
+                             " - transport driver not initialized!");
+@@ -939,9 +978,9 @@
+         return -1;
+     }
+ 
+-    if (btSocType == BT_SOC_ROME) {
++    if (btSocType == BT_SOC_ROME_UART) {
+ #ifdef BT_SOC_TYPE_ROME
+-        /*Close both ANT channel*/
++        /*Close both ANT and BT channels*/
+         op(BT_VND_OP_ANT_USERIAL_CLOSE, NULL);
+ #endif
+         /*Close both ANT channel*/

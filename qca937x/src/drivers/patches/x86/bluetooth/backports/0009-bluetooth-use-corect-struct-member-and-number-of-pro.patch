@@ -1,0 +1,83 @@
+From 7730d0d5d50a4b264dad3653dfec87bf84b1bce7 Mon Sep 17 00:00:00 2001
+From: Ananth Krishanan <ananthk@codeaurora.org>
+Date: Fri, 8 Aug 2014 19:11:56 +0530
+Subject: [PATCH 09/25] bluetooth: use corect struct member and number of
+ protocols
+
+The original file is picked from 2.6.29b but struct definition of
+uart_state has changed from then to 3.10. use correct definition.
+Use correct definition of max number of protocols.
+
+Change-Id: Id24efdd6e69640cb8f2374363e30e4dc44cc507a
+CRs-Fixed: 706864
+Signed-off-by: Anantha Krishnan <ananthk@codeaurora.org>
+---
+ drivers/bluetooth/hci_ibs.c  |    8 ++++----
+ drivers/bluetooth/hci_uart.h |    9 ++++++++-
+ 2 files changed, 12 insertions(+), 5 deletions(-)
+
+diff --git a/drivers/bluetooth/hci_ibs.c b/drivers/bluetooth/hci_ibs.c
+index 47e6ccc..06e797d 100644
+--- a/drivers/bluetooth/hci_ibs.c
++++ b/drivers/bluetooth/hci_ibs.c
+@@ -5,7 +5,7 @@
+  *  protocol extension to H4.
+  *
+  *  Copyright (C) 2007 Texas Instruments, Inc.
+- *  Copyright (c) 2010, Code Aurora Forum. All rights reserved.
++ *  Copyright (c) 2010, 2012, 2014, The Linux Foundation. All rights reserved.
+  *
+  *  Acknowledgements:
+  *  This file is based on hci_ll.c, which was...
+@@ -50,7 +50,7 @@
+ #include <linux/serial_core.h>
+ 
+ #ifdef CONFIG_SERIAL_MSM_HS
+-#include <mach/msm_serial_hs.h>
++#include <linux/platform_data/msm_serial_hs.h>
+ #endif
+ 
+ #include <net/bluetooth/bluetooth.h>
+@@ -141,7 +141,7 @@ struct ibs_struct {
+ static void __ibs_msm_serial_clock_on(struct tty_struct *tty)
+ {
+ 	struct uart_state *state = tty->driver_data;
+-	struct uart_port *port = state->port;
++	struct uart_port *port = state->uart_port;
+ 
+ 	msm_hs_request_clock_on(port);
+ }
+@@ -149,7 +149,7 @@ static void __ibs_msm_serial_clock_on(struct tty_struct *tty)
+ static void __ibs_msm_serial_clock_request_off(struct tty_struct *tty)
+ {
+ 	struct uart_state *state = tty->driver_data;
+-	struct uart_port *port = state->port;
++	struct uart_port *port = state->uart_port;
+ 
+ 	msm_hs_request_clock_off(port);
+ }
+diff --git a/drivers/bluetooth/hci_uart.h b/drivers/bluetooth/hci_uart.h
+index f5a9c90..da5eaa3 100644
+--- a/drivers/bluetooth/hci_uart.h
++++ b/drivers/bluetooth/hci_uart.h
+@@ -35,7 +35,7 @@
+ #define HCIUARTGETFLAGS		_IOR('U', 204, int)
+ 
+ /* UART protocols */
+-#define HCI_UART_MAX_PROTO	6
++#define HCI_UART_MAX_PROTO	7
+ 
+ #define HCI_UART_H4	0
+ #define HCI_UART_BCSP	1
+@@ -50,6 +50,8 @@
+ #define HCI_UART_CREATE_AMP	2
+ #define HCI_UART_INIT_PENDING	3
+ 
++#include <linux/interrupt.h>
++
+ struct hci_uart;
+ 
+ struct hci_uart_proto {
+-- 
+1.7.9.5
+

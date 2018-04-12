@@ -1,0 +1,462 @@
+/*
+* Copyright (c) 2015 Qualcomm Atheros, Inc.
+* All Rights Reserved.
+* Qualcomm Atheros Confidential and Proprietary.
+* NOT A CONTRIBUTION
+*/
+
+diff -Nuar l-wlan-orig/hardware/libhardware_legacy/wifi/wifi.c l-wlan-work/hardware/libhardware_legacy/wifi/wifi.c
+--- l-wlan-orig/hardware/libhardware_legacy/wifi/wifi.c	2015-03-06 10:48:23.660506330 +0800
++++ l-wlan-work/hardware/libhardware_legacy/wifi/wifi.c	2015-03-06 10:50:34.572511319 +0800
+@@ -92,6 +92,25 @@
+ #define WIFI_DRIVER_FW_PATH_P2P		NULL
+ #endif
+ 
++static const char DRIVER_P2P_PROP_NAME[]    = "wlan.driver.p2p";
++#define WIFI_DRIVER_MODULE1_PATH "/system/vendor/compat.ko"
++#define WIFI_DRIVER_MODULE2_PATH "/system/vendor/cfg80211.ko"
++#define WIFI_DRIVER_MODULE3_PATH "/system/vendor/wlan.ko"
++
++#define WIFI_DRIVER_MODULE1_NAME "compat"
++#define WIFI_DRIVER_MODULE2_NAME "cfg80211"
++#define WIFI_DRIVER_MODULE3_NAME "wlan"
++
++#define WIFI_DRIVER_MODULE1_ARG          ""
++#define WIFI_DRIVER_MODULE2_ARG          ""
++#define WIFI_DRIVER_MODULE3_ARG          ""
++
++#define WIFI_USB_IF_DRIVER_MODULE_ARG ""
++#define WIFI_LEGACY_INTERFACE "wlan0"
++#define WIFI_DIRECT_INTERFACE "p2p0"
++static char IW_PROP_NAME[] = "iw";
++static char IFCONFIG_PROP_NAME[]  = "ifcfg_p2p";
++
+ #ifndef WIFI_DRIVER_FW_PATH_PARAM
+ #define WIFI_DRIVER_FW_PATH_PARAM	"/sys/module/wlan/parameters/fwpath"
+ #endif
+@@ -103,6 +122,13 @@
+ #ifdef WIFI_DRIVER_MODULE_PATH
+ static const char DRIVER_NAME_PROP[]    = "wlan.modname";
+ static const char DRIVER_PATH_PROP[]    = "wlan.modpath";
++static const char MODULE_DEFAULT_DIR[]  = "/system/lib/modules";
++#endif
++//#define WIFI_DRIVER_MODULE_PATH //Paul check
++#ifdef WIFI_DRIVER_MODULE_PATH
++static const char DRIVER_MODULE_NAME[]  = WIFI_DRIVER_MODULE_NAME;
++static const char DRIVER_MODULE_TAG[]   = WIFI_DRIVER_MODULE_NAME " ";
++static const char DRIVER_MODULE_PATH[]  = WIFI_DRIVER_MODULE_PATH;
+ static const char DRIVER_MODULE_ARG[]   = WIFI_DRIVER_MODULE_ARG;
+ #endif
+ static const char FIRMWARE_LOADER[]     = WIFI_FIRMWARE_LOADER;
+@@ -116,9 +142,6 @@
+ static const char P2P_CONFIG_FILE[]     = "/data/misc/wifi/p2p_supplicant.conf";
+ static const char CONTROL_IFACE_PATH[]  = "/data/misc/wifi/sockets";
+ static const char MODULE_FILE[]         = "/proc/modules";
+-static const char SYSFS_CLASS_NET[]     = "/sys/class/net";
+-static const char MODULE_DEFAULT_DIR[]  = "/system/lib/modules";
+-static const char SYS_MOD_NAME_DIR[]    = "device/driver/module";
+ 
+ static const char IFNAME[]              = "IFNAME=";
+ #define IFNAMELEN			(sizeof(IFNAME) - 1)
+@@ -221,65 +244,20 @@
+     return ret;
+ }
+ 
+-static int get_driver_info(char *buf) {
+-    DIR *netdir;
+-    struct dirent *de;
+-    char path[SYSFS_PATH_MAX];
+-    char link[SYSFS_PATH_MAX];
+-    int ret = 0;
+-
+-    if ((netdir = opendir(SYSFS_CLASS_NET))) {
+-        while ((de = readdir(netdir))) {
+-            int cnt;
+-            char *pos;
+-            if (de->d_name[0] == '.')
+-                continue;
+-            snprintf(path, SYSFS_PATH_MAX, "%s/%s/wireless", SYSFS_CLASS_NET, de->d_name);
+-            if (access(path, F_OK)) {
+-                snprintf(path, SYSFS_PATH_MAX, "%s/%s/phy80211", SYSFS_CLASS_NET, de->d_name);
+-                if (access(path, F_OK))
+-                    continue;
+-            }
+-            /* found the wifi interface */
+-            property_set("wlan.interface", de->d_name);
+-            snprintf(path, SYSFS_PATH_MAX, "%s/%s/%s", SYSFS_CLASS_NET, de->d_name, SYS_MOD_NAME_DIR);
+-            if ((cnt = readlink(path, link, SYSFS_PATH_MAX - 1)) < 0) {
+-                ALOGW("can not find link of %s", path);
+-                continue;
+-            }
+-            link[cnt] = '\0';
+-            if ((pos = strrchr(link, '/'))) {
+-                property_set(DRIVER_NAME_PROP, ++pos);
+-                strncpy(buf, pos, PROPERTY_VALUE_MAX - 1);
+-                buf[PROPERTY_VALUE_MAX - 1] = '\0';
+-                ret = 1;
+-                break;
+-            }
+-        }
+-        closedir(netdir);
+-    }
+-
+-    return ret;
+-}
+ #endif
+ 
+ int is_wifi_driver_loaded() {
++    char driver_status[PROPERTY_VALUE_MAX];
+ #ifdef WIFI_DRIVER_MODULE_PATH
+-    char modname[PROPERTY_VALUE_MAX];
+-    char line[PROPERTY_VALUE_MAX];
+     FILE *proc;
+-    int cnt = property_get(DRIVER_NAME_PROP, modname, NULL);
++    char line[sizeof(DRIVER_MODULE_TAG)+10];
++#endif
+ 
+-    if (!cnt) {
+-        if (get_driver_info(modname))
+-            cnt = strlen(modname);
+-        else if (property_get("wlan.interface", line, NULL))
+-            return 1; // found an interface without modname, assume built-in
+-        else
+-            goto unloaded;
++    if (!property_get(DRIVER_PROP_NAME, driver_status, NULL)
++            || strcmp(driver_status, "ok") != 0) {
++        return 0;  /* driver not loaded */
+     }
+-    modname[cnt++] = ' ';
+-
++#ifdef WIFI_DRIVER_MODULE_PATH
+     /*
+      * If the property says the driver is loaded, check to
+      * make sure that the property setting isn't just left
+@@ -288,18 +266,18 @@
+      */
+     if ((proc = fopen(MODULE_FILE, "r")) == NULL) {
+         ALOGW("Could not open %s: %s", MODULE_FILE, strerror(errno));
+-        goto unloaded;
++        property_set(DRIVER_PROP_NAME, "unloaded");
++        return 0;
+     }
+ 
+     while ((fgets(line, sizeof(line), proc)) != NULL) {
+-        if (strncmp(line, modname, cnt) == 0) {
++        if (strncmp(line, DRIVER_MODULE_TAG, strlen(DRIVER_MODULE_TAG)) == 0) {
+             fclose(proc);
+             return 1;
+         }
+     }
+     fclose(proc);
+ 
+-unloaded:
+     property_set(DRIVER_PROP_NAME, "unloaded");
+     return 0;
+ #else
+@@ -311,24 +289,38 @@
+ {
+ #ifdef WIFI_DRIVER_MODULE_PATH
+     char driver_status[PROPERTY_VALUE_MAX];
++    char p2p_status[PROPERTY_VALUE_MAX];
+     char modname[PROPERTY_VALUE_MAX];
+     char modpath[SYSFS_PATH_MAX];
+     int count = 100; /* wait at most 20 seconds for completion */
++    ALOGE("ATHEROS_DBG wifi_load_driver");
+ 
+     if (is_wifi_driver_loaded()) {
+-        return 0;
++        ALOGE("ATHEROS_DBG wifi_load_driver already loaded, reload driver~");
++	rmmod(WIFI_DRIVER_MODULE3_NAME);
++	rmmod(WIFI_DRIVER_MODULE2_NAME);
++	rmmod(WIFI_DRIVER_MODULE1_NAME);
+     }
+-
++    ALOGE("ATHEROS_DBG wifi_load_driver load");
+     if (!property_get(DRIVER_PATH_PROP, modpath, NULL)) {
+         property_get(DRIVER_NAME_PROP, modname, NULL);
+         strcat(modname, ".ko");
+         if (!get_driver_path(modname, MODULE_DEFAULT_DIR, modpath))
+-            strcpy(modpath, WIFI_DRIVER_MODULE_PATH);
++            strcpy(modpath, WIFI_DRIVER_MODULE3_PATH);
+     }
+ 
+-    ALOGI("got module path %s", modpath);
+-    if (insmod(modpath, DRIVER_MODULE_ARG) < 0)
+-        return -1;
++    if ((insmod(WIFI_DRIVER_MODULE1_PATH, WIFI_DRIVER_MODULE1_ARG) < 0) ||
++    	(insmod(WIFI_DRIVER_MODULE2_PATH, WIFI_DRIVER_MODULE2_ARG) < 0) || 
++    	(insmod(WIFI_DRIVER_MODULE3_PATH, WIFI_DRIVER_MODULE3_ARG) < 0)){
++	    ALOGE("ATHEROS_DBG wifi_load_driver error");
++		
++		rmmod(WIFI_DRIVER_MODULE3_NAME);
++		rmmod(WIFI_DRIVER_MODULE2_NAME);
++		rmmod(WIFI_DRIVER_MODULE1_NAME);
++		
++	    return -1;
++    }
++    ALOGE("ATHEROS_DBG wifi_load_driver done");
+ 
+     if (strcmp(FIRMWARE_LOADER,"") == 0) {
+         /* usleep(WIFI_DRIVER_LOADER_DELAY); */
+@@ -340,10 +332,9 @@
+     sched_yield();
+     while (count-- > 0) {
+         if (property_get(DRIVER_PROP_NAME, driver_status, NULL)) {
+-            if (strcmp(driver_status, "ok") == 0) {
+-                get_driver_info(modname);
++            if (strcmp(driver_status, "ok") == 0)
+                 return 0;
+-            } else if (strcmp(DRIVER_PROP_NAME, "failed") == 0) {
++            else if (strcmp(DRIVER_PROP_NAME, "failed") == 0) {
+                 wifi_unload_driver();
+                 return -1;
+             }
+@@ -364,20 +355,26 @@
+     usleep(200000); /* allow to finish interface down */
+ #ifdef WIFI_DRIVER_MODULE_PATH
+     char modname[PROPERTY_VALUE_MAX];
++    int count = 20; /* wait at most 10 seconds for completion */
+     if (!property_get(DRIVER_NAME_PROP, modname, NULL))
+         return -1;
+ 
+-    if (rmmod(modname) == 0) {
+-        int count = 20; /* wait at most 10 seconds for completion */
+-        while (count-- > 0) {
+-            if (!is_wifi_driver_loaded())
+-                break;
+-            usleep(500000);
+-        }
+-        usleep(500000); /* allow card removal */
++    /* For ath6kl KO */
++	rmmod(WIFI_DRIVER_MODULE3_NAME);
++	rmmod(WIFI_DRIVER_MODULE2_NAME);
++	rmmod(WIFI_DRIVER_MODULE1_NAME);
++
++    if (rmmod(modname) == 0){
++		while (count-- > 0){
++	    	if (!is_wifi_driver_loaded())
++				break;
++    	    usleep(500000);
++		}
++		usleep(500000); /* allow card removal */
+         if (count) {
++            ALOGE ("ATHEROS_DBG: wifi_unload_driver");			
+             return 0;
+-        }
++       }
+     }
+     return -1;
+ #else
+@@ -430,6 +427,84 @@
+     return 0;
+ }
+ 
++int update_ctrl_interface(const char *config_file) {
++
++    int srcfd, destfd;
++    int nread;
++    char ifc[PROPERTY_VALUE_MAX];
++    char *pbuf;
++    char *sptr;
++    struct stat sb;
++    int ret;
++
++    if (stat(config_file, &sb) != 0)
++        return -1;
++
++    pbuf = malloc(sb.st_size + PROPERTY_VALUE_MAX);
++    if (!pbuf)
++        return 0;
++    srcfd = TEMP_FAILURE_RETRY(open(config_file, O_RDONLY));
++    if (srcfd < 0) {
++        ALOGE("Cannot open \"%s\": %s", config_file, strerror(errno));
++        free(pbuf);
++        return 0;
++    }
++    nread = TEMP_FAILURE_RETRY(read(srcfd, pbuf, sb.st_size));
++    close(srcfd);
++    if (nread < 0) {
++        ALOGE("Cannot read \"%s\": %s", config_file, strerror(errno));
++        free(pbuf);
++        return 0;
++    }
++
++    if (!strcmp(config_file, SUPP_CONFIG_FILE)) {
++        property_get("wifi.interface", ifc, WIFI_TEST_INTERFACE);
++    } else {
++        strcpy(ifc, CONTROL_IFACE_PATH);
++    }
++    /* Assume file is invalid to begin with */
++    ret = -1;
++    /*
++     * if there is a "ctrl_interface=<value>" entry, re-write it ONLY if it is
++     * NOT a directory.  The non-directory value option is an Android add-on
++     * that allows the control interface to be exchanged through an environment
++     * variable (initialized by the "init" program when it starts a service
++     * with a "socket" option).
++     *
++     * The <value> is deemed to be a directory if the "DIR=" form is used or
++     * the value begins with "/".
++     */
++    if ((sptr = strstr(pbuf, "ctrl_interface="))) {
++        ret = 0;
++        if ((!strstr(pbuf, "ctrl_interface=DIR=")) &&
++                (!strstr(pbuf, "ctrl_interface=/"))) {
++            char *iptr = sptr + strlen("ctrl_interface=");
++            int ilen = 0;
++            int mlen = strlen(ifc);
++            int nwrite;
++            if (strncmp(ifc, iptr, mlen) != 0) {
++                ALOGE("ctrl_interface != %s", ifc);
++                while (((ilen + (iptr - pbuf)) < nread) && (iptr[ilen] != '\n'))
++                    ilen++;
++                mlen = ((ilen >= mlen) ? ilen : mlen) + 1;
++                memmove(iptr + mlen, iptr + ilen + 1, nread - (iptr + ilen + 1 - pbuf));
++                memset(iptr, '\n', mlen);
++                memcpy(iptr, ifc, strlen(ifc));
++                destfd = TEMP_FAILURE_RETRY(open(config_file, O_RDWR, 0660));
++                if (destfd < 0) {
++                    ALOGE("Cannot update \"%s\": %s", config_file, strerror(errno));
++                    free(pbuf);
++                    return -1;
++                }
++                TEMP_FAILURE_RETRY(write(destfd, pbuf, nread + mlen - ilen -1));
++                close(destfd);
++            }
++        }
++    }
++    free(pbuf);
++    return ret;
++}
++
+ int ensure_config_file_exists(const char *config_file)
+ {
+     char buf[2048];
+@@ -445,7 +520,14 @@
+             ALOGE("Cannot set RW to \"%s\": %s", config_file, strerror(errno));
+             return -1;
+         }
+-        return 0;
++       /* return if we were able to update control interface properly */
++        if (update_ctrl_interface(config_file) >=0) {
++            return 0;
++        } else {
++            /* This handles the scenario where the file had bad data
++             * for some reason. We continue and recreate the file.
++             */
++        }
+     } else if (errno != ENOENT) {
+         ALOGE("Cannot access \"%s\": %s", config_file, strerror(errno));
+         return -1;
+@@ -492,7 +574,7 @@
+         unlink(config_file);
+         return -1;
+     }
+-    return 0;
++    return update_ctrl_interface(config_file);
+ }
+ 
+ int wifi_start_supplicant(int p2p_supported)
+@@ -503,7 +585,7 @@
+     const prop_info *pi;
+     unsigned serial = 0, i;
+ #endif
+-
++    ALOGE("ATHEROS_DBG: wifi_start_supplicant: p2p_supported = %d", p2p_supported);
+     if (p2p_supported) {
+         strcpy(supplicant_name, P2P_SUPPLICANT_NAME);
+         strcpy(supplicant_prop_name, P2P_PROP_NAME);
+@@ -518,9 +600,9 @@
+         strcpy(supplicant_name, SUPPLICANT_NAME);
+         strcpy(supplicant_prop_name, SUPP_PROP_NAME);
+     }
+-
++    ALOGE("ATHEROS_DBG: wifi_start_supplicant: supplicant_name = %s, supplicant_prop_name = %s", supplicant_name, supplicant_prop_name);
+     /* Check whether already running */
+-    if (property_get(supplicant_prop_name, supp_status, NULL)
++    if (property_get(supplicant_name, supp_status, NULL)
+             && strcmp(supp_status, "running") == 0) {
+         return 0;
+     }
+@@ -554,7 +636,7 @@
+         serial = __system_property_serial(pi);
+     }
+ #endif
+-    property_get("wlan.interface", primary_iface, WIFI_TEST_INTERFACE);
++    property_get("wifi.interface", primary_iface, WIFI_TEST_INTERFACE);
+ 
+     property_set("ctl.start", supplicant_name);
+     sched_yield();
+@@ -565,16 +647,12 @@
+             pi = __system_property_find(supplicant_prop_name);
+         }
+         if (pi != NULL) {
+-            /*
+-             * property serial updated means that init process is scheduled
+-             * after we sched_yield, further property status checking is based on this */
+-            if (__system_property_serial(pi) != serial) {
+-                __system_property_read(pi, NULL, supp_status);
+-                if (strcmp(supp_status, "running") == 0) {
+-                    return 0;
+-                } else if (strcmp(supp_status, "stopped") == 0) {
+-                    return -1;
+-                }
++            __system_property_read(pi, NULL, supp_status);
++            if (strcmp(supp_status, "running") == 0) {
++                return 0;
++            } else if (__system_property_serial(pi) != serial &&
++                    strcmp(supp_status, "stopped") == 0) {
++                return -1;
+             }
+         }
+ #else
+@@ -593,6 +671,7 @@
+     char supp_status[PROPERTY_VALUE_MAX] = {'\0'};
+     int count = 50; /* wait at most 5 seconds for completion */
+ 
++    ALOGE("ATHEROS_DBG: wifi_stop_supplicant: p2p_supported = %d", p2p_supported);
+     if (p2p_supported) {
+         strcpy(supplicant_name, P2P_SUPPLICANT_NAME);
+         strcpy(supplicant_prop_name, P2P_PROP_NAME);
+@@ -600,7 +679,7 @@
+         strcpy(supplicant_name, SUPPLICANT_NAME);
+         strcpy(supplicant_prop_name, SUPP_PROP_NAME);
+     }
+-
++    ALOGE("ATHEROS_DBG: wifi_stop_supplicant: supplicant_name = %s, supplicant_prop_name = %s", supplicant_name, supplicant_prop_name);
+     /* Check whether supplicant already stopped */
+     if (property_get(supplicant_prop_name, supp_status, NULL)
+         && strcmp(supp_status, "stopped") == 0) {
+@@ -665,12 +744,15 @@
+ int wifi_connect_to_supplicant()
+ {
+     static char path[PATH_MAX];
+-
++    ALOGE("ATHEROS_DBG: wifi_connect_to_supplicant");
+     if (access(IFACE_DIR, F_OK) == 0) {
+         snprintf(path, sizeof(path), "%s/%s", IFACE_DIR, primary_iface);
++        ALOGE("ATHEROS_DBG: access %s, primary_iface = %s", IFACE_DIR, primary_iface);
+     } else {
+         snprintf(path, sizeof(path), "@android:wpa_%s", primary_iface);
++        ALOGE("ATHEROS_DBG: Can't access %s, primary_iface = %s", IFACE_DIR, primary_iface);
+     }
++    ALOGE("ATHEROS_DBG: path = %s", path);
+     return wifi_connect_on_socket_path(path);
+ }
+ 
+@@ -711,9 +793,14 @@
+ int wifi_ctrl_recv(char *reply, size_t *reply_len)
+ {
+     int res;
+-    int ctrlfd = wpa_ctrl_get_fd(monitor_conn);
++    int ctrlfd;
+     struct pollfd rfds[2];
+ 
++    if (monitor_conn == NULL) {
++        ALOGE("%s: monitor_conn is NULL\n", __func__);
++        return -2;
++    }
++    ctrlfd = wpa_ctrl_get_fd(monitor_conn);
+     memset(rfds, 0, 2 * sizeof(struct pollfd));
+     rfds[0].fd = ctrlfd;
+     rfds[0].events |= POLLIN;

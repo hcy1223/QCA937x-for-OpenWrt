@@ -1,0 +1,90 @@
+diff -Naur android-l-clean/external/bluetooth/bluedroid/conf/bt_stack.conf android-l-uart-ibs/external/bluetooth/bluedroid/conf/bt_stack.conf
+--- android-l-clean/external/bluetooth/bluedroid/conf/bt_stack.conf	2015-05-27 18:54:21.000000000 +0800
++++ android-l-uart-ibs/external/bluetooth/bluedroid/conf/bt_stack.conf	2015-06-23 11:34:57.000000000 +0800
+@@ -1,12 +1,12 @@
+ # Enable BtSnoop logging function
+ # valid value : true, false
+-BtSnoopLogOutput=false
++BtSnoopLogOutput=true
+ 
+ # BtSnoop log output file
+ BtSnoopFileName=/sdcard/btsnoop_hci.log
+ 
+ # Preserve existing BtSnoop log before overwriting
+-BtSnoopSaveLog=false
++BtSnoopSaveLog=true
+ 
+ # Enable trace level reconfiguration function
+ # Must be present before any TRC_ trace level settings
+@@ -20,19 +20,19 @@
+ #   BT_TRACE_LEVEL_EVENT   4    ( Debug messages for events )
+ #   BT_TRACE_LEVEL_DEBUG   5    ( Full debug messages )
+ #   BT_TRACE_LEVEL_VERBOSE 6    ( Verbose messages ) - Currently supported for TRC_BTAPP only.
+-TRC_BTM=2
+-TRC_HCI=2
+-TRC_L2CAP=2
+-TRC_RFCOMM=2
+-TRC_OBEX=2
+-TRC_AVCT=2
+-TRC_AVDT=2
+-TRC_AVRC=2
+-TRC_AVDT_SCB=2
+-TRC_AVDT_CCB=2
+-TRC_A2D=2
+-TRC_SDP=2
+-TRC_GATT=2
+-TRC_SMP=2
+-TRC_BTAPP=2
+-TRC_BTIF=2
++TRC_BTM=5
++TRC_HCI=5
++TRC_L2CAP=5
++TRC_RFCOMM=5
++TRC_OBEX=5
++TRC_AVCT=5
++TRC_AVDT=5
++TRC_AVRC=5
++TRC_AVDT_SCB=5
++TRC_AVDT_CCB=5
++TRC_A2D=5
++TRC_SDP=5
++TRC_GATT=5
++TRC_SMP=5
++TRC_BTAPP=6
++TRC_BTIF=5
+diff -Naur android-l-clean/external/bluetooth/bluedroid/hci/Android.mk android-l-uart-ibs/external/bluetooth/bluedroid/hci/Android.mk
+--- android-l-clean/external/bluetooth/bluedroid/hci/Android.mk	2015-05-27 18:54:21.000000000 +0800
++++ android-l-uart-ibs/external/bluetooth/bluedroid/hci/Android.mk	2015-06-23 11:34:57.000000000 +0800
+@@ -14,19 +14,9 @@
+ 
+ LOCAL_CFLAGS := -Wno-unused-parameter
+ 
+-ifeq ($(BLUETOOTH_HCI_USE_MCT),true)
+-
+-LOCAL_CFLAGS += -DHCI_USE_MCT
+-
+-LOCAL_SRC_FILES += \
+-	src/hci_mct.c \
+-	src/userial_mct.c
+-
+-else
+ LOCAL_SRC_FILES += \
+ 	src/hci_h4.c \
+ 	src/userial.c
+-endif
+ 
+ LOCAL_CFLAGS += -std=c99
+ 
+diff -Naur android-l-clean/external/bluetooth/bluedroid/hci/include/bt_vendor_lib.h android-l-uart-ibs/external/bluetooth/bluedroid/hci/include/bt_vendor_lib.h
+--- android-l-clean/external/bluetooth/bluedroid/hci/include/bt_vendor_lib.h	2015-05-27 18:54:21.000000000 +0800
++++ android-l-uart-ibs/external/bluetooth/bluedroid/hci/include/bt_vendor_lib.h	2015-06-23 11:34:57.000000000 +0800
+@@ -167,6 +167,9 @@
+  *      specific epilog process once it has been done.
+  */
+     BT_VND_OP_EPILOG,
++    BT_VND_OP_ANT_USERIAL_OPEN,
++    BT_VND_OP_ANT_USERIAL_CLOSE,
++    BT_VND_OP_GET_LINESPEED,
+ } bt_vendor_opcode_t;
+ 
+ /** Power on/off control states */

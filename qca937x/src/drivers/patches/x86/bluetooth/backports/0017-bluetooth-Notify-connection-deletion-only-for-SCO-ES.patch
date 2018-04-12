@@ -1,0 +1,55 @@
+From 77134940c7b0b3e38f54db9aa64299eaaddc6436 Mon Sep 17 00:00:00 2001
+From: Kamal Negi <kamaln@codeaurora.org>
+Date: Wed, 3 Dec 2014 18:39:56 +0530
+Subject: [PATCH 17/25] bluetooth: Notify connection deletion only for
+ SCO/ESCO links.
+
+When SCO is active , if we create a connection to another remote
+device and delete it, then the alternate setting for the ISOC
+channel is getting disabled.
+
+THis is a bug in the BTUSB driver which listens for connection
+deletion notification for both ACL and SCO.
+
+Hence, even if ACL disconnection happens with a different remote
+device, we set the alternate setting of the currently active
+ISOC endpoint to '0' which disables the ISOC endpoint.
+
+As a result there are no further SCO data being sent to the
+BT controller.
+
+Change-Id: Ie33752794ee494ffbf29941278a643d8bd103077
+CRs-Fixed: 764018
+Signed-off-by: Kamal Negi <kamaln@codeaurora.org>
+---
+ net/bluetooth/hci_conn.c |    8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/net/bluetooth/hci_conn.c b/net/bluetooth/hci_conn.c
+index 64713af..aac45f0 100644
+--- a/net/bluetooth/hci_conn.c
++++ b/net/bluetooth/hci_conn.c
+@@ -1,6 +1,7 @@
+ /*
+    BlueZ - Bluetooth protocol stack for Linux
+-   Copyright (c) 2000-2001, 2010, Code Aurora Forum. All rights reserved.
++   Copyright (c) 2000-2001, 2010, 2014, Code Aurora Forum. All rights
++   reserved.
+ 
+    Written 2000,2001 by Maxim Krasnyansky <maxk@qualcomm.com>
+ 
+@@ -455,8 +456,9 @@ int hci_conn_del(struct hci_conn *conn)
+ 		amp_mgr_put(conn->amp_mgr);
+ 
+ 	hci_conn_hash_del(hdev, conn);
+-	if (hdev->notify)
+-		hdev->notify(hdev, HCI_NOTIFY_CONN_DEL);
++	if (hdev->notify &&
++		(conn->type == SCO_LINK || conn->type == ESCO_LINK))
++			hdev->notify(hdev, HCI_NOTIFY_CONN_DEL);
+ 
+ 	skb_queue_purge(&conn->data_q);
+ 
+-- 
+1.7.9.5
+

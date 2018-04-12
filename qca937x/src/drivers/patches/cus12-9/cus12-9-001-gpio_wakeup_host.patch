@@ -1,0 +1,34 @@
+diff --git qcacld-new.old/CORE/SERVICES/BMI/ol_fw.c qcacld-new/CORE/SERVICES/BMI/ol_fw.c
+index 85a42a9..fec1f9e 100644
+--- qcacld-new.old/CORE/SERVICES/BMI/ol_fw.c
++++ qcacld-new/CORE/SERVICES/BMI/ol_fw.c
+@@ -1301,6 +1301,29 @@ ol_configure_target(struct ol_softc *scn)
+ 	}
+ #endif
+ 
++#if defined(HIF_SDIO)
++    /* set GPIO wakeup */
++    if (BMIReadMemory(scn->hif_hdl,
++			    host_interest_item_address(scn->target_type, offsetof(struct host_interest_s, hi_option_flag2)),
++			    (A_UCHAR *)&param,
++			    4, scn)!= A_OK)
++    {
++	    printk("BMIReadMemory for setting GPIO wakeup failed \n");
++	    return A_ERROR;
++    }
++
++    param |= HT_OPTION_GPIO_WAKEUP_SUPPORT;
++    if (BMIWriteMemory(scn->hif_hdl,
++		       host_interest_item_address(scn->target_type, offsetof(struct host_interest_s, hi_option_flag2)),
++			   (A_UCHAR *)&param,
++			    4, scn) != A_OK)
++    {
++	    printk("BMIWriteMemory for GPIO wakeup failed \n");
++	    return A_ERROR;
++    }
++
++#endif
++
+ 	/* If host is running on a BE CPU, set the host interest area */
+ 	{
+ #ifdef BIG_ENDIAN_HOST

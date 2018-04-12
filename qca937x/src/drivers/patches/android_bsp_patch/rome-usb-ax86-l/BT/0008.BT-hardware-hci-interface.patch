@@ -1,0 +1,30 @@
+diff -uNr hardware_ori/libhardware/include/hardware/bluetooth.h hardware/libhardware/include/hardware/bluetooth.h
+--- hardware_ori/libhardware/include/hardware/bluetooth.h	2015-10-09 09:02:59.385341881 +0800
++++ hardware/libhardware/include/hardware/bluetooth.h	2015-09-22 12:29:59.337824742 +0800
+@@ -357,6 +357,8 @@
+ * The num_packets is valid only for le_test_end command */
+ typedef void (*le_test_mode_callback)(bt_status_t status, uint16_t num_packets);
+ 
++/*Receive HCI event from controller.*/
++typedef void (*hci_event_recv_callback)(uint8_t event_code, uint8_t *buf, uint8_t len);
+ /** Callback invoked when energy details are obtained */
+ /* Ctrl_state-Current controller state-Active-1,scan-2,or idle-3 state as defined by HCI spec.
+  * If the ctrl_state value is 0, it means the API call failed
+@@ -384,6 +386,7 @@
+     callback_thread_event thread_evt_cb;
+     dut_mode_recv_callback dut_mode_recv_cb;
+     le_test_mode_callback le_test_mode_cb;
++    hci_event_recv_callback hci_event_recv_cb;
+     energy_info_callback energy_info_cb;
+ } bt_callbacks_t;
+ 
+@@ -521,6 +524,9 @@
+     /* opcode MUST be one of: LE_Receiver_Test, LE_Transmitter_Test, LE_Test_End */
+     int (*le_test_mode)(uint16_t opcode, uint8_t *buf, uint8_t len);
+ 
++    /*send HCI command to controller*/
++    int (*hci_cmd_send)(uint16_t opcode,uint8_t *buf,uint8_t len);
++
+     /* enable or disable bluetooth HCI snoop log */
+     int (*config_hci_snoop_log)(uint8_t enable);
+ 

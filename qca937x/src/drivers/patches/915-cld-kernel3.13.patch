@@ -1,0 +1,702 @@
+/*
+* Copyright (c) 2014 Linux Foundation
+* All Rights Reserved.
+*
+* Permission to use, copy, modify, and/or distribute this software for any purpose with or without fee is hereby granted, provided that the above copyright notice and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+*/
+
+diff -Naur qcacld-new.old/CORE/HDD/src/wlan_hdd_assoc.c qcacld-new/CORE/HDD/src/wlan_hdd_assoc.c
+--- qcacld-new.old/CORE/HDD/src/wlan_hdd_assoc.c	2014-10-22 10:16:48.083338189 +0800
++++ qcacld-new/CORE/HDD/src/wlan_hdd_assoc.c	2014-10-22 10:47:59.271380884 +0800
+@@ -63,7 +63,7 @@
+ #include "wlan_hdd_tdls.h"
+ #endif
+ #include "sme_Api.h"
+-
++#include "vos_utils.h"
+ #ifdef IPA_OFFLOAD
+ #include <wlan_hdd_ipa.h>
+ #endif
+@@ -908,7 +908,7 @@
+ 
+     if(pHddStaCtx->conn_info.connState != eConnectionState_Disconnecting)
+     {
+-        INIT_COMPLETION(pAdapter->disconnect_comp_var);
++	reinit_completion(&pAdapter->disconnect_comp_var);
+         VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
+                    "%s: Set HDD connState to eConnectionState_Disconnecting",
+                    __func__);
+@@ -1397,8 +1397,7 @@
+         hdd_SendAssociationEvent(dev,pRoamInfo);
+ 
+         // Initialize the Linkup event completion variable
+-        INIT_COMPLETION(pAdapter->linkup_event_var);
+-
++	reinit_completion(&pAdapter->linkup_event_var);
+         /*
+            Sometimes Switching ON the Carrier is taking time to activate the device properly. Before allowing any
+            packet to go up to the application, device activation has to be ensured for proper queue mapping by the
+@@ -3838,7 +3837,7 @@
+         {
+             VOS_STATUS vosStatus;
+             // need to issue a disconnect to CSR.
+-            INIT_COMPLETION(pAdapter->disconnect_comp_var);
++	    reinit_completion(&pAdapter->disconnect_comp_var);
+             vosStatus = sme_RoamDisconnect( hHal, pAdapter->sessionId, eCSR_DISCONNECT_REASON_UNSPECIFIED );
+ 
+             if(VOS_STATUS_SUCCESS == vosStatus)
+diff -Naur qcacld-new.old/CORE/HDD/src/wlan_hdd_cfg80211.c qcacld-new/CORE/HDD/src/wlan_hdd_cfg80211.c
+--- qcacld-new.old/CORE/HDD/src/wlan_hdd_cfg80211.c	2014-10-22 10:16:48.079338189 +0800
++++ qcacld-new/CORE/HDD/src/wlan_hdd_cfg80211.c	2014-10-22 10:47:59.271380884 +0800
+@@ -107,6 +107,7 @@
+ #include "nan_Api.h"
+ #include "wlan_hdd_nan.h"
+ #endif
++#include "vos_utils.h"
+ 
+ #define g_mode_rates_size (12)
+ #define a_mode_rates_size (8)
+@@ -5629,7 +5630,7 @@
+     if ((pScanInfo != NULL) && pScanInfo->mScanPending && staAdapter) {
+         long ret;
+ 
+-        INIT_COMPLETION(pScanInfo->abortscan_event_var);
++        reinit_completion(&pScanInfo->abortscan_event_var);
+         hdd_abort_mac_scan(staAdapter->pHddCtx, pAdapter->sessionId,
+                            eCSR_SCAN_ABORT_DEFAULT);
+         ret = wait_for_completion_interruptible_timeout(
+@@ -6378,7 +6379,7 @@
+                 ( eCSR_BSS_TYPE_START_IBSS == LastBSSType ) )
+             {
+                 /*need to issue a disconnect to CSR.*/
+-                INIT_COMPLETION(pAdapter->disconnect_comp_var);
++                reinit_completion(&pAdapter->disconnect_comp_var);
+                 if( eHAL_STATUS_SUCCESS ==
+                         sme_RoamDisconnect( WLAN_HDD_GET_HAL_CTX(pAdapter),
+                                 pAdapter->sessionId,
+@@ -6601,7 +6602,7 @@
+         return -EPERM;
+     }
+ 
+-    INIT_COMPLETION(pAdapter->tdls_add_station_comp);
++    reinit_completion(&pAdapter->tdls_add_station_comp);
+ 
+     if (!update)
+     {
+@@ -8703,7 +8704,7 @@
+        }
+     }
+ 
+-    INIT_COMPLETION(pScanInfo->scan_req_completion_event);
++    reinit_completion(&pScanInfo->scan_req_completion_event);
+ 
+     /* acquire the wakelock to avoid the apps suspend during the scan. To
+      * address the following issues.
+@@ -9686,7 +9687,7 @@
+       (eConnectionState_IbssConnected == pHddStaCtx->conn_info.connState))
+     {
+         /* Issue disconnect to CSR */
+-        INIT_COMPLETION(pAdapter->disconnect_comp_var);
++        reinit_completion(&pAdapter->disconnect_comp_var);
+         if( eHAL_STATUS_SUCCESS ==
+               sme_RoamDisconnect( WLAN_HDD_GET_HAL_CTX(pAdapter),
+                         pAdapter->sessionId,
+@@ -9918,7 +9919,7 @@
+                    "%s: Set HDD connState to eConnectionState_Disconnecting",
+                    __func__);
+     pHddStaCtx->conn_info.connState = eConnectionState_Disconnecting;
+-    INIT_COMPLETION(pAdapter->disconnect_comp_var);
++    reinit_completion(&pAdapter->disconnect_comp_var);
+ 
+     /*issue disconnect*/
+ 
+@@ -10410,7 +10411,7 @@
+     }
+ 
+     /* Issue Disconnect request */
+-    INIT_COMPLETION(pAdapter->disconnect_comp_var);
++    reinit_completion(&pAdapter->disconnect_comp_var);
+     hal_status = sme_RoamDisconnect(WLAN_HDD_GET_HAL_CTX(pAdapter),
+                                     pAdapter->sessionId,
+                                     eCSR_DISCONNECT_REASON_IBSS_LEAVE);
+@@ -11900,7 +11901,7 @@
+ 
+     if (pScanInfo->mScanPending && pAdapter->request)
+     {
+-        INIT_COMPLETION(pScanInfo->abortscan_event_var);
++        reinit_completion(&pScanInfo->abortscan_event_var);
+         hdd_abort_mac_scan(pHddCtx, pAdapter->sessionId,
+                            eCSR_SCAN_ABORT_DEFAULT);
+ 
+@@ -12554,7 +12555,7 @@
+     }
+ 
+     pAdapter->mgmtTxCompletionStatus = TDLS_CTX_MAGIC;
+-    INIT_COMPLETION(pAdapter->tdls_mgmt_comp);
++    reinit_completion(&pAdapter->tdls_mgmt_comp);
+ 
+     status = sme_SendTdlsMgmtFrame(WLAN_HDD_GET_HAL_CTX(pAdapter),
+                                    pAdapter->sessionId, peerMac, action_code,
+@@ -12706,7 +12707,7 @@
+                                    pAdapter, peer,&tdlsLinkEstablishParams)) {
+                             return -EINVAL;
+                         }
+-                        INIT_COMPLETION(pAdapter->tdls_link_establish_req_comp);
++                        reinit_completion(&pAdapter->tdls_link_establish_req_comp);
+ 
+                         sme_SendTdlsLinkEstablishParams(WLAN_HDD_GET_HAL_CTX(pAdapter),
+                             pAdapter->sessionId, peer, &tdlsLinkEstablishParams);
+@@ -12874,7 +12875,7 @@
+                 {
+                     long status;
+ 
+-                    INIT_COMPLETION(pAdapter->tdls_del_station_comp);
++                    reinit_completion(&pAdapter->tdls_del_station_comp);
+ 
+                     sme_DeleteTdlsPeerSta( WLAN_HDD_GET_HAL_CTX(pAdapter),
+                             pAdapter->sessionId, peer );
+@@ -13841,7 +13842,7 @@
+ 
+         if (pScanInfo->mScanPending && pAdapter->request)
+         {
+-           INIT_COMPLETION(pScanInfo->abortscan_event_var);
++           reinit_completion(&pScanInfo->abortscan_event_var);
+            hdd_abort_mac_scan(pHddCtx, pAdapter->sessionId,
+                               eCSR_SCAN_ABORT_DEFAULT);
+ 
+@@ -13861,7 +13862,7 @@
+     }
+ 
+     /* Wait for the target to be ready for suspend */
+-    INIT_COMPLETION(pHddCtx->ready_to_suspend);
++    reinit_completion(&pHddCtx->ready_to_suspend);
+ 
+     hdd_suspend_wlan(&wlan_hdd_cfg80211_ready_to_suspend, pHddCtx);
+ 
+diff -Naur qcacld-new.old/CORE/HDD/src/wlan_hdd_dev_pwr.c qcacld-new/CORE/HDD/src/wlan_hdd_dev_pwr.c
+--- qcacld-new.old/CORE/HDD/src/wlan_hdd_dev_pwr.c	2014-10-22 10:16:48.079338189 +0800
++++ qcacld-new/CORE/HDD/src/wlan_hdd_dev_pwr.c	2014-10-22 10:47:59.271380884 +0800
+@@ -48,6 +48,8 @@
+  * -------------------------------------------------------------------------*/
+ #include <wlan_hdd_dev_pwr.h>
+ #include <wcnss_api.h>
++#include "vos_utils.h"
++
+ 
+ /*----------------------------------------------------------------------------
+  * Preprocessor Definitions and Constants
+@@ -125,7 +127,7 @@
+    */
+    VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO, "%s: Suspending Mc, Rx and Tx Threads",__func__);
+ 
+-   INIT_COMPLETION(pHddCtx->tx_sus_event_var);
++   reinit_completion(&pHddCtx->tx_sus_event_var);
+ 
+    /* Indicate Tx Thread to Suspend */
+    set_bit(TX_SUSPEND_EVENT_MASK, &vosSchedContext->txEventFlag);
+@@ -147,7 +149,7 @@
+    /* Set the Tx Thread as Suspended */
+    pHddCtx->isTxThreadSuspended = TRUE;
+ 
+-   INIT_COMPLETION(pHddCtx->rx_sus_event_var);
++   reinit_completion(&pHddCtx->rx_sus_event_var);
+ 
+    /* Indicate Rx Thread to Suspend */
+    set_bit(RX_SUSPEND_EVENT_MASK, &vosSchedContext->rxEventFlag);
+@@ -176,7 +178,7 @@
+    /* Set the Rx Thread as Suspended */
+    pHddCtx->isRxThreadSuspended = TRUE;
+ 
+-   INIT_COMPLETION(pHddCtx->mc_sus_event_var);
++   reinit_completion(&pHddCtx->mc_sus_event_var);
+ 
+    /* Indicate MC Thread to Suspend */
+    set_bit(MC_SUSPEND_EVENT_MASK, &vosSchedContext->mcEventFlag);
+diff -Naur qcacld-new.old/CORE/HDD/src/wlan_hdd_early_suspend.c qcacld-new/CORE/HDD/src/wlan_hdd_early_suspend.c
+--- qcacld-new.old/CORE/HDD/src/wlan_hdd_early_suspend.c	2014-10-22 10:16:48.075338188 +0800
++++ qcacld-new/CORE/HDD/src/wlan_hdd_early_suspend.c	2014-10-22 10:47:59.267380884 +0800
+@@ -103,6 +103,7 @@
+ #include "if_ath_sdio.h"
+ #endif
+ #endif
++#include "vos_utils.h"
+ #define HDD_SSR_BRING_UP_TIME 10000
+ 
+ static eHalStatus g_full_pwr_status;
+@@ -161,7 +162,7 @@
+     long ret;
+ 
+     hddLog(VOS_TRACE_LEVEL_INFO, "%s: WLAN being resumed from standby",__func__);
+-    INIT_COMPLETION(pHddCtx->full_pwr_comp_var);
++    reinit_completion(&pHddCtx->full_pwr_comp_var);
+ 
+    g_full_pwr_status = eHAL_STATUS_FAILURE;
+     status = sme_RequestFullPower(pHddCtx->hHal, hdd_suspend_full_pwr_callback, pHddCtx,
+@@ -223,7 +224,7 @@
+    //here especially in scenarios where PMC is already in IMPS or REQUEST_IMPS.
+    //Core s/w needs to be optimized to handle this. Until then we request full
+    //power before issuing request for standby.
+-   INIT_COMPLETION(pHddCtx->full_pwr_comp_var);
++   reinit_completion(&pHddCtx->full_pwr_comp_var);
+    g_full_pwr_status = eHAL_STATUS_FAILURE;
+    halStatus = sme_RequestFullPower(pHddCtx->hHal, hdd_suspend_full_pwr_callback,
+        pHddCtx, eSME_FULL_PWR_NEEDED_BY_HDD);
+@@ -267,7 +268,7 @@
+    //queues here. Also do not assert if the failure code is eHAL_STATUS_PMC_NOT_NOW as PMC
+    //will send this failure code in case of concurrent sessions. Power Save cannot be supported
+    //when there are concurrent sessions.
+-   INIT_COMPLETION(pHddCtx->standby_comp_var);
++   reinit_completion(&pHddCtx->standby_comp_var);
+    g_standby_status = eHAL_STATUS_FAILURE;
+    halStatus = sme_RequestStandby(pHddCtx->hHal, hdd_suspend_standby_cbk, pHddCtx);
+ 
+@@ -330,7 +331,7 @@
+    sme_DisablePowerSave(pHddCtx->hHal, ePMC_BEACON_MODE_POWER_SAVE);
+ 
+    //Ensure that device is in full power as we will touch H/W during vos_Stop
+-   INIT_COMPLETION(pHddCtx->full_pwr_comp_var);
++   reinit_completion(&pHddCtx->full_pwr_comp_var);
+    g_full_pwr_status = eHAL_STATUS_FAILURE;
+    halStatus = sme_RequestFullPower(pHddCtx->hHal, hdd_suspend_full_pwr_callback,
+        pHddCtx, eSME_FULL_PWR_NEEDED_BY_HDD);
+@@ -360,7 +361,7 @@
+ 
+    //Issue a disconnect. This is required to inform the supplicant that
+    //STA is getting disassociated and for GUI to be updated properly
+-   INIT_COMPLETION(pAdapter->disconnect_comp_var);
++   reinit_completion(&pAdapter->disconnect_comp_var);
+    halStatus = sme_RoamDisconnect(pHddCtx->hHal, pAdapter->sessionId, eCSR_DISCONNECT_REASON_UNSPECIFIED);
+ 
+    //Success implies disconnect command got queued up successfully
+diff -Naur qcacld-new.old/CORE/HDD/src/wlan_hdd_main.c qcacld-new/CORE/HDD/src/wlan_hdd_main.c
+--- qcacld-new.old/CORE/HDD/src/wlan_hdd_main.c	2014-10-22 10:16:48.075338188 +0800
++++ qcacld-new/CORE/HDD/src/wlan_hdd_main.c	2014-10-22 10:47:59.267380884 +0800
+@@ -146,6 +146,7 @@
+ #endif
+ #include "wma.h"
+ #endif
++#include "vos_utils.h"
+ 
+ #if defined(LINUX_QCMBR)
+ #define SIOCIOCTLTX99 (SIOCDEVPRIVATE+13)
+@@ -701,7 +702,7 @@
+         if( pAdapter->scan_info.mScanPending != FALSE )
+         {
+            long result;
+-           INIT_COMPLETION(pAdapter->scan_info.abortscan_event_var);
++           reinit_completion(&pAdapter->scan_info.abortscan_event_var);
+            hdd_abort_mac_scan(pAdapter->pHddCtx, pAdapter->sessionId,
+                               eCSR_SCAN_ABORT_DEFAULT);
+            result = wait_for_completion_interruptible_timeout(
+@@ -951,7 +952,7 @@
+        VOS_STATUS vosStatus;
+ 
+        // need to issue a disconnect to CSR.
+-       INIT_COMPLETION(pAdapter->disconnect_comp_var);
++       reinit_completion(&pAdapter->disconnect_comp_var);
+        vosStatus = sme_RoamDisconnect(WLAN_HDD_GET_HAL_CTX(pAdapter),
+                           pAdapter->sessionId,
+                           eCSR_DISCONNECT_REASON_UNSPECIFIED );
+@@ -1021,7 +1022,7 @@
+         VOS_STATUS vosStatus;
+ 
+         // need to issue a disconnect to CSR.
+-        INIT_COMPLETION(pAdapter->disconnect_comp_var);
++        reinit_completion(&pAdapter->disconnect_comp_var);
+         vosStatus = sme_RoamDisconnect(WLAN_HDD_GET_HAL_CTX(pAdapter),
+                            pAdapter->sessionId,
+                            eCSR_DISCONNECT_REASON_UNSPECIFIED );
+@@ -2087,7 +2088,7 @@
+         {
+             if (TRUE == pAdapter->hdd_wait_for_get_batch_scan_rsp)
+             {
+-                INIT_COMPLETION(pAdapter->hdd_get_batch_scan_req_var);
++                reinit_completion(&pAdapter->hdd_get_batch_scan_req_var);
+                 rc = wait_for_completion_timeout(
+                      &pAdapter->hdd_get_batch_scan_req_var,
+                      msecs_to_jiffies(HDD_GET_BATCH_SCAN_RSP_TIME_OUT));
+@@ -2279,7 +2280,7 @@
+                 halStatus);
+              if (TRUE == pAdapter->hdd_wait_for_set_batch_scan_rsp)
+              {
+-                 INIT_COMPLETION(pAdapter->hdd_set_batch_scan_req_var);
++                 reinit_completion(&pAdapter->hdd_set_batch_scan_req_var);
+                  rc = wait_for_completion_timeout(
+                       &pAdapter->hdd_set_batch_scan_req_var,
+                       msecs_to_jiffies(HDD_SET_BATCH_SCAN_REQ_TIME_OUT));
+@@ -3617,7 +3618,7 @@
+ 
+            country_code = command + 8;
+ 
+-           INIT_COMPLETION(pAdapter->change_country_code);
++           reinit_completion(&pAdapter->change_country_code);
+            hdd_checkandupdate_dfssetting(pAdapter, country_code);
+ #ifndef CONFIG_ENABLE_LINUX_REG
+            hdd_checkandupdate_phymode(pAdapter, country_code);
+@@ -7898,7 +7899,7 @@
+    long rc = 0;
+    int ret_val;
+ 
+-   INIT_COMPLETION(pAdapter->session_open_comp_var);
++   reinit_completion(&pAdapter->session_open_comp_var);
+    sme_SetCurrDeviceMode(pHddCtx->hHal, pAdapter->device_mode);
+    status = vos_get_vdev_types(pAdapter->device_mode, &type, &subType);
+    if (VOS_STATUS_SUCCESS != status)
+@@ -8010,7 +8011,7 @@
+ error_register_wext:
+    if (test_bit(SME_SESSION_OPENED, &pAdapter->event_flags))
+    {
+-      INIT_COMPLETION(pAdapter->session_close_comp_var);
++      reinit_completion(&pAdapter->session_close_comp_var);
+       if (eHAL_STATUS_SUCCESS == sme_CloseSession(pHddCtx->hHal,
+                                     pAdapter->sessionId,
+                                     hdd_smeCloseSessionCallback, pAdapter))
+@@ -8040,7 +8041,7 @@
+    if( NULL != cfgState->buf )
+    {
+       long rc;
+-      INIT_COMPLETION(pAdapter->tx_action_cnf_event);
++      reinit_completion(&pAdapter->tx_action_cnf_event);
+       rc = wait_for_completion_interruptible_timeout(
+                      &pAdapter->tx_action_cnf_event,
+                      msecs_to_jiffies(ACTION_FRAME_TX_TIMEOUT));
+@@ -8373,7 +8374,7 @@
+               (TRUE == disableImps))
+           {
+               /* Now, get the chip into Full Power now */
+-              INIT_COMPLETION(pHddCtx->full_pwr_comp_var);
++              reinit_completion(&pHddCtx->full_pwr_comp_var);
+               halStatus = sme_RequestFullPower(pHddCtx->hHal, hdd_full_pwr_cbk,
+                                    pHddCtx, eSME_FULL_PWR_NEEDED_BY_HDD);
+ 
+@@ -9073,7 +9074,7 @@
+          if (VOS_TRUE == bCloseSession &&
+              test_bit(SME_SESSION_OPENED, &pAdapter->event_flags))
+          {
+-            INIT_COMPLETION(pAdapter->session_close_comp_var);
++            reinit_completion(&pAdapter->session_close_comp_var);
+             if (eHAL_STATUS_SUCCESS ==
+                   sme_CloseSession(pHddCtx->hHal, pAdapter->sessionId,
+                      hdd_smeCloseSessionCallback, pAdapter))
+@@ -11849,7 +11850,7 @@
+    {
+       eHalStatus ret;
+ 
+-      INIT_COMPLETION(pAdapter->change_country_code);
++      reinit_completion(&pAdapter->change_country_code);
+       hdd_checkandupdate_dfssetting(pAdapter, country_code);
+ #ifndef CONFIG_ENABLE_LINUX_REG
+       hdd_checkandupdate_phymode(pAdapter, country_code);
+diff -Naur qcacld-new.old/CORE/HDD/src/wlan_hdd_p2p.c qcacld-new/CORE/HDD/src/wlan_hdd_p2p.c
+--- qcacld-new.old/CORE/HDD/src/wlan_hdd_p2p.c	2014-10-22 10:16:48.079338189 +0800
++++ qcacld-new/CORE/HDD/src/wlan_hdd_p2p.c	2014-10-22 10:47:59.271380884 +0800
+@@ -53,6 +53,7 @@
+ #include "vos_types.h"
+ #include "vos_trace.h"
+ #include "vos_sched.h"
++#include "vos_utils.h"
+ 
+ //Ms to Micro Sec
+ #define MS_TO_MUS(x)   ((x)*1000);
+@@ -315,7 +316,7 @@
+                     __func__, status);
+         }
+ 
+-        INIT_COMPLETION(pAdapter->cancel_rem_on_chan_var);
++        reinit_completion(&pAdapter->cancel_rem_on_chan_var);
+ 
+         /* Issue abort remain on chan request to sme.
+          * The remain on channel callback will make sure the remain_on_chan
+@@ -620,7 +621,7 @@
+ 
+ 
+     hdd_prevent_suspend();
+-    INIT_COMPLETION(pAdapter->rem_on_chan_ready_event);
++    reinit_completion(&pAdapter->rem_on_chan_ready_event);
+ 
+     //call sme API to start remain on channel.
+     if ( ( WLAN_HDD_INFRA_STATION == pAdapter->device_mode ) ||
+@@ -942,7 +943,7 @@
+             return -EAGAIN;
+         }
+     }
+-    INIT_COMPLETION(pAdapter->cancel_rem_on_chan_var);
++    reinit_completion(&pAdapter->cancel_rem_on_chan_var);
+     /* Issue abort remain on chan request to sme.
+      * The remain on channel callback will make sure the remain_on_chan
+      * expired event is sent.
+@@ -1240,7 +1241,7 @@
+             goto send_frame;
+         }
+ 
+-        INIT_COMPLETION(pAdapter->offchannel_tx_event);
++        reinit_completion(&pAdapter->offchannel_tx_event);
+ 
+         status = wlan_hdd_request_remain_on_channel(wiphy, dev,
+                                         chan,
+diff -Naur qcacld-new.old/CORE/HDD/src/wlan_hdd_wext.c qcacld-new/CORE/HDD/src/wlan_hdd_wext.c
+--- qcacld-new.old/CORE/HDD/src/wlan_hdd_wext.c	2014-10-22 10:16:48.079338189 +0800
++++ qcacld-new/CORE/HDD/src/wlan_hdd_wext.c	2014-10-22 10:47:59.271380884 +0800
+@@ -114,6 +114,7 @@
+ #ifdef CONFIG_HAS_EARLYSUSPEND
+ #include "wlan_hdd_cfg80211.h"
+ #endif
++#include "vos_utils.h"
+ 
+ #ifdef FEATURE_OEM_DATA_SUPPORT
+ #define MAX_OEM_DATA_RSP_LEN            2047
+@@ -1390,7 +1391,7 @@
+       hdd_reconnect_all_adapters( pHddCtx );
+ #if 0
+       pAdapter->conn_info.connState = eConnectionState_NotConnected;
+-      INIT_COMPLETION(pAdapter->disconnect_comp_var);
++      reinit_completion(&pAdapter->disconnect_comp_var);
+       vosStatus = sme_RoamDisconnect(halHandle, pAdapter->sessionId, eCSR_DISCONNECT_REASON_UNSPECIFIED);
+ 
+       if(VOS_STATUS_SUCCESS == vosStatus)
+@@ -1488,7 +1489,7 @@
+ 
+     if (VOS_FALSE == pHddStaCtx->conn_info.uIsAuthenticated)
+     {
+-        INIT_COMPLETION(pAdapter->ula_complete);
++        reinit_completion(&pAdapter->ula_complete);
+ 
+         /*To avoid race condition between the set key and the last EAPOL
+           packet, notify TL to finish upper layer authentication incase if the
+@@ -1639,7 +1640,7 @@
+         {
+             VOS_STATUS vosStatus;
+             // need to issue a disconnect to CSR.
+-            INIT_COMPLETION(pAdapter->disconnect_comp_var);
++            reinit_completion(&pAdapter->disconnect_comp_var);
+             vosStatus = sme_RoamDisconnect( WLAN_HDD_GET_HAL_CTX(pAdapter),
+                                           pAdapter->sessionId,
+                                           eCSR_DISCONNECT_REASON_IBSS_LEAVE );
+@@ -3787,7 +3788,7 @@
+ 
+        if(eConnectionState_Associated == pHddStaCtx->conn_info.connState)
+        {
+-           INIT_COMPLETION(pAdapter->disconnect_comp_var);
++           reinit_completion(&pAdapter->disconnect_comp_var);
+            status = sme_RoamDisconnect( WLAN_HDD_GET_HAL_CTX(pAdapter), pAdapter->sessionId, eCSR_DISCONNECT_REASON_UNSPECIFIED );
+            if(eHAL_STATUS_SUCCESS == status)
+            {
+@@ -4306,7 +4307,7 @@
+                 if( mlme->reason_code == HDD_REASON_MICHAEL_MIC_FAILURE )
+                     reason = eCSR_DISCONNECT_REASON_MIC_ERROR;
+ 
+-                INIT_COMPLETION(pAdapter->disconnect_comp_var);
++                reinit_completion(&pAdapter->disconnect_comp_var);
+                 status = sme_RoamDisconnect( WLAN_HDD_GET_HAL_CTX(pAdapter), pAdapter->sessionId,reason);
+ 
+                 if(eHAL_STATUS_SUCCESS == status)
+@@ -4587,7 +4588,7 @@
+ #ifdef CONFIG_HAS_EARLYSUSPEND
+     v_U8_t nEnableSuspendOld;
+ #endif
+-    INIT_COMPLETION(pWextState->completion_var);
++    reinit_completion(&pWextState->completion_var);
+ 
+     if ((WLAN_HDD_GET_CTX(pAdapter))->isLogpInProgress)
+     {
+@@ -9308,7 +9309,7 @@
+                             currBand, band);
+ 
+                  pHddStaCtx->conn_info.connState = eConnectionState_Disconnecting;
+-                 INIT_COMPLETION(pAdapter->disconnect_comp_var);
++                 reinit_completion(&pAdapter->disconnect_comp_var);
+ 
+                  status = sme_RoamDisconnect( WLAN_HDD_GET_HAL_CTX(pAdapter),
+                  pAdapter->sessionId, eCSR_DISCONNECT_REASON_UNSPECIFIED);
+diff -Naur qcacld-new.old/CORE/SERVICES/HTC/linux/htc_smd.c qcacld-new/CORE/SERVICES/HTC/linux/htc_smd.c
+--- qcacld-new.old/CORE/SERVICES/HTC/linux/htc_smd.c	2014-10-22 10:16:48.119338189 +0800
++++ qcacld-new/CORE/SERVICES/HTC/linux/htc_smd.c	2014-10-22 10:47:59.307380885 +0800
+@@ -54,7 +54,7 @@
+ #include "vos_memory.h"
+ #include "vos_mq.h"
+ #include "wmi_unified.h"
+-
++#include "vos_utils.h"
+ #define HTC_LOGD(args...) \
+ 	VOS_TRACE( VOS_MODULE_ID_HTC, VOS_TRACE_LEVEL_INFO, ## args)
+ #define HTC_LOGE(args...) \
+@@ -517,7 +517,7 @@
+ 
+ 	HTC_LOGD("htc_handle = %p", htc_handle);
+ 
+-	INIT_COMPLETION(htc_handle->htc_smd_event);
++	reinit_completion(&htc_handle->htc_smd_event);
+ 	/* Open the SMD channel */
+ 	status = smd_named_open_on_edge(HTC_SMD_CTRL_PORT, SMD_APPS_WCNSS,
+ 			&htc_handle->smd_channel, htc_handle,
+@@ -662,7 +662,7 @@
+ 	}
+ 
+ 
+-	INIT_COMPLETION(htc_handle->htc_smd_event);
++	reinit_completion(&htc_handle->htc_smd_event);
+ 	smd_status = smd_close(htc_handle->smd_channel);
+ 	if (0 != smd_status) {
+ 		HTC_LOGE("smd_close failed with status %d", smd_status);
+diff -Naur qcacld-new.old/CORE/SVC/src/logging/wlan_logging_sock_svc.c qcacld-new/CORE/SVC/src/logging/wlan_logging_sock_svc.c
+--- qcacld-new.old/CORE/SVC/src/logging/wlan_logging_sock_svc.c	2014-10-22 10:16:48.131338190 +0800
++++ qcacld-new/CORE/SVC/src/logging/wlan_logging_sock_svc.c	2014-10-22 10:47:59.319380886 +0800
+@@ -40,6 +40,7 @@
+ #include <vos_types.h>
+ #include <vos_trace.h>
+ #include <kthread.h>
++#include "vos_utils.h"
+ 
+ #define LOGGING_TRACE(level, args...) \
+ 		VOS_TRACE(VOS_MODULE_ID_HDD, level, ## args)
+@@ -565,7 +566,7 @@
+ 	gapp_pid = INVALID_PID;
+ 
+ 	gwlan_logging.exit = true;
+-	INIT_COMPLETION(gwlan_logging.shutdown_comp);
++	reinit_completion(&gwlan_logging.shutdown_comp);
+ 	wake_up_interruptible(&gwlan_logging.wait_queue);
+ 	wait_for_completion_interruptible(&gwlan_logging.shutdown_comp);
+ 
+diff -Naur qcacld-new.old/CORE/VOSS/inc/vos_utils.h qcacld-new/CORE/VOSS/inc/vos_utils.h
+--- qcacld-new.old/CORE/VOSS/inc/vos_utils.h	2014-10-22 10:16:48.123338190 +0800
++++ qcacld-new/CORE/VOSS/inc/vos_utils.h	2014-10-22 10:47:59.315380885 +0800
+@@ -65,6 +65,10 @@
+ #define VOS_CHAN_SPACING_20MHZ 20
+ #define VOS_CHAN_14_FREQ       2484
+ #define VOS_CHAN_15_FREQ       2512
++#if (LINUX_VERSION_CODE < KERNEL_VERSION(3, 13, 0))
++#define reinit_completion(x) INIT_COMPLETION(*(x))
++#endif
++
+ /*--------------------------------------------------------------------------
+   Type declarations
+   ------------------------------------------------------------------------*/
+diff -Naur qcacld-new.old/CORE/VOSS/src/vos_event.c qcacld-new/CORE/VOSS/src/vos_event.c
+--- qcacld-new.old/CORE/VOSS/src/vos_event.c	2014-10-22 10:16:48.123338190 +0800
++++ qcacld-new/CORE/VOSS/src/vos_event.c	2014-10-22 10:47:59.315380885 +0800
+@@ -47,6 +47,7 @@
+  * -------------------------------------------------------------------------*/
+ #include "vos_event.h"
+ #include "vos_trace.h"
++#include "vos_utils.h"
+ 
+ /*----------------------------------------------------------------------------
+  * Preprocessor Definitions and Constants
+@@ -238,7 +239,7 @@
+    }
+ 
+    // (re)initialize event
+-   INIT_COMPLETION(event->complete);
++   reinit_completion(&event->complete);
+    return VOS_STATUS_SUCCESS;
+ }
+ 
+diff -Naur qcacld-new.old/CORE/VOSS/src/vos_nvitem.c qcacld-new/CORE/VOSS/src/vos_nvitem.c
+--- qcacld-new.old/CORE/VOSS/src/vos_nvitem.c	2014-10-22 10:16:48.123338190 +0800
++++ qcacld-new/CORE/VOSS/src/vos_nvitem.c	2014-10-22 10:47:59.315380885 +0800
+@@ -54,6 +54,7 @@
+ #include <net/cfg80211.h>
+ #include "regdomain.h"
+ #include "regdomain_common.h"
++#include "vos_utils.h"
+ 
+ #if (LINUX_VERSION_CODE < KERNEL_VERSION(3,9,0))
+ #define IEEE80211_CHAN_NO_80MHZ		1<<7
+@@ -3104,7 +3105,7 @@
+         {
+             init_by_driver = VOS_TRUE;
+ 
+-            INIT_COMPLETION(pHddCtx->linux_reg_req);
++            reinit_completion(&pHddCtx->linux_reg_req);
+             regulatory_hint(wiphy, country_code);
+             wait_result = wait_for_completion_timeout(
+                 &pHddCtx->linux_reg_req,
+@@ -3878,7 +3879,7 @@
+ 
+            wiphy = pHddCtx->wiphy;
+ 
+-           INIT_COMPLETION(pHddCtx->driver_crda_req);
++           reinit_completion(&pHddCtx->driver_crda_req);
+            regulatory_hint(wiphy, countryCode);
+            status = wait_for_completion_interruptible_timeout(
+                    &pHddCtx->driver_crda_req,
+diff -Naur qcacld-new.old/CORE/VOSS/src/vos_sched.c qcacld-new/CORE/VOSS/src/vos_sched.c
+--- qcacld-new.old/CORE/VOSS/src/vos_sched.c	2014-10-22 10:16:48.123338190 +0800
++++ qcacld-new/CORE/VOSS/src/vos_sched.c	2014-10-22 10:47:59.315380885 +0800
+@@ -67,6 +67,7 @@
+ #include <net/cnss.h>
+ #endif
+ #endif
++#include "vos_utils.h"
+ /*---------------------------------------------------------------------------
+  * Preprocessor Definitions and Constants
+  * ------------------------------------------------------------------------*/
+@@ -779,7 +780,7 @@
+         /* Mc Thread Suspended */
+         complete(&pHddCtx->mc_sus_event_var);
+ 
+-        INIT_COMPLETION(pSchedContext->ResumeMcEvent);
++        reinit_completion(&pSchedContext->ResumeMcEvent);
+         spin_unlock(&pSchedContext->McThreadLock);
+ 
+         /* Wait foe Resume Indication */
+@@ -1147,7 +1148,7 @@
+         /* Tx Thread Suspended */
+         complete(&pHddCtx->tx_sus_event_var);
+ 
+-        INIT_COMPLETION(pSchedContext->ResumeTxEvent);
++        reinit_completion(&pSchedContext->ResumeTxEvent);
+         spin_unlock(&pSchedContext->TxThreadLock);
+ 
+         /* Wait foe Resume Indication */
+@@ -1325,7 +1326,7 @@
+         /* Rx Thread Suspended */
+         complete(&pHddCtx->rx_sus_event_var);
+ 
+-        INIT_COMPLETION(pSchedContext->ResumeRxEvent);
++        reinit_completion(&pSchedContext->ResumeRxEvent);
+         spin_unlock(&pSchedContext->RxThreadLock);
+ 
+         /* Wait for Resume Indication */
+@@ -1608,7 +1609,7 @@
+                          &pSchedContext->tlshimRxEvtFlg);
+                spin_lock(&pSchedContext->TlshimRxThreadLock);
+                complete(&pSchedContext->SuspndTlshimRxEvent);
+-               INIT_COMPLETION(pSchedContext->ResumeTlshimRxEvent);
++               reinit_completion(&pSchedContext->ResumeTlshimRxEvent);
+                spin_unlock(&pSchedContext->TlshimRxThreadLock);
+                wait_for_completion_interruptible(
+                               &pSchedContext->ResumeTlshimRxEvent);
+diff -Naur qcacld-new.old/CORE/VOSS/src/vos_utils.c qcacld-new/CORE/VOSS/src/vos_utils.c
+--- qcacld-new.old/CORE/VOSS/src/vos_utils.c	2014-10-22 10:16:48.123338190 +0800
++++ qcacld-new/CORE/VOSS/src/vos_utils.c	2014-10-22 10:47:59.315380885 +0800
+@@ -74,6 +74,7 @@
+ #endif
+ 
+ #include "ieee80211_common.h"
++#include "vos_utils.h"
+ /*----------------------------------------------------------------------------
+  * Preprocessor Definitions and Constants
+  * -------------------------------------------------------------------------*/
+@@ -739,7 +740,7 @@
+     case -EBUSY:
+         ret = wait_for_completion_interruptible(&tresult.completion);
+         if (!ret && !tresult.err) {
+-            INIT_COMPLETION(tresult.completion);
++            reinit_completion(&tresult.completion);
+             break;
+         } else {
+             VOS_TRACE(VOS_MODULE_ID_VOSS,VOS_TRACE_LEVEL_ERROR, "wait_for_completion_interruptible failed");
+@@ -914,7 +915,7 @@
+         case -EBUSY:
+              ret = wait_for_completion_interruptible(&tresult.completion);
+              if (!ret && !tresult.err) {
+-                  INIT_COMPLETION(tresult.completion);
++                  reinit_completion(&tresult.completion);
+                   break;
+              } else {
+                  VOS_TRACE(VOS_MODULE_ID_VOSS,VOS_TRACE_LEVEL_ERROR, "wait_for_completion_interruptible failed");

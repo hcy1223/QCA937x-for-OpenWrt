@@ -1,0 +1,39 @@
+#
+# Please modify KERNELPATH, KERNELARCH and TOOLPREFIX to meet your environment
+#
+
+export KERNELPATH=<path of kernel header>
+export TOOLCHAIN=<path of toolchain>
+export KERNELARCH=arm
+export CROSS_COMPILE=${TOOLCHAIN}/arm-none-linux-gnueabi-
+
+export TOOLPREFIX=${CROSS_COMPILE}
+
+# for backports
+export KLIB=${KERNELPATH}
+export KLIB_BUILD=${KERNELPATH}
+
+# Use local libnl library or not
+export BUILD_LIBNL=y
+export INCLUDE_LIBNL32_HEADER=${ATH_TOPDIR}/apps/libnl-3.2.25/include
+export INCLUDE_LIBNL32_LIB=-lm ${ATH_TOPDIR}/apps/libnl-3.2.25/lib/.libs/libnl-3.a
+export INCLUDE_LIBNL32_GENL_LIB =-lm ${ATH_TOPDIR}/apps/libnl-3.2.25/lib/.libs/libnl-genl-3.a
+
+# Use local openssl library or not
+#export BUILD_OPENSSL=y
+#export INCLUDE_OPENSSL_HEADER=${ATH_TOPDIR}/apps/openssl-1.0.1f/include
+#export INCLUDE_OPENSSL_LIB=${ATH_TOPDIR}/apps/openssl-1.0.1f/ ${ATH_TOPDIR}/apps/openssl-1.0.1f/libssl.a -ldl
+#export INCLUDE_OPENSSL_LIB=${ATH_TOPDIR}/apps/openssl-1.0.1f/
+
+# Put one copy of firmware to local PC or not. Need root privilege.
+export BUILD_DRIVERFW_TOLOCAL=y
+
+# Build regdb into cfg80211.ko
+export CONFIG_CFG80211_INTERNAL_REGDB=y
+
+# PMF (11W)
+export CONFIG_PMF_SUPPORT=y
+
+# Rome USB
+export CONFIG_ROME_IF=usb
+

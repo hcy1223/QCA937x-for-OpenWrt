@@ -1,0 +1,41 @@
+diff -Naur '--exclude=.git' bluedroid.ssvd/bta/Android.mk bluedroid.ss2kk/bta/Android.mk
+--- bluedroid.ssvd/bta/Android.mk	2015-08-25 11:05:55.000000000 +0800
++++ bluedroid.ss2kk/bta/Android.mk	2015-08-27 14:46:49.392640323 +0800
+@@ -92,7 +92,9 @@
+     ./mce/bta_mce_api.c \
+     ./mce/bta_mce_main.c \
+     ./mce/bta_mce_act.c \
+-    ./mce/bta_mce_cfg.c
++    ./mce/bta_mce_cfg.c \
++    ./3d/bta_3d_api.c \
++    ./3d/bta_3d_main.c
+ 
+ LOCAL_MODULE := libbt-brcm_bta
+ LOCAL_MODULE_CLASS := STATIC_LIBRARIES
+diff -Naur '--exclude=.git' bluedroid.ssvd/embdrv/Android.mk bluedroid.ss2kk/embdrv/Android.mk
+--- bluedroid.ssvd/embdrv/Android.mk	1970-01-01 08:00:00.000000000 +0800
++++ bluedroid.ss2kk/embdrv/Android.mk	2015-08-27 14:46:49.384640323 +0800
+@@ -0,0 +1 @@
++include $(call all-subdir-makefiles)
+diff -Naur '--exclude=.git' bluedroid.ssvd/embdrv/sbc/Android.mk bluedroid.ss2kk/embdrv/sbc/Android.mk
+--- bluedroid.ssvd/embdrv/sbc/Android.mk	1970-01-01 08:00:00.000000000 +0800
++++ bluedroid.ss2kk/embdrv/sbc/Android.mk	2015-08-27 14:46:49.384640323 +0800
+@@ -0,0 +1 @@
++include $(call all-subdir-makefiles)
+diff -Naur '--exclude=.git' bluedroid.ssvd/main/Android.mk bluedroid.ss2kk/main/Android.mk
+--- bluedroid.ssvd/main/Android.mk	2015-08-25 11:05:55.000000000 +0800
++++ bluedroid.ss2kk/main/Android.mk	2015-08-27 14:46:49.404640323 +0800
+@@ -113,9 +113,11 @@
+ 	$(TARGET_OUT_HEADERS)/codecs/decoder/inc \
+ 	$(TOP)/frameworks/av/include/media \
+ 	external/tinyxml2 \
+-	$(LOCAL_PATH)/../../../../hardware/qcom/bt/libbt-vendor/include
++	$(LOCAL_PATH)/../../../../hardware/qcom/bt/libbt-vendor/include \
++	$(LOCAL_PATH)/../../../../hardware/libhardware/include/hardware
+ 
+-LOCAL_CFLAGS += -DBUILDCFG $(bdroid_CFLAGS) -Werror -Wno-error=maybe-uninitialized -Wno-error=uninitialized
++#LOCAL_CFLAGS += -DBUILDCFG $(bdroid_CFLAGS) -Werror -Wno-error=maybe-uninitialized -Wno-error=uninitialized
++LOCAL_CFLAGS += -DBUILDCFG $(bdroid_CFLAGS) -Wno-error=maybe-uninitialized -Wno-error=uninitialized -Wno-error=return-type
+ 
+ ifeq ($(TARGET_PRODUCT), full_crespo)
+      LOCAL_CFLAGS += -DTARGET_CRESPO

@@ -1,0 +1,43 @@
+/*
+* Copyright (c) 2014 Linux Foundation
+* All Rights Reserved.
+*
+* Permission to use, copy, modify, and/or distribute this software for any purpose with or without fee is hereby granted, provided that the above copyright notice and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+*/
+
+diff -Naur qcacld-new.old/CORE/HDD/src/wlan_hdd_early_suspend.c qcacld-new/CORE/HDD/src/wlan_hdd_early_suspend.c
+--- qcacld-new.old/CORE/HDD/src/wlan_hdd_early_suspend.c	2014-10-09 14:03:06.234520047 +0800
++++ qcacld-new/CORE/HDD/src/wlan_hdd_early_suspend.c	2014-10-09 14:04:41.530992597 +0800
+@@ -803,7 +803,7 @@
+                 // So that we can reconfigure the offload parameters
+                 pAdapter->ipv6_notifier.notifier_call =
+                              wlan_hdd_ipv6_changed;
+-                ret = register_inet6addr_notifier(&pAdapter->ipv6_notifier);
++                //ret = register_inet6addr_notifier(&pAdapter->ipv6_notifier);
+                 if (ret)
+                 {
+                     hddLog(LOGE, FL("Failed to register IPv6 notifier"));
+@@ -828,7 +828,7 @@
+         if (pAdapter->ipv6_notifier_registered)
+         {
+             hddLog(LOG1, FL("Unregistered IPv6 notifier"));
+-            unregister_inet6addr_notifier(&pAdapter->ipv6_notifier);
++            //unregister_inet6addr_notifier(&pAdapter->ipv6_notifier);
+             pAdapter->ipv6_notifier_registered = false;
+         }
+         vos_mem_zero((void *)&offLoadRequest, sizeof(tSirHostOffloadReq));
+diff -Naur qcacld-new.old/CORE/HDD/src/wlan_hdd_main.c qcacld-new/CORE/HDD/src/wlan_hdd_main.c
+--- qcacld-new.old/CORE/HDD/src/wlan_hdd_main.c	2014-10-09 14:03:06.234520047 +0800
++++ qcacld-new/CORE/HDD/src/wlan_hdd_main.c	2014-10-09 14:06:23.987500651 +0800
+@@ -9063,7 +9063,7 @@
+          if (pAdapter->ipv6_notifier_registered)
+          {
+             hddLog(LOG1, FL("Unregistered IPv6 notifier"));
+-            unregister_inet6addr_notifier(&pAdapter->ipv6_notifier);
++            //unregister_inet6addr_notifier(&pAdapter->ipv6_notifier);
+             pAdapter->ipv6_notifier_registered = false;
+          }
+ #endif

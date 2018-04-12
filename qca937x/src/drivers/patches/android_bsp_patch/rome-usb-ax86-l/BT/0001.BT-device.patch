@@ -1,0 +1,107 @@
+/*
+* Copyright (c) 2015 Qualcomm Atheros, Inc.
+* All Rights Reserved.
+* Qualcomm Atheros Confidential and Proprietary.
+* NOT A CONTRIBUTION
+*/
+
+diff -Nuar a/device/generic/common/BoardConfig.mk b/device/generic/common/BoardConfig.mk
+--- a/device/generic/common/BoardConfig.mk	2015-06-16 15:25:16.008609847 +0800
++++ b/device/generic/common/BoardConfig.mk	2015-06-16 15:26:20.208609711 +0800
+@@ -8,7 +8,7 @@
+ BOARD_HAVE_BLUETOOTH := true
+ BOARD_BLUETOOTH_BDROID_BUILDCFG_INCLUDE_DIR := device/generic/common/bluetooth
+ BLUETOOTH_HCI_USE_USB := true
+-BOARD_HAVE_BLUETOOTH_BCM := true
++#BOARD_HAVE_BLUETOOTH_BCM := true
+ 
+ BOARD_USE_LEGACY_UI := true
+ 
+diff -Nuar a/device/generic/common/init.x86.rc b/device/generic/common/init.x86.rc
+--- a/device/generic/common/init.x86.rc	2015-06-16 15:25:16.052609847 +0800
++++ b/device/generic/common/init.x86.rc	2015-06-16 15:27:01.888609623 +0800
+@@ -86,6 +86,7 @@
+     setprop sys.media.vdec.drop 0
+     # set wifi.interface
+     setprop wifi.interface wlan0
++    setprop qcom.bluetooth.soc rome_usb
+ 
+ service p2p_supplicant /system/bin/wpa_supplicant \
+     -ip2p0 -Dnl80211 -c/data/misc/wifi/p2p_supplicant.conf -N \
+diff -Nuar a/device/generic/common/ueventd.x86.rc b/device/generic/common/ueventd.x86.rc
+--- a/device/generic/common/ueventd.x86.rc	2015-06-16 15:25:16.008609847 +0800
++++ b/device/generic/common/ueventd.x86.rc	2015-06-16 15:28:35.088609426 +0800
+@@ -4,6 +4,7 @@
+ /dev/ttyUSB*              0660   radio      radio
+ /dev/video*               0660   media      system
+ /dev/iio:device*          0660   system     system
++/dev/SS1BTUSB*		  0660   bluetooth  bluetooth
+ 
+ # for bluetooth nodes
+ /dev/uhid                 0660   bluetooth bluetooth
+diff -Nuar a/device/generic/x86/BoardConfig.mk b/device/generic/x86/BoardConfig.mk
+--- a/device/generic/x86/BoardConfig.mk	2015-06-16 15:25:16.052609847 +0800
++++ b/device/generic/x86/BoardConfig.mk	2015-06-16 15:28:02.760609495 +0800
+@@ -13,6 +13,27 @@
+ TARGET_CPU_ABI_LIST := $(TARGET_CPU_ABI_LIST_32_BIT)
+ 
+ TARGET_USES_64_BIT_BINDER := $(if $(filter x86_64,$(TARGET_KERNEL_ARCH)),true)
++BOARD_HAVE_BLUETOOTH := true
++#BLUETOOTH_HCI_USE_USB := true
++#BOARD_HAVE_BLUETOOTH_BCM := true
++BOARD_HAVE_BLUETOOTH_QCOM := true
++BOARD_HAS_QCA_BT_ROME := true
++BOARD_HAS_QCA_BT_ROME_USB := true
++ ifeq ($(BOARD_HAVE_BLUETOOTH), true)
++  # Un Comment the following flag to enable bluez
++  BOARD_HAVE_BLUETOOTH_BLUEZ := false
++    ifeq ($(BOARD_HAVE_BLUETOOTH_BLUEZ), true)
++      # ANT depends on BlueZ   46
++      BOARD_ANT_WIRELESS_DEVICE := "vfs-prerelease"
++    else
++      BOARD_HAVE_BLUETOOTH_QCOM := true
++         QCOM_BT_USE_SMD_TTY := false
++      BLUETOOTH_HCI_USE_USB := true
++    endif #!BOARD_HAVE_BLUETOOTH_BLUEZ
++  endif #BOARD_HAVE_BLUETOOTH
++#BOARD_BLUETOOTH_BDROID_BUILDCFG_INCLUDE_DIR := device/generic/x86/bluetooth
++BOARD_BLUETOOTH_BDROID_BUILDCFG_INCLUDE_DIR := device/qcom/common
++
+ 
+ TARGET_USERIMAGES_USE_EXT4 := true
+ BOARD_USERDATAIMAGE_PARTITION_SIZE := 419430400
+diff -Nuar a/device/qcom/common/bdroid_buildcfg.h b/device/qcom/common/bdroid_buildcfg.h
+--- a/device/qcom/common/bdroid_buildcfg.h	1970-01-01 08:00:00.000000000 +0800
++++ b/device/qcom/common/bdroid_buildcfg.h	2015-06-16 15:29:18.144609335 +0800
+@@ -0,0 +1,31 @@
++/*
++ *
++ *  Copyright (c) 2013, The Linux Foundation. All rights reserved.
++ *  Not a Contribution, Apache license notifications and license are retained
++ *  for attribution purposes only.
++ *
++ * Copyright (C) 2012 The Android Open Source Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++#ifndef _BDROID_BUILDCFG_H
++#define _BDROID_BUILDCFG_H
++#define BTM_DEF_LOCAL_NAME   "QCOM-BTD"
++// Enables Interleave scan
++#define BTA_HOST_INTERLEAVE_SEARCH  TRUE
++// skips conn update at conn completion
++#define BTA_BLE_SKIP_CONN_UPD  TRUE
++// Disables read remote device feature
++#define BTA_SKIP_BLE_READ_REMOTE_FEAT TRUE
++#endif

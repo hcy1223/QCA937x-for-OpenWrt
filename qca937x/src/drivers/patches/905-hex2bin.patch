@@ -1,0 +1,22 @@
+/*
+* Copyright (c) 2014 Linux Foundation
+* All Rights Reserved.
+*
+* Permission to use, copy, modify, and/or distribute this software for any purpose with or without fee is hereby granted, provided that the above copyright notice and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+*/
+
+diff -Naur qcacld-new.old/CORE/HDD/src/wlan_hdd_cfg.c qcacld-new/CORE/HDD/src/wlan_hdd_cfg.c
+--- qcacld-new.old/CORE/HDD/src/wlan_hdd_cfg.c	2014-09-11 09:57:55.755470225 +0800
++++ qcacld-new/CORE/HDD/src/wlan_hdd_cfg.c	2014-09-11 14:31:02.364727032 +0800
+@@ -4651,7 +4651,7 @@
+    {
+       candidate = macTable[i].value;
+       for (j = 0; j < VOS_MAC_ADDR_SIZE; j++) {
+-         res = hex2bin(&macaddr[i].bytes[j], &candidate[(j<<1)], 1);
++         hex2bin(&macaddr[i].bytes[j], &candidate[(j<<1)], 1);
+          if (res < 0)
+             break;
+       }

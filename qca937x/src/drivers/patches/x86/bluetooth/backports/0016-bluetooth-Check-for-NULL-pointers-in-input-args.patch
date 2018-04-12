@@ -1,0 +1,39 @@
+From 76617f4d68fffa8141f82a3e247b44fc0c49f54f Mon Sep 17 00:00:00 2001
+From: Rupesh Tatiya <rtatiya@codeaurora.org>
+Date: Fri, 26 Sep 2014 17:59:09 +0530
+Subject: [PATCH 16/25] bluetooth: Check for NULL pointers in input args
+
+There is a possibility that line discipline recieves data before
+variable proto is set which leads to kernel crash.
+Check if proto is valid.
+
+Change-Id: I09e4ca692ccef6dcc2f0acd78ce3847878d17188
+Signed-off-by: Rupesh Tatiya <rtatiya@codeaurora.org>
+---
+ drivers/bluetooth/hci_ldisc.c |    5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/bluetooth/hci_ldisc.c b/drivers/bluetooth/hci_ldisc.c
+index 836b1cd..c1cd153 100644
+--- a/drivers/bluetooth/hci_ldisc.c
++++ b/drivers/bluetooth/hci_ldisc.c
+@@ -380,12 +380,15 @@ static void hci_uart_tty_receive(struct tty_struct *tty, const u8 *data, char *f
+ {
+ 	struct hci_uart *hu = (void *)tty->disc_data;
+ 
+-	if (!hu || tty != hu->tty)
++	if (!hu || tty != hu->tty || !data)
+ 		return;
+ 
+ 	if (!test_bit(HCI_UART_PROTO_SET, &hu->flags))
+ 		return;
+ 
++	if (!hu->proto)
++		return;
++
+ 	spin_lock(&hu->rx_lock);
+ 	hu->proto->recv(hu, (void *) data, count);
+ 
+-- 
+1.7.9.5
+

@@ -1,0 +1,4519 @@
+/*
+* Copyright (c) 2015 Qualcomm Atheros, Inc.
+* All Rights Reserved.
+* Qualcomm Atheros Confidential and Proprietary.
+* NOT A CONTRIBUTION
+*/
+
+diff -Naur android-x86-unpatch/vendor/qcom/proprietary/bt/hci_qcomm_init/Android.mk android-x86-patched_update_kk/vendor/qcom/proprietary/bt/hci_qcomm_init/Android.mk
+--- android-x86-unpatch/vendor/qcom/proprietary/bt/hci_qcomm_init/Android.mk	1970-01-01 08:00:00.000000000 +0800
++++ android-x86-patched_update_kk/vendor/qcom/proprietary/bt/hci_qcomm_init/Android.mk	2014-12-23 15:38:42.412459700 +0800
+@@ -0,0 +1,28 @@
++LOCAL_PATH:= $(call my-dir)
++
++#If you want to use the legacy way(by using NV) of set the BT address
++#You can set the value to 0
++BT_QSOC_GET_ITEMS_FROM_PERSIST = 1
++
++ifeq ($(BT_QSOC_GET_ITEMS_FROM_PERSIST),1)
++include $(CLEAR_VARS)
++
++LOCAL_C_INCLUDES:= $(LOCAL_PATH)
++
++LOCAL_SRC_FILES:=  bt_nv.cpp
++LOCAL_C_INCLUDES += ../../common/inc
++
++LOCAL_MODULE:= libbtnv
++LOCAL_MODULE_TAGS := optional
++LOCAL_MODULE_OWNER := qcom
++LOCAL_PROPRIETARY_MODULE := true
++
++include $(BUILD_SHARED_LIBRARY)
++
++endif # BT_QSOC_GET_ITEMS_FROM_PERSIST
++
++TEMP_LOCAL_PATH := $(LOCAL_PATH)
++
++ifeq ($(BOARD_HAS_QCA_BT_ROME_USB),true)
++    include $(TEMP_LOCAL_PATH)/rome_usb/Android.mk
++endif
+\ No newline at end of file
+diff -Naur android-x86-unpatch/vendor/qcom/proprietary/bt/hci_qcomm_init/armasm.h android-x86-patched_update_kk/vendor/qcom/proprietary/bt/hci_qcomm_init/armasm.h
+--- android-x86-unpatch/vendor/qcom/proprietary/bt/hci_qcomm_init/armasm.h	1970-01-01 08:00:00.000000000 +0800
++++ android-x86-patched_update_kk/vendor/qcom/proprietary/bt/hci_qcomm_init/armasm.h	2014-12-23 15:38:42.412459700 +0800
+@@ -0,0 +1,283 @@
++#ifndef ARMASM_H
++#define ARMASM_H
++/*=============================================================================
++
++                        ARM Assembly Language Definitions
++
++GENERAL DESCRIPTION
++  This file contains assembly language macros for use with the ARM assembler.
++
++
++-----------------------------------------------------------------------------
++Copyright (c) 1998 - 2001 Qualcomm Technologies, Inc.
++All Rights Reserved. Qualcomm Technologies Proprietary and Confidential.
++-----------------------------------------------------------------------------
++=============================================================================*/
++
++
++/*=============================================================================
++
++                            EDIT HISTORY FOR FILE
++
++$Header: //linux/pkgs/proprietary/oncrpc/main/source/inc/armasm.h#3 $
++
++when       who     what, where, why
++--------   ---     ----------------------------------------------------------
++09/13/05   ck      Copied from 6100 branch
++07/12/02   jct     Removed conditional inclusion of customer.h and target.h
++05/17/01   kar     Bigger SVC stack available to support REX from MSM archive
++01/25/01   day     Merged from MSM5105_COMMON.00.00.05.
++                     Added support for Interworking
++                     Added define for system stack size
++04/02/99    sk     Increased Abort stack size.
++04/02/99    ms     Reduced stack sizes.
++02/03/99    ms     Renamed blx to blatox since blx is a keyword in Assembler
++                   of ARM SDK 2.5
++01/18/99    ms     Moved ARM_TRAP_FRAME related declarations to boot_trap.h.
++                   Moved context frame related macros to rexarm.s.
++                   Incorporated exception frame related macros directly into
++                   boot_abort_handler in bootsys.s.
++12/10/98   jkl     Included r12 in the context frame.
++11/23/98   jkl     Clean up code. Changed save_context_from_task macro.
++10/27/98   jkl     Revised for new context
++09/13/98   hcg     Changed exception/trap frame names
++07/10/98   jct     Revised for coding standard, removed unused code
++01/01/98   bwj     Created
++=============================================================================*/
++
++#include "target.h"
++#include "customer.h"
++
++/*  CPSR Control Masks         */
++#define PSR_Thumb_Mask       0x20
++#define PSR_Fiq_Mask         0x40
++#define PSR_Irq_Mask         0x80
++#define PSR_Mode_Mask        0x1f
++
++/*  Processor mode definitions */
++#define PSR_User             0x10
++#define PSR_Fiq              0x11
++#define PSR_Irq              0x12
++#define PSR_Supervisor       0x13
++#define PSR_Abort            0x17
++#define PSR_Undef            0x1b
++#define PSR_System           0x1f
++#define PSR_Thumb            0x20
++
++/*===========================================================================
++**  GENERAL PURPOSE ASSEMBLY MACROS.
++**=========================================================================*/
++
++#if defined(_ARM_ASM_)
++
++        GBLS    current_node_name
++        GBLS    current_node_type
++        GBLA    current_node_aregcount
++        GBLA    current_node_vregcount
++
++/*===========================================================================
++
++Name: pusha, popa
++
++Description: Readable names for push and pop.
++
++MODE: Any
++STATE: ARM
++
++Registers modified: sp
++
++=============================================================================*/
++
++        MACRO
++        pusha   $stack, $reg
++        str     $reg, [$stack, #-4]!
++        MEND
++
++        MACRO
++        popa    $stack, $reg
++        ldr     $reg, [$stack], #4
++        MEND
++
++/*===========================================================================
++
++Name: Entry_Node, Entry_Node_End
++
++Description: Defines an empty function prolog and epilog of a piece of assembly code.
++             These macros take care of the following:
++               - Exporting the entry point label
++               - Creating a stack frame
++               - Software stack checking
++
++Defined Labels:
++   "node_name" - The main thumb mode entry point of the function.
++   "node_name"_end - A label marking the begining of the function epilog.
++
++Arguments:
++  Leaf_Node
++  Node_Name - The function name of the function to be defined.
++  Leaf_Node_End
++  None
++
++MODE: Any
++STATE: ARM
++
++Registers modified: None
++
++=============================================================================*/
++
++        MACRO
++        ENTRY_NODE $node_name
++current_node_name       SETS    "$node_name"
++        EXPORT  $node_name
++        ALIGN
++        ROUT
++$node_name
++        MEND
++                                        ;  The end of an entry node.
++        MACRO
++        ENTRY_NODE_END
++$current_node_name._exit
++current_node_name       SETS    ""
++        MEND
++
++/*===========================================================================
++
++  Name: Leaf_Node, Leaf_Node_End
++
++  Description: Defines the function prolog and epilog of a function that makes
++               no function calls. These macros take care of the following:
++                 - Exporting the entry point label
++                 - Creating 16 and 32 bit entry points.
++                 - Creating a stack frame
++                 - Software stack checking
++
++  Defined Labels:
++     "node_name" - The main thumb mode entry point of the function.
++     "node_name"_32 - The ARM state entry point to the function.
++     "node_name"_end - A label marking the begining of the function epilog.
++
++  Arguments:
++    Leaf_Node
++     Node_Name - The function name of the function to be defined.
++    Leaf_Node_End
++     None
++
++  MODE: Any
++  STATE: ARM and Thumb state entry points. Code runs in ARM state.
++
++  Registers modified: None
++
++=============================================================================*/
++        MACRO
++        LEAF_NODE $node_name
++current_node_type       SETS    "Leaf"
++        CODE16
++        ENTRY_NODE $node_name
++        bx      pc
++        ALIGN
++        CODE32
++#ifndef __APCS_INTERWORK
++        orr     lr, lr, #0x01
++#endif
++        EXPORT  $node_name._32
++$node_name._32
++        MEND
++
++        MACRO
++        LEAF_NODE_END $node_name
++        ASSERT  "$current_node_type" = "Leaf"
++        ENTRY_NODE_END $node_name
++        bx     lr
++current_node_type       SETS    ""
++        MEND
++
++
++/*===========================================================================
++
++  Name: Leaf_Node_End, Leaf_Node_End_16
++
++  Description: Defines the function prolog and epilog of a Thumb mode only function that makes
++               no function calls. These macros take care of the following:
++                 - Exporting the entry point label
++                 - Creating a 16 bit entry point.
++                 - Creating a stack frame
++                 - Software stack checking
++
++  Defined Labels:
++     "node_name" - The main thumb mode entry point of the function.
++     "node_name"_end - A label marking the begining of the function epilog.
++
++  Arguments:
++    Leaf_Node_16
++     Node_Name - The function name of the function to be defined.
++    Leaf_Node_End_16
++     None
++
++  MODE: Any
++  STATE: Thumb
++
++  Registers modified: None
++
++=============================================================================*/
++
++        MACRO
++        LEAF_NODE_16 $node_name
++current_node_type       SETS    "Leaf16"
++        CODE16
++        ENTRY_NODE $node_name
++        MEND
++
++        MACRO
++        LEAF_NODE_END_16 $node_name
++        ASSERT  "$current_node_type" = "Leaf16"
++        ENTRY_NODE_END $node_name
++        bx     lr
++current_node_type       SETS    ""
++        MEND
++
++
++        MACRO
++        ALTERNATE_ENTRY_16 $node_name
++        ASSERT  "$current_node_type" = "Leaf16"
++        EXPORT $node_name
++$node_name
++        MEND
++
++
++/*===========================================================================
++
++  Name: blatox
++
++  Description: Calls a function from ARM state without having to know whether that
++     that function is ARM or Thumb state code.
++
++  Arguments:
++    destreg - The register that contains the address of the function to be called.
++
++  Registers modified: lr
++
++  MODE: Any
++  STATE: ARM. Can call either ARM or Thumb state functions.
++
++=============================================================================*/
++
++        MACRO
++        blatox     $destreg
++        ROUT
++
++        tst     $destreg, #0x01         /* Test for thumb mode call.  */
++
++        ldrne   lr, =%1
++        ldreq   lr, =%2
++        bx      $destreg
++1
++        CODE16
++        bx      pc
++        ALIGN
++        CODE32
++2
++        MEND
++
++#endif   /* ARM_ASM  */
++
++#endif   /* ARMASM_H */
+diff -Naur android-x86-unpatch/vendor/qcom/proprietary/bt/hci_qcomm_init/bt_nv.cpp android-x86-patched_update_kk/vendor/qcom/proprietary/bt/hci_qcomm_init/bt_nv.cpp
+--- android-x86-unpatch/vendor/qcom/proprietary/bt/hci_qcomm_init/bt_nv.cpp	1970-01-01 08:00:00.000000000 +0800
++++ android-x86-patched_update_kk/vendor/qcom/proprietary/bt/hci_qcomm_init/bt_nv.cpp	2014-12-23 15:38:42.412459700 +0800
+@@ -0,0 +1,464 @@
++/*============================================================================
++  Copyright (c) 2010 - 2012 Qualcomm Technologies, Inc.  All Rights Reserved.
++  Qualcomm Technologies Proprietary and Confidential.
++
++  FILE:         bt_nv.cpp
++
++  OVERVIEW:     This file implements functions to read and write the NV items into
++                the /persistent file system.
++                Through this code you can read and write the following format data.
++                *** data format ***
++                nvID    WriteProtect    Size    Data
++                X       X(1 or 0)       X       X X X X X X
++
++*==============================================================================
++                        EDIT HISTORY FOR MODULE
++
++  This section contains comments describing changes made to the module.
++  Notice that changes are listed in reverse chronological order. Please
++  use ISO format for dates.
++
++when        who  what, where, why
++----------  ---  -----------------------------------------------------------
++2010-02-15   ss  Intial version
++2011-09-28  rrr  Moved the implementation to CPP, for having BD address being
++                 programmed twice if previous BD address was random generated.
++2012-02-16  rrr  Read/Write access to NV config file (i.e. /persist/bt_nv.bin)
++                 is limited to "bluetooth" user only. And making bt_nv.bin as
++                 hidden.
++2012-02-22  rrr  Moved/modified macros to header file for reference across
++                 source files.
++============================================================================*/
++
++
++/*----------------------------------------------------------------------------
++ * Include Files
++ * -------------------------------------------------------------------------*/
++/* Necessary includes */
++#include <stdio.h>
++#include <string.h>
++#include <errno.h>
++#include "comdef.h"
++#include "bt_nv.h"
++#include <unistd.h>
++#include <sys/types.h>
++#include <sys/stat.h>
++#include <fcntl.h>
++#include <pwd.h>
++#include <grp.h>
++
++/*----------------------------------------------------------------------------
++ * Preprocessor Definitions and Constants
++  * -------------------------------------------------------------------------*/
++#define NV_REF_CLOCK_SIZE     1
++#define NV_REF_CLOCK_T_SIZE   1
++#define NV_CMD_HDR_SIZE       3
++
++#define SIZE_OF_BYTE          sizeof(char)
++#define HC_VS_MAX_CMD_EVENT   260
++#define NVM_PAYLOAD_MAXLENGTH 260
++#define MAX_PAYLOAD_SIZE      NV_BD_ADDR_SIZE
++#ifdef BTNV_DEBUG
++#define BTNV_INFO(args...)    fprintf(stdout, ## args);
++#define BTNV_ERR(args...)     fprintf(stderr, ## args);
++#define BTNV_OS_ERR           fprintf(stderr, "err =%d msg = %s\n", errno, strerror(errno))
++#else
++#define BTNV_INFO(args...)
++#define BTNV_ERR(args...)
++#define BTNV_OS_ERR
++#endif
++
++typedef enum {
++  NV_WRITE_ONCE_ENABLE = 1,
++  NV_WRITE_ONCE_DISABLE = 0
++}nv_persist_write_type;
++
++typedef struct {
++  nv_persist_items_enum_type item;     /* Item to access */
++  nv_persist_write_type writeprotect;
++  uint8 nSize;
++  unsigned char pCmdBuffer[MAX_PAYLOAD_SIZE];    /* Pointer to read or write data */
++} nv_persist_params;
++
++typedef struct _nv_items_tag {
++  nv_persist_items_enum_type type;
++  uint8 size;
++  nv_persist_write_type multi_time_wr;
++}nv_items;
++
++nv_items nvItems[3] =
++{
++  {NV_BD_ADDR_I,                 NV_BD_ADDR_SIZE,     NV_WRITE_ONCE_ENABLE},
++  {NV_BT_SOC_REFCLOCK_TYPE_I,    NV_REF_CLOCK_SIZE,   NV_WRITE_ONCE_DISABLE},
++  {NV_BT_SOC_CLK_SHARING_TYPE_I, NV_REF_CLOCK_T_SIZE, NV_WRITE_ONCE_DISABLE},
++};
++/*==============================================================
++FUNCTION:  bt_nv_init
++==============================================================*/
++/**
++* Intialize the required variables and check the path exists mentioned for writing the binary.
++* TODO: Need to add verification of binary?
++*
++*
++* @return  int - negative number on failure.
++*
++*/
++int bt_nv_init()
++{
++  return 0;
++}
++
++/*==============================================================
++FUNCTION:  bt_nv_deinit
++==============================================================*/
++/**
++* DeIntialize the required variables.
++*
++*
++*
++* @return  int - negative number on failure.
++*
++*/
++int bt_nv_deinit()
++{
++  return 0;
++}
++
++/*==============================================================
++FUNCTION:  bt_nv_write
++==============================================================*/
++/**
++* Write the nparams number of items from nv_params structure to the persist NV file
++* (PERSISTENCE_PATH/BT_NV_FILE_NAME)
++*
++*
++* @return  int - negative number on failure.
++*
++*/
++int bt_nv_write
++(
++  nv_persist_params *params,
++  uint8 nparams
++)
++{
++  int nFd;
++  struct passwd *pwd;
++  struct group  *grp;
++  unsigned char cmd[HC_VS_MAX_CMD_EVENT];
++  int nwrite = 0, i = 0,j = 0;
++  char filename[NAME_MAX];
++
++  snprintf(filename, NAME_MAX, "%s/%s",PERSISTENCE_PATH,BT_NV_FILE_NAME );
++  BTNV_INFO("BT-NV-WRITE: Opening file '%s' for writing\n", filename);
++
++  /* R/W access to user only for the file created below */
++  umask(066);
++
++  /* Open the firmware file*/
++  nFd = open(filename, O_CREAT | O_RDWR, 0666);
++  if(nFd < 0)
++  {
++     BTNV_ERR("BT-NV-WRITE: Failed to Open/create a '%s' file\n",filename);
++     BTNV_OS_ERR;
++     return -1;
++  }
++
++  /* Retrieve user id corresponding to "bluetooth" user */
++  pwd = getpwnam("bluetooth");
++  if (!pwd)
++  {
++      BTNV_ERR("BT-NV-WRITE: user not found in /etc/passwd\n");
++      BTNV_OS_ERR;
++      nwrite = -1;
++      goto out;
++  }
++
++  /* Retrieve group id corresponding to "bluetooth" user */
++  grp = getgrnam("bluetooth");
++  if (!grp)
++  {
++      BTNV_ERR("BT-NV-WRITE: group not found in /etc/group\n");
++      BTNV_OS_ERR;
++      nwrite = -1;
++      goto out;
++  }
++
++  /* Set user and group ownership as "bluetooth"
++   * for firmware file created/opened above
++   */
++  if (fchown(nFd, pwd->pw_uid, grp->gr_gid) < 0)
++  {
++      BTNV_ERR("BT-NV-WRITE: fchown failed \n");
++      BTNV_OS_ERR;
++      nwrite = -1;
++      goto out;
++  }
++
++  for(i = 0; i < nparams; i++)
++  {
++    if((void*)(&params[i]) == NULL)
++    {
++      BTNV_ERR("BT-NV-WRITE: params[%d]) is NULL \n", i);
++      BTNV_OS_ERR;
++      nwrite = -1;
++      goto out;
++    }
++    else
++    {
++      BTNV_INFO("BT-NV-WRITE: params[%d] is valid\n",i);
++    }
++    cmd[0] = (uint8)params[i].item;
++    cmd[1] = (uint8)params[i].writeprotect;
++    cmd[2] = (uint8)params[i].nSize;
++
++    BTNV_INFO("BT-NV-WRITE:****** params[i].writeprotect_0ld = %d new  = %d\n",
++                    (uint8)params[i].writeprotect,(uint8)cmd[1]);
++
++    memcpy(&cmd[NV_CMD_HDR_SIZE], params[i].pCmdBuffer, params[i].nSize);
++
++    if((nwrite = write(nFd, cmd, (NV_CMD_HDR_SIZE+params[i].nSize))) <= 0)
++    {
++      BTNV_ERR("BT-NV-WRITE: Failed to write to binary file\n");
++      BTNV_OS_ERR;
++      nwrite = -1;
++      goto out;
++    }
++    else
++    {
++      BTNV_INFO("BT-NV-WRITE: Written %d data",nwrite);
++      for(j = 0; j < NV_CMD_HDR_SIZE + params[i].nSize;j++)
++        BTNV_INFO("%02x  ",cmd[j]);
++      BTNV_INFO("\n");
++    }
++  }
++out:
++  close(nFd);
++  BTNV_INFO("BT-NV-WRITE: closed file pointer\n");
++  return nwrite;
++}
++/*==============================================================
++FUNCTION:  bt_nv_read
++==============================================================*/
++/**
++* Read the item  from (PERSISTENCE_PATH/BT_NV_FILE_NAME) as
++* mentioned in the  nv_params and return the value through
++* the argument pointer.
++*
++* @return  int - negative number on failure.
++*
++*/
++int bt_nv_read
++(
++ nv_persist_params *params_read
++)
++{
++  int nFd;
++  int nRead = 0;
++  unsigned char payload[NVM_PAYLOAD_MAXLENGTH];
++  unsigned char header[NV_CMD_HDR_SIZE];
++  int nNvItem = 0, i = 0;
++  char filename[NAME_MAX];
++
++  snprintf(filename, NAME_MAX, "%s/%s",PERSISTENCE_PATH,BT_NV_FILE_NAME);
++  BTNV_INFO("BT-NV-READ: Opening file '%s' for reading\n",filename);
++
++  /* Open the firmware file */
++  nFd = open(filename, O_RDONLY);
++  if(nFd < 0)
++  {
++    BTNV_ERR("BT-NV-READ: Open of firmware file failed\n");
++    BTNV_OS_ERR;
++    return -1;
++  }
++
++  nNvItem = 0;
++  while((nRead = read(nFd, header, NV_CMD_HDR_SIZE)) &&
++         (nRead == 0 || nRead == NV_CMD_HDR_SIZE))
++  {
++    /*Third byte gives the length*/
++    params_read[nNvItem].item = (nv_persist_items_enum_type)header[0];
++    params_read[nNvItem].writeprotect = (nv_persist_write_type)header[1];
++    params_read[nNvItem].nSize = header[2];
++
++    BTNV_INFO("BT-NV-READ: Header = %02x %02x %02x\n",params_read[nNvItem].item,
++                  params_read[nNvItem].writeprotect,
++                  params_read[nNvItem].nSize);
++
++    if(read(nFd, payload, params_read[nNvItem].nSize) ==
++            params_read[nNvItem].nSize)
++    {
++      BTNV_INFO("BT-NV-READ: NV item %02x value:",params_read[nNvItem].item);
++      for(i=0; i < params_read[nNvItem].nSize;i++)
++      {
++        params_read[nNvItem].pCmdBuffer[i] = payload[i];
++        BTNV_INFO("%02x  ",params_read[nNvItem].pCmdBuffer[i]);
++      }
++      BTNV_INFO("\n");
++    }
++    else
++    {
++      BTNV_ERR("BT-NV-READ: fread failed !!! \n");
++    }
++    nNvItem++;
++  }
++
++  BTNV_INFO("BT-NV-READ: Total number of item Read = %d\n",nNvItem);
++  close(nFd);
++  return nNvItem;
++}
++
++/*==============================================================
++FUNCTION:  bt_nv_cmd
++==============================================================*/
++/**
++*  This function is to do the read and write the NV item.
++*
++*  @see  nv_persist_func_enum_type -> For Read or Write (nv_persist_func_enum_type)
++*    nv_persist_items_enum_type  -> NV ID number (refer the nv_persist_items_enum_type enum)
++*    nv_persist_item_type    -> Structure which contains the variables to read or write.
++*    bIsRandom -> Used only in case of BD address NV item being written.
++*      bIsRandom = 1 implies that BD address programmed is random generated
++*      bIsRandom = 0 (default) implies it to be user programmed
++*
++*  @return  Returns the nagative value on failure.
++*
++*  @sideeffects Undetermined.
++*/
++int bt_nv_cmd(nv_persist_func_enum_type nvReadWriteFunc,  nv_persist_items_enum_type nvitem,
++                nv_persist_item_type *my_nv_item, int bIsRandom)
++{
++  nv_persist_params params_temp[NV_BT_ITEM_MAX];
++  nv_persist_stat_enum_type status = NV_SUCCESS;
++  int item = -1, check = -1;
++  int i =0,numitems =0;
++
++  if((numitems = bt_nv_read(params_temp)) == -1)
++  {
++    if(nvReadWriteFunc == NV_READ_F)
++    {
++      BTNV_ERR("BT-NV-CMD: Read from NV persist failed\n");
++      BTNV_OS_ERR;
++      return NV_FAILURE;
++    }
++    numitems = 0;
++  }
++
++  BTNV_INFO("BT-NV-CMD: numitems = %d\n",numitems);
++
++  if(nvitem <= NV_BT_ITEM_MIN || nvitem >= NV_BT_ITEM_MAX)
++  {
++    BTNV_ERR("BT-NV-CMD: Invalid NV item %d\n",nvitem);
++    BTNV_OS_ERR;
++    return NV_FAILURE;
++  }
++
++  for(i = 0; i <numitems;i++)
++  {
++    if( nvitem == params_temp[i].item)
++    {
++      item = i;
++      BTNV_INFO("BT-NV-CMD: Found NV item '%d' at '%d'\n",nvitem,item);
++      break;
++    }
++  }
++
++  switch(nvReadWriteFunc)
++  {
++    case NV_READ_F: //read from file
++      BTNV_INFO("BT-NV-CMD: Read Command Execution\n");
++      if(item == -1)
++      {
++        BTNV_ERR("BT-NV-CMD: NV item %d not found\n",nvitem);
++        BTNV_OS_ERR;
++        return NV_FAILURE;
++      }
++      if(nvitem == NV_BD_ADDR_I)
++      {
++        memcpy((*my_nv_item).bd_addr, params_temp[item].pCmdBuffer, NV_BD_ADDR_SIZE );
++        BTNV_INFO("BT-NV-CMD: NV_READ_F: BD Addr: %02x %02x %02x %02x %02x %02x\n",
++            params_temp[item].pCmdBuffer[0],params_temp[item].pCmdBuffer[1],
++            params_temp[item].pCmdBuffer[2],params_temp[item].pCmdBuffer[3],
++            params_temp[item].pCmdBuffer[4],params_temp[item].pCmdBuffer[5]);
++      }
++      else if(nvitem == NV_BT_SOC_REFCLOCK_TYPE_I)
++      {
++        (*my_nv_item).bt_soc_refclock_type = params_temp[item].pCmdBuffer[0];
++        BTNV_INFO("BT-NV-CMD: NV_READ_F: REFCLOCK_TYPE: %02x (0 -> 32MHz, 1-> 19P2MHz)\n",
++                params_temp[item].pCmdBuffer[0]);
++      }
++      else if(nvitem == NV_BT_SOC_CLK_SHARING_TYPE_I)
++      {
++        (*my_nv_item).bt_soc_clk_sharing_type = params_temp[item].pCmdBuffer[0];
++        BTNV_INFO("BT-NV-CMD: NV_READ_F: CLOCK_SHARING_TYPE: %02x (0 -> Disabled, 1-> Enabled)\n",
++              params_temp[item].pCmdBuffer[0]);
++      }
++      break;
++
++    case NV_WRITE_F: //write to file
++      BTNV_INFO("BT-NV-CMD: Write Command Execution\n");
++      if((item != -1) && params_temp[item].writeprotect)
++      {
++        BTNV_INFO("BT-NV-CMD: NV item %d can be written only once\n",params_temp[item].item);
++        status = NV_READONLY;
++      }
++      else
++      {
++        if(item == -1)
++        {
++          BTNV_INFO("BT-NV-CMD: NV item %d not found\n",nvitem);
++          item = numitems;
++          numitems++;
++        }
++        params_temp[item].item = (nv_persist_items_enum_type)nvitem;
++        params_temp[item].writeprotect = nvItems[nvitem - 1].multi_time_wr;
++        params_temp[item].nSize = (uint8)nvItems[nvitem -1].size;
++        if(nvitem == NV_BD_ADDR_I)
++        {
++            /* Overridden. Since in case of BD address it can be either
++               generated or user defined.
++               If random generated then BD address to be persistent across target
++               reboots but can be reprogrammed once by the user.
++               In case of user defined its persistent across target reboots and
++               can't be reprogrammed again by the user. */
++            params_temp[item].writeprotect = (bIsRandom) ? NV_WRITE_ONCE_DISABLE:
++                                                       nvItems[nvitem - 1].multi_time_wr;
++            params_temp[item].pCmdBuffer[0] = my_nv_item->bd_addr[0];
++            params_temp[item].pCmdBuffer[1] = my_nv_item->bd_addr[1];
++            params_temp[item].pCmdBuffer[2] = my_nv_item->bd_addr[2];
++            params_temp[item].pCmdBuffer[3] = my_nv_item->bd_addr[3];
++            params_temp[item].pCmdBuffer[4] = my_nv_item->bd_addr[4];
++            params_temp[item].pCmdBuffer[5] = my_nv_item->bd_addr[5];
++            BTNV_INFO("BT-NV-CMD: NV_WRITE_F: BD Addr: %02x %02x %02x %02x %02x %02x\n",
++                  params_temp[item].pCmdBuffer[0],params_temp[item].pCmdBuffer[1],
++                  params_temp[item].pCmdBuffer[2],params_temp[item].pCmdBuffer[3],
++                  params_temp[item].pCmdBuffer[4],params_temp[item].pCmdBuffer[5]);
++        }
++        else if(nvitem == NV_BT_SOC_REFCLOCK_TYPE_I)
++        {
++          params_temp[item].pCmdBuffer[0] = (*my_nv_item).bt_soc_refclock_type;
++          BTNV_INFO("BT-NV-CMD: NV_WRITE_F: REFCLOCK_TYPE: %02x (0 -> 32MHz, 1-> 19P2MHz)\n",
++                   params_temp[item].pCmdBuffer[0]);
++        }
++        else if(nvitem == NV_BT_SOC_CLK_SHARING_TYPE_I){
++          params_temp[item].pCmdBuffer[0] = (*my_nv_item).bt_soc_clk_sharing_type;
++          BTNV_INFO("BT-NV-CMD: NV_WRITE_F: CLK_SHARING_TYPE: %02x (0 ->Disable, 1->Enable )\n",
++                  params_temp[item].pCmdBuffer[0]);
++        }
++      }
++
++      BTNV_INFO("BT-NV-CMD:  bt_nv_write numitems: %d.... item = %d\n",numitems,item);
++      if(bt_nv_write(params_temp, numitems) == -1)
++      {
++        BTNV_ERR("BT-NV-CMD: Write failed\n");
++        BTNV_OS_ERR;
++        return NV_FAILURE;
++      }
++      break;
++
++    default:
++        status = NV_BADCMD;
++        BTNV_INFO("BT-NV-CMD: Oops default cmd option\n");
++        break;
++  }
++  return status;
++}
+diff -Naur android-x86-unpatch/vendor/qcom/proprietary/bt/hci_qcomm_init/bt_nv.h android-x86-patched_update_kk/vendor/qcom/proprietary/bt/hci_qcomm_init/bt_nv.h
+--- android-x86-unpatch/vendor/qcom/proprietary/bt/hci_qcomm_init/bt_nv.h	1970-01-01 08:00:00.000000000 +0800
++++ android-x86-patched_update_kk/vendor/qcom/proprietary/bt/hci_qcomm_init/bt_nv.h	2014-12-23 15:38:42.412459700 +0800
+@@ -0,0 +1,109 @@
++#ifndef BT_NV_H
++#define BT_NV_H
++/*============================================================================
++  Copyright (c) 2011-2012 Qualcomm Technologies, Inc.  All Rights Reserved.
++  Qualcomm Technologies Proprietary and Confidential.
++
++  FILE: bt_nv.h
++
++  OVERVIEW: Public declarations for the NV parser module.
++
++*==============================================================================
++                        EDIT HISTORY FOR MODULE
++
++  This section contains comments describing changes made to the module.
++  Notice that changes are listed in reverse chronological order. Please
++  use ISO format for dates.
++
++when        who  what, where, why
++----------  ---  -----------------------------------------------------------
++2010-02-15   ss  Intial version
++2011-09-28  rrr  Moved the implementation to CPP, for having BD address being
++                 programmed twice if previous BD address was random generated.
++2012-02-22  rrr  Added macro related to persistent file path.
++============================================================================*/
++#ifdef __cplusplus
++extern "C" {
++#endif
++
++#include <linux/limits.h>
++
++/* To Enable the logging define the BTNV_DEBUG */
++//#define BTNV_DEBUG
++
++#define TRUE 1
++#define FALSE 0
++#define NV_BD_ADDR_SIZE 6
++#define PERSISTENCE_PATH "/persist"
++#define BT_NV_FILE_NAME ".bt_nv.bin"
++
++/* BTS Master Clock Reference Value */
++typedef long int nv_ps_bt_soc_refclock_enum_type;
++#define NV_PS_BT_SOC_REFCLOCK_32MHZ ((nv_ps_bt_soc_refclock_enum_type)0)
++#define NV_PS_BT_SOC_REFCLOCK_19P2MHZ ((nv_ps_bt_soc_refclock_enum_type)1)
++
++/* Provides Information of BTS clk sharing */
++typedef long int nv_ps_bt_soc_clock_sharing_enum_type;
++#define  NV_PS_BT_SOC_CLOCK_SHARING_DISABLED ((nv_ps_bt_soc_clock_sharing_enum_type)0)
++#define  NV_PS_BT_SOC_CLOCK_SHARING_ENABLED ((nv_ps_bt_soc_clock_sharing_enum_type)1)
++
++
++typedef union{
++  /* Provides the BT Address */
++  unsigned char bd_addr[NV_BD_ADDR_SIZE];
++  /* Provides the BTS Master Reference Clock */
++  nv_ps_bt_soc_refclock_enum_type bt_soc_refclock_type;
++  /* Provides Information of BTS Clk sharing  */
++  nv_ps_bt_soc_clock_sharing_enum_type bt_soc_clk_sharing_type;
++} nv_persist_item_type;
++
++typedef enum {
++  NV_BT_ITEM_MIN,
++  NV_BD_ADDR_I,
++  NV_BT_SOC_REFCLOCK_TYPE_I,
++  NV_BT_SOC_CLK_SHARING_TYPE_I,
++  NV_BT_ITEM_MAX
++} nv_persist_items_enum_type;
++
++
++/*  Command codes when command is issued to the NV task.                   */
++typedef enum {
++  NV_READ_F,          /* Read item */
++  NV_WRITE_F          /* Write item */
++} nv_persist_func_enum_type;
++
++/*  Returned status codes for requested operation.                         */
++typedef enum {
++  NV_SUCCESS=0,          /* Request completed okay */
++  NV_FAILURE,          /* Command failed, reason other than NVM was full */
++  NV_BADCMD,        /* Unrecognizable command field */
++  NV_READONLY,      /* Parameter is write-protected and thus read only */
++} nv_persist_stat_enum_type;
++
++
++/*==============================================================
++FUNCTION:  bt_nv_cmd
++==============================================================*/
++/**
++  This function is to do the read and write the NV item.
++
++  @see  nv_persist_func_enum_type -> For Read or Write (nv_persist_func_enum_type)
++    nv_persist_items_enum_type  -> NV ID number (refer the nv_persist_items_enum_type enum)
++    nv_persist_item_type    -> Structure which contains the variables to read or write.
++    bIsRandom -> Used only in case of BD address NV item being written.
++      bIsRandom = 1 implies that BD address programmed is random generated
++      bIsRandom = 0 (default) implies it to be user programmed
++
++  @return  Returns the nagative value on failure.
++
++  @sideeffects Undetermined.
++*/
++int bt_nv_cmd(nv_persist_func_enum_type nvReadWriteFunc,  nv_persist_items_enum_type nvitem,
++                nv_persist_item_type *my_nv_item, int bIsRandom = 0);
++
++
++#ifdef __cplusplus
++}
++#endif
++
++#endif
+diff -Naur android-x86-unpatch/vendor/qcom/proprietary/bt/hci_qcomm_init/comdef.h android-x86-patched_update_kk/vendor/qcom/proprietary/bt/hci_qcomm_init/comdef.h
+--- android-x86-unpatch/vendor/qcom/proprietary/bt/hci_qcomm_init/comdef.h	1970-01-01 08:00:00.000000000 +0800
++++ android-x86-patched_update_kk/vendor/qcom/proprietary/bt/hci_qcomm_init/comdef.h	2014-12-23 15:38:42.412459700 +0800
+@@ -0,0 +1,1288 @@
++#ifndef COMDEF_H
++#define COMDEF_H
++/*===========================================================================
++
++                   S T A N D A R D    D E C L A R A T I O N S
++
++DESCRIPTION
++  This header file contains general types and macros that are of use
++  to all modules.  The values or definitions are dependent on the specified
++  target.  T_WINNT specifies Windows NT based targets, otherwise the
++  default is for ARM targets.
++
++       T_WINNT  Software is hosted on an NT platforn, triggers macro and
++                type definitions, unlike definition above which triggers
++                actual OS calls
++
++DEFINED TYPES
++
++       Name      Definition
++       -------   --------------------------------------------------------
++       byte      8  bit unsigned value
++       word      16 bit unsigned value
++       dword     32 bit unsigned value
++
++       uint1     byte
++       uint2     word
++       uint4     dword
++
++       uint8     8  bit unsigned value
++       uint16    16 bit unsigned value
++       uint32    32 bit unsigned value
++       uint64    64 bit unsigned value
++
++       int8      8  bit signed value
++       int16     16 bit signed value
++       int32     32 bit signed value
++       int 64    64 bit signed value
++
++       sint31    32 bit signed value
++       sint15    16 bit signed value
++       sint7     8  bit signed value
++
++       int1      8  bit signed value
++       int2      16 bit signed value
++       int4      32 bit signed value
++
++       boolean   8 bit boolean value
++
++DEFINED CONSTANTS
++
++       Name      Definition
++       -------   --------------------------------------------------------
++       TRUE      Asserted boolean condition (Logical 1)
++       FALSE     Deasserted boolean condition (Logical 0)
++
++       ON        Asserted condition
++       OFF       Deasserted condition
++
++       NULL      Pointer to nothing
++
++       PACKED    Used to indicate structures which should use packed
++                 alignment
++
++       INLINE    Used to inline functions for compilers which support this
++
++  -----------------------------------------------------------------------------
++  Copyright (c) 1990, 1992-1994, 1997-2007 Qualcomm Technologies, Inc.
++  All Rights Reserved. Qualcomm Technologies Proprietary and Confidential.
++  -----------------------------------------------------------------------------
++===========================================================================*/
++
++
++/*===========================================================================
++
++                      EDIT HISTORY FOR FILE
++
++This section contains comments describing changes made to this file.
++Notice that changes are listed in reverse chronological order.
++
++$Header: //linux/pkgs/proprietary/oncrpc/main/source/inc/comdef.h#4 $
++
++when       who     what, where, why
++--------   ---     ----------------------------------------------------------
++01/09/06   bfc     Added Pthe OST_ALIGN macro.
++09/22/06    th     Added FIQLOCK_SAV/FIQFREE_SAV macros for Windows Mobile
++05/10/06   taw     Added FIQLOCK_SAV/FIQFREE_SAV macros.
++01/25/06   sam     Added MSM_INTLOCK/MSM_INTFREE macros.
++07/13/05   adm     Merged in changes related to supporting BootLoader compilation
++                   for L4 builds
++07/06/05   ptm     Merge to 6550 for L4.
++06/30/05   adm     Merging in 6800's later changes and made some fixes.
++06/29/05   adm     Merged in 6800 l4 related changes
++02/28/04   jcw     Removed TASKLOCK/TASKFREE definition to INTLOCK/INTFREE for L4.
++02/14/04   hcg     Add TASKLOCK/TASKFREE definition to INTLOCK/INTFREE for L4.
++08/25/04   jac     suppress lint error 413 for FPOS macro
++11/19/03    gr     Added multiple definition protection for the ARR_SIZE
++                   macro.
++10/18/03    gr     Moved TASKLOCK/TASKFREE into this file from rex.h. DMSS
++                   expects to pick these up just by including comdef.h.
++10/17/03    gr     Made inclusion of target.h unconditional (TG is now
++                   deprecated).
++10/16/03    gr     Defined LOCAL away unconditionally. DMSS doesn't build with
++                   LOCAL set to static.
++01/07/04   ajn     Re-integrated 11/14/03 change
++11/20/03   ak      ARR_SIZE conflict with BREW files fixed
++11/14/03   ajn     Removed #include "rex.h" to avoid circular include issue.
++                   Instead, prototypes for rex_int_lock()/rex_int_free()
++                   have been explicitly included for INTLOCK/INTFREE macros.
++06/11/01    gr     Added MOD_BY_POWER_OF_TWO macro.
++04/12/01    sq     Added inpdw and outpdw macros
++           vas     Added solaris support
++04/06/01    gr     Removed the definitions of abs and labs.
++01/25/01   day     Merged from MSM5105_COMMON.00.00.05.
++             Added include for stdlib.h within WINNT ifdef
++       Added support for ARM_ASM
++       Added support SWIG preprocessor.
++09/09/99   tac     Merged in a bunch of panther changes.
++08/11/99   jct     Corrected conditional compilation around labs to check for
++                   labs instead of abs
++06/30/99   jct     Added PC_EMULATOR capability for INTLOCK and INTLOCKSAV
++06/15/99   jct     Cleanup to make work in Windows NT environment.  Addition
++                   of int(n) types where n is 8,16,32,64 and addition of
++                   unit64.  Removal of OS comments and defines as this is replaced
++                   by T_WINNT.  Conditional inclusion of MAX, MIN, labs, abs,
++                   NULL definitions.  Removal of volatile from packed definition
++                   stdlib.h included for Win32 based targets since this replaces several
++                   of the define here.  Changed out uts calls to be comet calls.
++                   Added a defines for Windows NT targets to define away symbols
++                   no longer supported
++04/09/99    ms     Lint cleanup.
++04/01/99    ms     Lint cleanup.
++02/17/99    ms     Parenthesized abs and labs.
++                   Defined __packed to volatile to exploit lint.
++12/16/98   jct     Removed 80186 support
++12/01/98    ms     Removed definition of bsp_io_base.
++11/20/98    ms     Typecast to volatile pointers in inp,outp,inpw and outpw.
++10/10/98   jct     Honing of OS and T_ definitions, added T_WINNT as a target
++                   which triggers something different then which OS since
++                   we may be running REX on an NT platform, but strictly
++                   speaking, the application software is using REX, not NT
++                   as the OS.  Changed ROM for WINNT/ARM targets to be nothing
++                   instead of const
++09/09/98   jct     Updates to merge ARM support with 186 support, added some
++                   new type aliases, added some segmented architecture macros,
++                   updated comments, removed unused code, updated declaration
++                   of inp/outp to have cdecl
++08/01/98   jct     Updates to support ARM processor
++03/25/96   jah     Moved SET_VECT to 80186.h
++02/06/96   fkm     Put ()s around Macros to Make Lint Happy
++01/12/95   jah     Updated dependency in MACRO INTLOCK_SAV / INTFREE_SAV.
++12/20/94   jah     Corrected typo in ARR_SIZE() macro comments
++03/11/94   jah     Added #ifdef _lint of NULL as 0 for near/far lint problem.
++06/11/93   jah     Changed FPOS() to cast the pointer to 'near' to avoid the
++                   compiler complaints about lost segments.
++01/28/93   twp     Added ARR_SIZE macro to return number of array elements.
++07/17/92   jah     Changed int1 from 'char' to 'signed char'
++06/10/92   jah     Added WORD_LO/HI, INC_SAT
++05/19/92   jah     Added header comments for macros & made them lint-friendly
++05/04/92   jah     Added define for ROM
++03/02/92   jah     Added in/outp prototypes, INT* Macro comments w/lint
++02/20/92   arh     Added LOCAL macro and ifdef/endif around file
++
++===========================================================================*/
++
++
++/*===========================================================================
++
++                            Data Declarations
++
++===========================================================================*/
++
++#ifdef __cplusplus
++extern "C" {
++#endif
++
++#include "target.h"
++#include "armasm.h"
++
++#if defined FEATURE_L4  && !defined FEATURE_L4_KERNEL && \
++    !defined BUILD_BOOT_CHAIN && !defined BUILD_BOOT_CHAIN_OEMSBL
++  #ifndef _ARM_ASM_
++    #ifdef FEATURE_QUARTZ_135
++      #include <l4/cust/msm_syscall.h>
++    #else /* FEATURE_QUARTZ_135 */
++     #include <msm/msm_syscall.h>
++    #endif /* FEATURE_QUARTZ_135 */
++  #endif /* _ARM_ASM_ */
++#endif /* FEATURE_L4 && !FEATURE_L4_KERNEL &&
++          !FEATURE_L4_KERNEL && !BUILD_BOOT_CHAIN_OEMSBL */
++
++/* For NT apps we want to use the Win32 definitions and/or those
++** supplied by the Win32 compiler for things like NULL, MAX, MIN
++** abs, labs, etc.
++*/
++#ifdef T_WINNT
++   #ifndef WIN32
++      #define WIN32
++   #endif
++   #include <stdlib.h>
++#endif
++
++/* ------------------------------------------------------------------------
++** Constants
++** ------------------------------------------------------------------------ */
++
++#ifdef TRUE
++#undef TRUE
++#endif
++
++#ifdef FALSE
++#undef FALSE
++#endif
++
++#define TRUE   1   /* Boolean true value. */
++#define FALSE  0   /* Boolean false value. */
++
++#define  ON   1    /* On value. */
++#define  OFF  0    /* Off value. */
++
++#ifdef _lint
++  #define NULL 0
++#endif
++
++#ifndef NULL
++  #define NULL  0
++#endif
++
++/* -----------------------------------------------------------------------
++** Standard Types
++** ----------------------------------------------------------------------- */
++
++/* The following definitions are the same accross platforms.  This first
++** group are the sanctioned types.
++*/
++#ifndef _ARM_ASM_
++typedef  unsigned char      boolean;     /* Boolean value type. */
++
++typedef  unsigned long int  uint32;      /* Unsigned 32 bit value */
++typedef  unsigned short     uint16;      /* Unsigned 16 bit value */
++typedef  unsigned char      uint8;       /* Unsigned 8  bit value */
++
++typedef  signed long int    int32;       /* Signed 32 bit value */
++typedef  signed short       int16;       /* Signed 16 bit value */
++typedef  signed char        int8;        /* Signed 8  bit value */
++
++/* This group are the deprecated types.  Their use should be
++** discontinued and new code should use the types above
++*/
++typedef  unsigned char     byte;         /* Unsigned 8  bit value type. */
++typedef  unsigned short    word;         /* Unsinged 16 bit value type. */
++typedef  unsigned long     dword;        /* Unsigned 32 bit value type. */
++
++typedef  unsigned char     uint1;        /* Unsigned 8  bit value type. */
++typedef  unsigned short    uint2;        /* Unsigned 16 bit value type. */
++typedef  unsigned long     uint4;        /* Unsigned 32 bit value type. */
++
++typedef  signed char       int1;         /* Signed 8  bit value type. */
++typedef  signed short      int2;         /* Signed 16 bit value type. */
++typedef  long int          int4;         /* Signed 32 bit value type. */
++
++typedef  signed long       sint31;       /* Signed 32 bit value */
++typedef  signed short      sint15;       /* Signed 16 bit value */
++typedef  signed char       sint7;        /* Signed 8  bit value */
++
++#ifdef FEATURE_WINCE
++  #define WCE_MSG  RETAILMSG
++  #define WCE_MSG6 RETAILMSG
++  #define WCE_MSGT RETAILMSG
++  #define WCE_MSG_SDBG RETAILMSG
++#endif
++/************************** The PACK() macro *****************************
++  This block sets up the semantics for PACK() macro based upon
++  upon the target compiler. PACK() is necessary to ensure portability of C
++  variable/struct/union packing across many platforms.  For example, ARM
++  compilers require the following:
++    typedef __packed struct { ... } foo_t;
++
++  But GCC requires this to achieve the same effect:
++    typedef struct __attribute((__packed__)) struct { ... } foo_t;
++
++  And, of course, Microsoft VC++ requires an alignment #pragma prologue and
++  epilogue. To satisfy all three, the following form is recommended:
++
++    #ifdef _WIN32
++		#pragma pack(push,1) // Save previous, and turn on 1 byte alignment
++    #endif
++
++    typedef PACK(struct)
++    {
++      ...
++    } such_and_such_t;
++
++    typedef PACK(struct)
++    {
++      ...
++    } this_and_that_t;
++
++    typedef PACK(struct)
++    {
++      PACK(struct)
++      {
++        ...
++      } hdr;
++      PACK(union)
++      {
++        such_and_such_t sas;
++        this_and_that_t tat;
++      } payload;
++    } cmd_t;
++
++*********************** BEGIN PACK() Definition ***************************/
++#if defined __GNUC__
++  #define PACK(x)       x __attribute__((__packed__))
++#elif defined __arm
++  #define PACK(x)       __packed x
++#else
++  #error No PACK() macro defined for this compiler
++#endif
++/********************** END PACK() Definition *****************************/
++/* ---------------------------------------------------------------------
++** Compiler Keyword Macros
++** --------------------------------------------------------------------- */
++#if (! defined T_WINNT) && (! defined TARGET_OS_SOLARIS)
++#ifndef SWIG  /* The SWIG preprocessor gets confused by these */
++  /* Non WinNT Targets
++  */
++  typedef  signed long long   int64;       /* Signed 64 bit value */
++  typedef  unsigned long long uint64;      /* Unsigned 64 bit value */
++
++#if defined(__ARMCC_VERSION) 
++  #define PACKED __packed
++  #define PACKED_POST
++  #define ALIGN(__value) __align(__value)
++  #define POST_ALIGN(__value)
++  #define INLINE __inline
++  #define inline __inline
++#else  /* __GNUC__ */
++  #define PACKED 
++  #ifndef FEATURE_WINCE
++    #define ALIGN(__value) __attribute__((__aligned__(__value)))
++    #define POST_ALIGN(__value)
++    #define PACKED_POST    __attribute__((__packed__))
++  #else /* FEATURE_WINCE */
++    #ifdef WINCE_TODO
++      /*----------------------------------------------------------------------
++        Should we be using something closer to the T_WINNT case below?
++      ----------------------------------------------------------------------*/
++    #endif /* WINCE_TODO */
++    #define ALIGN(__value)
++    #define POST_ALIGN(__value)
++    #define PACKED_POST
++    #define INLINE 
++  #endif /* FEATURE_WINCE */
++    
++
++  #ifndef INLINE
++    #define INLINE inline
++  #endif
++#endif /* defined (__GNUC__) */
++
++  #define CDECL
++#endif /* SWIG */
++  #define far
++  #define near
++  #define _far
++  #define _near
++//  #define _cdecl
++  #define cdecl
++  #define _pascal
++  #define _interrupt
++
++#else /* T_WINNT || TARGET_OS_SOLARIS */
++
++  /* WINNT or SOLARIS based targets
++  */
++#if (defined __GNUC__) || (defined TARGET_OS_SOLARIS)
++  typedef long long           int64;
++  typedef unsigned long long  uint64;
++#else
++  typedef  __int64            int64;       /* Signed 64 bit value */
++  typedef  unsigned __int64   uint64;      /* Unsigned 64 bit value */
++#endif
++  #define PACKED
++  #define PACKED_POST
++  #define ALIGN(__value)
++  #define POST_ALIGN(__value)
++  #ifndef INLINE
++
++  /* INLINE is defined to __inline because WINNT targets work fine with it
++   * and defining it to nothing does not work because the inline function
++   * definition is then multiply defined.  Solaris may need a different value.
++   */
++  #define INLINE __inline
++  #endif
++  #ifndef CDECL
++     #define CDECL __cdecl
++  #endif
++  #define _pascal
++  #define _far
++  #define far
++  #define near
++  #define _near
++  #define cdecl
++  #define _cdecl
++  #define _interrupt
++  #define __packed
++  #define _fmemcpy memcpy
++
++#endif /* T_WINNT */
++#endif // #ifndef _ARM_ASM_
++
++/* ----------------------------------------------------------------------
++** Lint does not understand __packed, so we define it away here.  In the
++** past we did this:
++**   This helps us catch non-packed pointers accessing packed structures,
++**   for example, (although lint thinks it is catching non-volatile pointers
++**   accessing volatile structures).
++**   This does assume that volatile is not being used with __packed anywhere
++**   because that would make Lint see volatile volatile (grrr).
++** but found it to be more trouble than it was worth as it would emit bogus
++** errors
++** ---------------------------------------------------------------------- */
++#ifdef _lint
++  #define __packed
++#endif
++
++/* ----------------------------------------------------------------------
++**                          STANDARD MACROS
++** ---------------------------------------------------------------------- */
++
++#ifndef SWIG /* these confuse the SWIG preprocessor and aren't needed for it */
++
++
++/*===========================================================================
++
++MACRO MEM_B
++MACRO MEM_W
++
++DESCRIPTION
++  Take an address and dereference it as a byte/word, allowing access to an
++  arbitrary memory byte/word.
++
++PARAMETERS
++  x     address to be dereferenced
++
++DEPENDENCIES
++  None
++
++RETURN VALUE
++  MEM_B byte at the given address
++  MEM_W word at the given address
++
++SIDE EFFECTS
++  None
++
++===========================================================================*/
++
++#define  MEM_B( x )  ( *( (byte *) (x) ) )
++#define  MEM_W( x )  ( *( (word *) (x) ) )
++
++
++
++/*===========================================================================
++
++MACRO MAX
++MACRO MIN
++
++DESCRIPTION
++  Evaluate the maximum/minimum of 2 specified arguments.
++
++PARAMETERS
++  x     parameter to compare to 'y'
++  y     parameter to compare to 'x'
++
++DEPENDENCIES
++  'x' and 'y' are referenced multiple times, and should remain the same
++  value each time they are evaluated.
++
++RETURN VALUE
++  MAX   greater of 'x' and 'y'
++  MIN   lesser of 'x' and 'y'
++
++SIDE EFFECTS
++  None
++
++===========================================================================*/
++#ifndef MAX
++   #define  MAX( x, y ) ( ((x) > (y)) ? (x) : (y) )
++#endif
++
++#ifndef MIN
++   #define  MIN( x, y ) ( ((x) < (y)) ? (x) : (y) )
++#endif
++
++
++
++/*===========================================================================
++
++MACRO FPOS
++
++DESCRIPTION
++  This macro computes the offset, in bytes, of a specified field
++  of a specified structure or union type.
++
++PARAMETERS
++  type          type of the structure or union
++  field         field in the structure or union to get the offset of
++
++DEPENDENCIES
++  None
++
++RETURN VALUE
++  The byte offset of the 'field' in the structure or union of type 'type'.
++
++SIDE EFFECTS
++  The lint error "Warning 545: Suspicious use of &" is suppressed within
++  this macro.  This is due to the desire to have lint not complain when
++  'field' is an array.
++
++===========================================================================*/
++
++#define FPOS( type, field ) \
++    /*lint -e545 */ ( (dword) &(( type *) 0)-> field ) /*lint +e545 */
++
++
++
++/*===========================================================================
++
++MACRO FSIZ
++
++DESCRIPTION
++  This macro computes the size, in bytes, of a specified field
++  of a specified structure or union type.
++
++PARAMETERS
++  type          type of the structure or union
++  field         field in the structure or union to get the size of
++
++DEPENDENCIES
++  None
++
++RETURN VALUE
++  size in bytes of the 'field' in a structure or union of type 'type'
++
++SIDE EFFECTS
++  None
++
++===========================================================================*/
++
++#define FSIZ( type, field ) sizeof( ((type *) 0)->field )
++
++
++
++/*===========================================================================
++
++MACRO FLIPW
++
++DESCRIPTION
++  Takes a 2 byte array, with the most significant byte first, followed
++  by the least significant byte, and converts the quantity into a word
++  with Intel byte order (LSB first)
++
++PARAMETERS
++  ray   array of 2 bytes to be converted to a word
++
++DEPENDENCIES
++  None
++
++RETURN VALUE
++  word in Intel byte order comprised of the 2 bytes of ray.
++
++SIDE EFFECTS
++  None
++
++===========================================================================*/
++
++#define  FLIPW( ray ) ( (((word) (ray)[0]) * 256) + (ray)[1] )
++
++
++
++/*===========================================================================
++
++MACRO FLOPW
++
++DESCRIPTION
++  Reverses bytes of word value and writes them to a 2 byte array.
++  Effectively the reverse of the FLIPW macro.
++
++PARAMETERS
++  ray   array to receive the 2 bytes from 'val'
++  val   word to break into 2 bytes and put into 'ray'
++
++DEPENDENCIES
++  None
++
++RETURN VALUE
++  None
++
++SIDE EFFECTS
++  None
++
++===========================================================================*/
++#define  FLOPW( ray, val ) \
++  (ray)[0] = ((val) / 256); \
++  (ray)[1] = ((val) & 0xFF)
++
++
++
++/*===========================================================================
++
++MACRO B_PTR
++MACRO W_PTR
++
++DESCRIPTION
++  Casts the address of a specified variable as a pointer to byte/word,
++  allowing byte/word-wise access, e.g.
++  W_PTR ( xyz )[ 2 ] = 0x1234;  -or-    B_PTR ( xyz )[ 2 ] = 0xFF;
++
++PARAMETERS
++  var   the datum to get a word pointer to
++
++DEPENDENCIES
++  None
++
++RETURN VALUE
++  Word pointer to var
++
++SIDE EFFECTS
++  None
++
++===========================================================================*/
++
++#define  B_PTR( var )  ( (byte *) (void *) &(var) )
++#define  W_PTR( var )  ( (word *) (void *) &(var) )
++#define  D_PTR( var )  ( (dword *) (void *) &(var) )
++
++
++/*===========================================================================
++
++MACRO WORD_LO
++MACRO WORD_HI
++
++DESCRIPTION
++  Take a word and extract the least-significant or most-significant byte.
++
++PARAMETERS
++  xxx   word to extract the Low/High from
++
++DEPENDENCIES
++  None
++
++RETURN VALUE
++  WORD_LO       Least significant byte of xxx.
++  WORD_HI       Most significant byte of xxx.
++
++SIDE EFFECTS
++  None
++
++===========================================================================*/
++
++#define  WORD_LO(xxx)  ((byte) ((word)(xxx) & 255))
++#define  WORD_HI(xxx) \
++  /*lint -e572 */  ((byte) ((word)(xxx) >> 8))  /*lint +e572 */
++
++
++/*===========================================================================
++
++MACRO RND8
++
++DESCRIPTION
++  RND8 rounds a number up to the nearest multiple of 8.
++
++PARAMETERS
++  x     Number to be rounded up
++
++DEPENDENCIES
++  None
++
++RETURN VALUE
++  x rounded up to the nearest multiple of 8.
++
++SIDE EFFECTS
++  None
++
++===========================================================================*/
++
++#define RND8( x )       ((((x) + 7) / 8 ) * 8 )
++
++/* -----------------------------------------------------------------------
++** Temporary inclusion of rex.h because there is code in AMSS that expects
++** to pick up Rex definitions by just including comdef.h.
++** ----------------------------------------------------------------------- */
++//#include "rex.h"
++
++/*===========================================================================
++
++MACRO INTLOCK / INTFREE
++
++DESCRIPTION
++  INTLOCK Saves current interrupt state on stack then informs the kernel
++  not to process interrupts in this thread. One interrupt may still occur, 
++  but it will not be processed until either INTFREE is called or a context 
++  switch to another thread which has interrupts enabled is made.
++
++  INTFREE Restores previous interrupt state from stack. Used in conjunction
++  with INTLOCK.
++
++  INTLOCK/INTFREE may be nested, in which case inner INTLOCK/INTFREE
++  pairs will have no effect.
++
++PARAMETERS
++  None
++
++DEPENDENCIES
++  None
++
++RETURN VALUE
++  None
++
++SIDE EFFECTS
++  INTLOCK stops interrupt processing.
++  INTFREE restores the interrupt mask saved previously.
++
++===========================================================================*/
++#if defined PC_EMULATOR_H && !defined T_REXNT
++
++   #define PC_EMULATOR_INTLOCK
++   #include PC_EMULATOR_H
++   #undef PC_EMULATOR_INTLOCK
++
++#elif defined T_WINNT || defined FEATURE_ANDROID
++
++   #define INTLOCK()
++   #define INTFREE()
++
++#elif defined FEATURE_WINCE_OAL
++  #define INTLOCK()  INTERRUPTS_OFF()
++  #define INTFREE()  INTERRUPTS_ON()
++#elif !defined _ARM_ASM_ && (!defined FEATURE_L4 || defined FEATURE_L4_KERNEL)
++
++  #ifdef __cplusplus
++    extern "C" {
++  #endif
++      extern dword rex_int_lock( void );
++      extern dword rex_int_free( void );
++#ifdef FEATURE_WINCE
++      extern int rex_ints_are_locked( void );
++#endif
++
++  #ifdef __cplusplus
++    }
++  #endif
++
++  #define  INTLOCK( )  { dword sav = rex_int_lock();
++  #define  INTFREE( )  if(!sav) (void)rex_int_free();}
++
++#endif
++
++
++/*===========================================================================
++
++MACRO MSM_INTLOCK / MSM_INTFREE
++
++DESCRIPTION
++  MSM_INTLOCK Saves current interrupt state on stack then locks interrupts. 
++  No interrupts will be taken until either MSM_INTFREE is called or a context 
++  switch to another thread which has interrupts enabled is made. This
++  macro is slower than INTLOCK and should only be used when interrupt 
++  locking is needed to ensure timing. To simply prevent context switching, 
++  use the INTLOCK/INTFREE macros above.
++
++  MSM_INTFREE Restores previous interrupt state from stack. Used in conjunction
++  with MSM_INTLOCK.
++
++  MSM_INTLOCK/MSM_INTFREE may be nested, in which case inner 
++  MSM_INTLOCK/MSM_INTFREE pairs will have no effect. It may also be nested
++  inside or outside of INTLOCK/INTFREE.
++
++PARAMETERS
++  None
++
++DEPENDENCIES
++  None
++
++RETURN VALUE
++  None
++
++SIDE EFFECTS
++  MSM_INTLOCK prevents any interrupts from occurring until MSM_INTFREE is
++    called or a context switch to a thread with interrupts enabled is made.
++  MSM_INTFREE restores the interrupt mask saved previously.
++
++===========================================================================*/
++#ifndef _ARM_ASM
++#if defined FEATURE_L4
++  #ifdef __cplusplus
++    extern "C" {
++  #endif
++      extern dword rex_msm_int_lock( void );
++      extern void rex_msm_int_free( dword set );
++  #ifdef __cplusplus
++    }
++  #endif
++
++  #define MSM_INTLOCK()  { dword sav = rex_msm_int_lock();
++  #define MSM_INTFREE()  rex_msm_int_free( sav ); }
++
++#else
++
++  #define MSM_INTLOCK() INTLOCK()
++  #define MSM_INTFREE() INTFREE()
++
++#endif
++#endif
++
++/*===========================================================================
++
++MACRO FIQLOCK / FIQFREE
++
++DESCRIPTION
++  FIQLOCK Saves current FIQ state on stack then disables FIQ interrupts.
++  Used in conjunction with FIQFREE.
++
++  FIQFREE Restores previous FIQ interrupt state from stack.  Used in 
++  conjunction with FIQLOCK.
++
++PARAMETERS
++  None
++
++DEPENDENCIES
++  This is currently only available in L4 based builds.
++
++RETURN VALUE
++  None
++
++SIDE EFFECTS
++  FIQLOCK turns off FIQ interrupts.
++  FIQFREE restores the FIQ interrupt mask saved previously.
++
++===========================================================================*/
++#if defined FEATURE_L4 && !defined _ARM_ASM_
++
++  #ifdef __cplusplus
++    extern "C" {
++  #endif
++      extern dword rex_fiq_op( dword lock );
++  #ifdef __cplusplus
++    }
++  #endif
++
++  #define  FIQLOCK()  { dword sav = rex_fiq_op(1);
++  #define  FIQFREE()  if(!(sav & PSR_Fiq_Mask)) (void)rex_fiq_op(0);}
++    
++#else
++
++  #define FIQLOCK()
++  #define FIQFREE()
++
++#endif
++
++/*===========================================================================
++
++MACRO INTLOCK_SAV / INTFREE_SAV
++
++DESCRIPTION
++  INTLOCK_SAV Saves current interrupt state in specified variable sav_var
++  then disables interrupts.  Used in conjunction with INTFREE_SAV.
++
++  INTFREE_SAV Restores previous interrupt state from specified variable
++  sav_var.  Used in conjunction with INTLOCK_SAV.
++
++PARAMETERS
++  sav_var       Current flags register, including interrupt status
++
++DEPENDENCIES
++  None.
++
++RETURN VALUE
++  None
++
++SIDE EFFECTS
++  INTLOCK_SAV turn off interrupts
++  INTFREE_SAV restore the interrupt mask saved previously
++
++===========================================================================*/
++
++
++#ifdef _lint    /* get lint to 'know' the parameter is accessed */
++
++  #define  INTLOCK_SAV(sav_var)   (sav_var = 1)
++  #define  INTFREE_SAV(sav_var)   (sav_var = sav_var + 1)
++
++#else
++
++   #if defined PC_EMULATOR_H && !defined T_REXNT
++
++      #define PC_EMULATOR_INTLOCKSAV
++      #include PC_EMULATOR_H
++      #undef  PC_EMULATOR_INTLOCKSAV
++
++   #elif defined T_WINNT
++
++     #define  INTLOCK_SAV( sav_var )
++     #define  INTFREE_SAV( sav_var )
++
++#elif !defined _ARM_ASM_ && (!defined FEATURE_L4 || defined FEATURE_L4_KERNEL)
++
++     #define  INTLOCK_SAV( sav_var )  sav_var = rex_int_lock()
++     #define  INTFREE_SAV( sav_var )  if(!sav_var) rex_int_free()
++
++   #endif
++
++#endif /* END if _lint */
++
++/*===========================================================================
++
++MACRO FIQLOCK_SAV / FIQFREE_SAV
++
++DESCRIPTION
++  FIQLOCK Saves current FIQ state in specified variable sav_var 
++  then disables FIQ interrupts.  Used in conjunction with FIQFREE_SAV.
++
++  FIQFREE_SAV Restores previous FIQ interrupt state from specified variable
++  sav_var.  Used in conjunction with FIQLOCK_SAV.
++
++PARAMETERS
++  sav_var       Current flags register, including interrupt status
++
++DEPENDENCIES
++  This is currently only available in L4 based builds.
++
++RETURN VALUE
++  None
++
++SIDE EFFECTS
++  FIQLOCK_SAV turns off FIQ interrupts.
++  FIQFREE_SAV restores the FIQ interrupt mask saved previously.
++
++===========================================================================*/
++#ifdef _lint    /* get lint to 'know' the parameter is accessed */
++
++  #define  FIQLOCK_SAV(sav_var)   (sav_var = 1)
++  #define  FIQFREE_SAV(sav_var)   (sav_var = sav_var + 1)
++
++#else
++
++  #if defined FEATURE_L4 && !defined _ARM_ASM_
++  
++    #ifdef __cplusplus
++      extern "C" {
++    #endif
++        extern dword rex_fiq_op( dword lock );
++    #ifdef __cplusplus
++      }
++    #endif
++  
++    #define  FIQLOCK_SAV(sav_var)  (sav_var = rex_fiq_op(1))
++    #define  FIQFREE_SAV(sav_var)  if(!(sav_var & PSR_Fiq_Mask)) \
++                                      (void)rex_fiq_op(0)
++
++  #elif defined FEATURE_WINCE
++
++    #define  FIQLOCK_SAV(sav_var)  (sav_var = FIQLockSave())
++    #define  FIQFREE_SAV(sav_var)  if(!(sav_var & 0x40)) (void)FIQLockRestore()
++
++  #else
++  
++    #define FIQLOCK_SAV()
++    #define FIQFREE_SAV()
++  
++  #endif
++  
++#endif
++
++
++/*===========================================================================
++MACRO TASKLOCK/TASKFREE/TASKLOCK_SAV/TASKFREE_SAV
++
++DESCRIPTION
++  TASKLOCK prevents context switching from the point at which it is invoked
++  until a matching TASKFREE is invoked.  While task locked, the current task
++  is guaranteed to not be replaced by a different task, even if the other
++  task has a higher priority.  However, TASKLOCK does not block interrupts
++  from occurring.  An ISR will pre-empt the task, but even if the ISR causes
++  a higher priority task to become ready, control will still resume at the
++  interrupted task.
++
++  Note that a rex-wait() while a TASKLOCK is in effect will not work as
++  normal, as the calling task will not be suspended.
++
++  Also, TASKLOCK/TASKFREE have no effect if called from within an ISR.
++
++  TASKFREE re-enables context switching.
++
++  TASKLOCK_SAV and TASKFREE_SAV are similar to TASKLOCK and TASKFREE
++  respectively, except that the TASKFREE_SAV that matches a TASKLOCK_SAV
++  does not have to be at the same static scope within a function. This
++  makes it easier, for instance, to enable task scheduling and return from
++  the middle of a function.
++
++===========================================================================*/
++#ifdef T_WINNT
++#ifdef __cplusplus
++   extern "C" {
++#endif
++   unsigned char rexnt_is_rex_thread( void );
++#ifdef __cplusplus
++   }
++#endif
++   /* tasks must not be locked by non-REX threads */
++#define TASKLOCK( ) {\
++   unsigned char REXNT_IS_REX_THREAD=rexnt_is_rex_thread();\
++   if ( REXNT_IS_REX_THREAD ) rex_task_lock( ); {
++
++#define TASKFREE( ) \
++   } if ( REXNT_IS_REX_THREAD ) rex_task_free( ); }
++
++#else
++
++#define TASKLOCK( ) { rex_task_lock( );
++
++#define TASKFREE( ) rex_task_free( ); }
++
++#define TASKLOCK_SAV( ) rex_task_lock( )
++
++#define TASKFREE_SAV( ) rex_task_free( )
++
++#endif /* T_WINNT */
++
++/*===========================================================================
++
++MACRO UPCASE
++
++DESCRIPTION
++  Convert a character to uppercase, the character does not have to
++  be printable or a letter.
++
++PARAMETERS
++  c             Character to be converted
++
++DEPENDENCIES
++  'c' is referenced multiple times, and should remain the same value
++  each time it is evaluated.
++
++RETURN VALUE
++  Uppercase equivalent of the character parameter
++
++SIDE EFFECTS
++  None
++
++===========================================================================*/
++
++#define  UPCASE( c ) ( ((c) >= 'a' && (c) <= 'z') ? ((c) - 0x20) : (c) )
++
++
++/*===========================================================================
++
++MACRO DECCHK
++MACRO HEXCHK
++
++DESCRIPTION
++  These character attribute macros are similar to the standard 'C' macros
++  (isdec and ishex), but do not rely on the character attributes table used
++  by Microsoft 'C'.
++
++PARAMETERS
++  c             Character to be examined
++
++DEPENDENCIES
++  None
++
++RETURN VALUE
++  DECCHK        True if the character is a decimal digit, else False
++  HEXCHK        True if the chacters is a hexidecimal digit, else False
++
++SIDE EFFECTS
++  None
++
++===========================================================================*/
++
++#define  DECCHK( c ) ((c) >= '0' && (c) <= '9')
++
++#define  HEXCHK( c ) ( ((c) >= '0' && (c) <= '9') ||\
++                       ((c) >= 'A' && (c) <= 'F') ||\
++                       ((c) >= 'a' && (c) <= 'f') )
++
++
++/*===========================================================================
++
++MACRO INC_SAT
++
++DESCRIPTION
++  Increment a value, but saturate it at its maximum positive value, do not
++  let it wrap back to 0 (unsigned) or negative (signed).
++
++PARAMETERS
++  val           value to be incremented with saturation
++
++DEPENDENCIES
++  None
++
++RETURN VALUE
++  val
++
++SIDE EFFECTS
++  val is updated to the new value
++
++===========================================================================*/
++
++#define  INC_SAT( val )  (val = ((val)+1 > (val)) ? (val)+1 : (val))
++
++
++/*===========================================================================
++
++MACRO ARR_SIZE
++
++DESCRIPTION
++  Return the number of elements in an array.
++
++PARAMETERS
++  a             array name
++
++DEPENDENCIES
++  None
++
++RETURN VALUE
++  Number of elements in array a
++
++SIDE EFFECTS
++  None.
++
++===========================================================================*/
++#if !defined(ARR_SIZE)
++#define  ARR_SIZE( a )  ( sizeof( (a) ) / sizeof( (a[0]) ) )
++#endif
++/*===========================================================================
++                     MACRO MOD_BY_POWER_OF_TWO
++
++     Will calculate x % y, where x is a non-negative integer and
++     y is a power of 2 from 2^0..2^32.
++
++     Will work for 2^0, 2^1, 2^2, 2^3, 2^4, ... 2^32
++      ie.            1,   2,   4,   8,  16, ... 4294967296
++===========================================================================*/
++
++#define MOD_BY_POWER_OF_TWO( val, mod_by ) \
++           ( (dword)(val) & (dword)((mod_by)-1) )
++
++/* -------------------------------------------------------------------------
++**                       Debug Declarations
++** ------------------------------------------------------------------------- */
++
++/* Define 'SHOW_STAT' in order to view static's as globals
++** (e.g. cl /DSHOW_STAT foo.c) If 'SHOW_STAT' is not defined,
++** it gets defined as 'static'
++*/
++#ifdef LOCAL
++   #undef LOCAL
++#endif
++
++/* Permanently turn on SHOW_STAT since this has always been the case anyway
++*/
++#define SHOW_STAT
++
++#ifdef SHOW_STAT
++  #define LOCAL
++#else
++  #define LOCAL static
++#endif
++
++/* Provide a new macro that will hopefully be used correctly to conditionally
++** turn static on/off
++*/
++#ifdef GLOBALIZE_STATIC
++   #define STATIC
++#else
++   #define STATIC static
++#endif
++
++
++/*===========================================================================
++
++                      FUNCTION DECLARATIONS
++
++===========================================================================*/
++
++
++
++/*===========================================================================
++
++FUNCTION inp, outp, inpw, outpw, inpdw, outpdw
++
++DESCRIPTION
++  IN/OUT port macros for byte and word ports, typically inlined by compilers
++  which support these routines
++
++PARAMETERS
++  inp(   xx_addr )
++  inpw(  xx_addr )
++  inpdw( xx_addr )
++  outp(   xx_addr, xx_byte_val  )
++  outpw(  xx_addr, xx_word_val  )
++  outpdw( xx_addr, xx_dword_val )
++      xx_addr      - Address of port to read or write (may be memory mapped)
++      xx_byte_val  - 8 bit value to write
++      xx_word_val  - 16 bit value to write
++      xx_dword_val - 32 bit value to write
++
++DEPENDENCIES
++  None
++
++RETURN VALUE
++  inp/inpw/inpdw: the byte, word or dword read from the given address
++  outp/outpw/outpdw: the byte, word or dword written to the given address
++
++SIDE EFFECTS
++  None.
++
++===========================================================================*/
++
++#ifdef PC_EMULATOR_H
++
++  /* For PC emulation, include a header which defines inp/outp/inpw/outpw
++  ** with the semantics above
++  */
++  #define PC_EMULATOR_IO
++  #include PC_EMULATOR_H
++  #undef  PC_EMULATOR_IO
++
++#else
++
++  /* ARM based targets use memory mapped i/o, so the inp/outp calls are
++  ** macroized to access memory directly
++  */
++
++  #define inp(port)         (*((volatile byte *) (port)))
++  #define inpw(port)        (*((volatile word *) (port)))
++  #define inpdw(port)       (*((volatile dword *)(port)))
++
++  #define outp(port, val)   (*((volatile byte *) (port)) = ((byte) (val)))
++  #define outpw(port, val)  (*((volatile word *) (port)) = ((word) (val)))
++  #define outpdw(port, val) (*((volatile dword *) (port)) = ((dword) (val)))
++
++#endif
++
++
++/*===========================================================================
++
++FUNCTION enable, disable
++
++DESCRIPTION
++  Interrupt enable and disable routines.  Enable should cause the CPU to
++  allow interrupts and disable should cause the CPU to disallow
++  interrupts
++
++PARAMETERS
++  None
++
++DEPENDENCIES
++  None
++
++RETURN VALUE
++  None
++
++SIDE EFFECTS
++  None.
++
++===========================================================================*/
++
++#ifndef T_WINNT
++
++  #if !defined _ARM_ASM_
++    /* ARM has no such definition, so we provide one here to enable/disable
++    ** interrupts
++    */
++    #define _disable() (void)rex_int_lock()
++    #define _enable()  (void)rex_int_free()
++
++  #endif
++#endif
++
++#endif /* SWIG */
++
++#ifdef __cplusplus
++}
++#endif
++
++#endif  /* COMDEF_H */
+diff -Naur android-x86-unpatch/vendor/qcom/proprietary/bt/hci_qcomm_init/customer.h android-x86-patched_update_kk/vendor/qcom/proprietary/bt/hci_qcomm_init/customer.h
+--- android-x86-unpatch/vendor/qcom/proprietary/bt/hci_qcomm_init/customer.h	1970-01-01 08:00:00.000000000 +0800
++++ android-x86-patched_update_kk/vendor/qcom/proprietary/bt/hci_qcomm_init/customer.h	2014-12-23 15:38:42.412459700 +0800
+@@ -0,0 +1,11 @@
++/******************************************************************************
++ ----------------------------------------------------------------------------
++ Copyright (c) 2007 Qualcomm Technologies, Inc.
++ All Rights Reserved. Qualcomm Technologies Proprietary and Confidential.
++ ----------------------------------------------------------------------------
++*******************************************************************************/
++
++#ifndef CUSTOMER_H
++#define CUSTOMER_H
++
++#endif /* CUSTOMER_H */
+diff -Naur android-x86-unpatch/vendor/qcom/proprietary/bt/hci_qcomm_init/Makefile android-x86-patched_update_kk/vendor/qcom/proprietary/bt/hci_qcomm_init/Makefile
+--- android-x86-unpatch/vendor/qcom/proprietary/bt/hci_qcomm_init/Makefile	1970-01-01 08:00:00.000000000 +0800
++++ android-x86-patched_update_kk/vendor/qcom/proprietary/bt/hci_qcomm_init/Makefile	2014-12-23 15:38:42.412459700 +0800
+@@ -0,0 +1,116 @@
++##
++## Build stand-alone hci_qcomm_init for Linux PC use with BTS402x WDS.
++##
++
++# sources and intermediate files are separated
++vpath %.c $(SRCDIR)
++
++CC=gcc
++CFLAGS   += -static
++CFLAGS   += -g
++
++CPPFLAGS += -I.
++CPPFLAGS += -I../../common/inc
++CPPFLAGS += -DFEATURE_BT_QSOC
++CPPFLAGS += -DFEATURE_BT_QSOC_SLEEP
++CPPFLAGS += -DFEATURE_BT_QSOC_NVM_EFS_MODE
++
++CPPFLAGS += -DFEATURE_BT_QSOC_BTS4020_BDB0
++CPPFLAGS += -DFEATURE_BT_QSOC_BTS4020_BDB1
++CPPFLAGS += -DFEATURE_BT_QSOC_BTS4020_R3
++CPPFLAGS += -DFEATURE_BT_QSOC_BTS4021_B1
++CPPFLAGS += -DFEATURE_BT_QSOC_BTS4025_B0
++CPPFLAGS += -DFEATURE_BT_QSOC_BTS4025_B1
++CPPFLAGS += -DFEATURE_BT_QSOC_BTS4025_B2
++CPPFLAGS += -DFEATURE_BT_QSOC_BTS4025_B3
++CPPFLAGS += -DFEATURE_BT_QSOC_MARIMBA_A0
++CPPFLAGS += -DFEATURE_BT_QSOC_MARIMBA_B0
++CPPFLAGS += -DFEATURE_BT_QSOC_MARIMBA_B1
++CPPFLAGS += -DFEATURE_BT_QSOC_BAHAMA_A0
++CPPFLAGS += -DFEATURE_BT_QSOC_BAHAMA_B0
++CPPFLAGS += -DFEATURE_BT_QSOC_BAHAMA_B1
++# configure defaults
++
++BT_QSOC_REF_CLOCK = 19200000
++BT_QSOC_REF_CLOCK = 32000000
++BT_QSOC_HCI_DEVICE = /dev/ttyS0
++BT_QSOC_HCI_BAUD_RATE = 115200
++# BT_QSOC_DISABLE_SLEEP_MODE = 1
++# BT_QSOC_WLAN_COEXISTENCE = 1
++# BT_QSOC_ENABLE_CLOCK_SHARING = 1
++
++ifdef BT_QSOC_DISABLE_SLEEP_MODE
++CPPFLAGS += -DBT_QSOC_DISABLE_SLEEP_MODE
++endif
++
++ifdef BT_QSOC_HCI_DEVICE
++CPPFLAGS += '-DBT_QSOC_HCI_DEVICE="$(BT_QSOC_HCI_DEVICE)"'
++endif
++
++ifdef BT_QSOC_HCI_BAUD_RATE
++CPPFLAGS += -DBT_QSOC_HCI_BAUD_RATE=$(BT_QSOC_HCI_BAUD_RATE)
++endif
++
++ifdef BT_QSOC_REF_CLOCK
++CPPFLAGS += -DBT_QSOC_REF_CLOCK=$(BT_QSOC_REF_CLOCK)
++endif
++
++ifdef BT_QSOC_ENABLE_CLOCK_SHARING
++CPPFLAGS += -DBT_QSOC_ENABLE_CLOCK_SHARING
++endif
++
++ifdef BT_QSOC_WLAN_COEXISTENCE
++CPPFLAGS += -DFEATURE_BT_WLAN_COEXISTENCE
++endif
++
++
++
++APP_NAME := hci_qcomm_init
++
++SRCLIST := bthci_qcomm_linux.cpp
++SRCLIST += bthci_qcomm_linux_uart.c
++SRCLIST += bthci_qcomm_common.c
++SRCLIST += btqsocnvmplatform_linux.c
++
++SRCLIST += btqsocnvm.c
++SRCLIST += btqsocnvmefsmode.c
++SRCLIST += btqsocnvmtags.c
++SRCLIST += btqsocnvmprsr.c
++SRCLIST += btqsocnvmutils.c
++
++SRCLIST += bt_qsoc_nvm_BTS4020_BDB0_19P2Mhz.c
++SRCLIST += bt_qsoc_nvm_BTS4020_BDB0_32Mhz.c
++SRCLIST += bt_qsoc_nvm_BTS4020_BDB1_19P2Mhz.c
++SRCLIST += bt_qsoc_nvm_BTS4020_BDB1_32Mhz.c
++SRCLIST += bt_qsoc_nvm_BTS4020_R3_19P2Mhz.c
++SRCLIST += bt_qsoc_nvm_BTS4020_R3_32Mhz.c
++SRCLIST += bt_qsoc_nvm_BTS4021_B1_19P2Mhz.c
++SRCLIST += bt_qsoc_nvm_BTS4021_B1_32Mhz.c
++SRCLIST += bt_qsoc_nvm_BTS4025_B0_19P2Mhz.c
++SRCLIST += bt_qsoc_nvm_BTS4025_B0_32Mhz.c
++SRCLIST += bt_qsoc_nvm_BTS4025_B1_19P2Mhz.c
++SRCLIST += bt_qsoc_nvm_BTS4025_B1_32Mhz.c
++SRCLIST += bt_qsoc_nvm_BTS4025_B2_19P2Mhz.c
++SRCLIST += bt_qsoc_nvm_BTS4025_B2_32Mhz.c
++SRCLIST += bt_qsoc_nvm_BTS4025_B3_19P2Mhz.c
++SRCLIST += bt_qsoc_nvm_BTS4025_B3_32Mhz.c
++SRCLIST += bt_qsoc_nvm_MARIMBA_A0.c
++SRCLIST += bt_qsoc_nvm_MARIMBA_B0.c
++SRCLIST += bt_qsoc_nvm_MARIMBA_B1.c
++SRCLIST += bt_qsoc_nvm_BAHAMA_A0.c
++SRCLIST += bt_qsoc_nvm_BAHAMA_B0.c
++SRCLIST += bt_qsoc_nvm_BAHAMA_B1.c
++
++LDLIBS += -lrt
++## LDLIBS += -ldsm
++## LDLIBS += -loncrpc
++## LDLIBS += -lpthread
++## LDLIBS += -lqueue
++## LDLIBS += -lnv
++## LDLIBS += -lpm_lib
++## LDLIBS += -lpmapp_gen
++
++all: $(APP_NAME)
++
++$(APP_NAME): $(SRCLIST)
++	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) -o $@ $^ $(LDLIBS)
+diff -Naur android-x86-unpatch/vendor/qcom/proprietary/bt/hci_qcomm_init/rome_usb/Android.mk android-x86-patched_update_kk/vendor/qcom/proprietary/bt/hci_qcomm_init/rome_usb/Android.mk
+--- android-x86-unpatch/vendor/qcom/proprietary/bt/hci_qcomm_init/rome_usb/Android.mk	1970-01-01 08:00:00.000000000 +0800
++++ android-x86-patched_update_kk/vendor/qcom/proprietary/bt/hci_qcomm_init/rome_usb/Android.mk	2014-12-23 15:38:42.412459700 +0800
+@@ -0,0 +1,17 @@
++LOCAL_PATH:= $(call my-dir)
++
++include $(CLEAR_VARS)
++LOCAL_MODULE := rampatch_tlv_usb_3.0.tlv
++LOCAL_MODULE_TAGS := optional
++LOCAL_MODULE_CLASS := ETC
++LOCAL_MODULE_PATH := $(TARGET_OUT_ETC)/firmware
++LOCAL_SRC_FILES := $(LOCAL_MODULE)
++include $(BUILD_PREBUILT)
++
++include $(CLEAR_VARS)
++LOCAL_MODULE := nvm_tlv_usb_3.0.bin
++LOCAL_MODULE_TAGS := optional
++LOCAL_MODULE_CLASS := ETC
++LOCAL_MODULE_PATH := $(TARGET_OUT_ETC)/firmware
++LOCAL_SRC_FILES := $(LOCAL_MODULE)
++include $(BUILD_PREBUILT)
+diff -Naur android-x86-unpatch/vendor/qcom/proprietary/bt/hci_qcomm_init/rome_usb/nvm_tlv_usb_3.0.bin android-x86-patched_update_kk/vendor/qcom/proprietary/bt/hci_qcomm_init/rome_usb/nvm_tlv_usb_3.0.bin
+--- android-x86-unpatch/vendor/qcom/proprietary/bt/hci_qcomm_init/rome_usb/nvm_tlv_usb_3.0.bin	1970-01-01 08:00:00.000000000 +0800
++++ android-x86-patched_update_kk/vendor/qcom/proprietary/bt/hci_qcomm_init/rome_usb/nvm_tlv_usb_3.0.bin	2014-12-23 15:38:42.412459700 +0800
+@@ -0,0 +1,19 @@
++5           ÿşşØ?[          ‚
++                        , ô  3ô     @           0# 7         @ABCDEFGXY&_6~&_6~.8MRXp.8MRXpİ$          ÿ			  	 %                4  '            (          2âCÀ@à=) ¨         )   ö  v  ) a 
++ } P ‘  ’  ¦P ª" « ¬      ³ ´ µ Å Æ Ê+ Ë_ ÌH l   Ğj H 3 r K/ I e J ¥ f ;   G D E ƒ  …  G	 V	 3 .  à r  +* * <         `ã ÇÃ  Àáä ¡   Bi•Çş=ƒÑ) 
++  ?  ı ùñŞ  š, )         ¯
++     Pÿ 
++( bd
++       ÿ 
++.          l 6          ú9 ,          <            
++
++O ²  
++¸< E         €ú2€ú2À£ Ñù »•û û: õV/ }  f     Éï ì¥ô Òu[ :cK È
++  3  	    @ F          
++ "$(.248:<>@DFHJLNPZ^fnprtvxzæ  ^                    A  G 	         D N          T Ô         #%&'88 ++++++))))))------((((((////// 
++
++  >{{sqPPP @``0          7_H)8B"   †•¯Êå5V¥Ëò%Q                        U ø         ÿÿ; D2¶ê!S“ã/  ¢Îú&
++Uô ô  _€ *Ş                             GÏw¬|¬|¬|¬|Ä€    V          %
++2~†–¦®¶¾~†–¦®¶¾Z                 [ ´             
++   
++   ÃhÃhÃhÃhÃhÃhÃhÃhÃhÂhÂhÂhÃhÃhÃhÄiÄiÄiÄiÄiÄiÄiÄiÄiÃiÃiÃiÄiÄiÄiÅiÅiÅiÅiÅiÅiÅiÅiÅiÄiÄiÄiÅiÅiÅiÇ}Ç}Ç}Ç}Ç}Ç}Ç}Ç}Ç}Æ}Æ}Æ}Æ}Æ}Æ}ØØØØØØØØØ×××ØØØ]           DDDDDDDDDDDDTEDTTEDTTEEDDEEDTETUUUUUUUUUUUUUUUUUeUUeeVUUUUUUeVUfffffffffffffffffwwwwwwwwwwwwgwwgww‡xww‡xww‡xw‡wwˆˆ˜‰ˆˆ˜‰ˆˆˆˆˆˆˆx™™©š™™©š™™™™™™™ˆšªº›ªªº«ªªªªšªª™_ +                3s33  #×ìÚ f3ş  6 !  –          2Å&€`‡0 
+\ No newline at end of file
+diff -Naur android-x86-unpatch/vendor/qcom/proprietary/bt/hci_qcomm_init/rome_usb/rampatch_tlv_usb_3.0.tlv android-x86-patched_update_kk/vendor/qcom/proprietary/bt/hci_qcomm_init/rome_usb/rampatch_tlv_usb_3.0.tlv
+--- android-x86-unpatch/vendor/qcom/proprietary/bt/hci_qcomm_init/rome_usb/rampatch_tlv_usb_3.0.tlv	1970-01-01 08:00:00.000000000 +0800
++++ android-x86-patched_update_kk/vendor/qcom/proprietary/bt/hci_qcomm_init/rome_usb/rampatch_tlv_usb_3.0.tlv	2014-12-23 15:38:42.416459700 +0800
+@@ -0,0 +1,297 @@
++Pó Pò  8ò       Ë €°ş µQH²QH ğ¾øPJQIQH ğ¿øQHQJh‰` ğù ğ%ùğığuşğ…ÿğ
++ù ğùùğ2şğ½øğ|ùğşğqúğığpûğXøğşğãùğ“úğ’ûğ‘üğığ#ığ¥ÿğœığşğ^ığ¢üğ
++ÿğ½ığŞÿğøğøğ:øğùğoúğ«ûğ²øğ¯úğMúğÁúğòúğfüğÆüğ¥şğ]ÿ	ğßø	ğµù	ğßş	ğ6ÿğ°ø	ğÿğúğ`ú
++ğÿğpúğ[ûğ°ü
++ğùğXığÈøğcùğHùI aI `r¶H h€GF ğ7ø (ÑI‘ ¢²!  ğ3ø½t  Äß   Ğï °Ş €  øßÿÿ  À€â àì T VER(0x%04x:0x%04x)
++ ´H½#$	´H½e
++ ´H½á† ´H½	øµFxHh ½zF .Ñ-ĞJŠh!Gø½J8FhG (øÑ -	Ğ-ôÑ#FL:F$h0F ™ Gø½#FL:F$h0F ™ Gø½µ  JF TX , ĞSP@À²(öÓğöù½	IH`	IH`pGôO O O O Œ i   O ¿  äM µ ğøI  pI`½IH`pG  p t  àF pµ
++L %!x` )ĞpH h€GH h€GH h€GH h€G%pp½q |E P 0( ¸Q ÏIˆBĞµğ¦ù½pGğµ $ƒ°ÌM ”#"ÿ&”6/h1FÆH¸G ”1F”#.h "ÄH°G ””#".h$!ÁH°G ””#".h$!¾H°G ””#".h$!»H°G ””#".h!¸H°G ”#”.hF!µH°G ””# ".h!²H°G ””#
++".h!¯H°G ””
++# ".h2!¬H°G ””# ".h8!©H°G ””# ".h!¦H°G ”#”.hF!£H°G ””# "!.h‰ H°G ”#”.hF!H°G ”#”.hF!šH°G ”#”.hFZ!—H°G ”#”.hFZ!”H°G ””(# ".h!‘H°G ””# ",h!H G°ğ½IŒH`IH`pGpµF@h% (ÑÉˆ€  `"ucuğìø`` (Ğà`!h@ a `(Fp½ %ûçpµFïó€~M)hI C(`r¶ h²`hğ×ø`hà` h a(hÀÀ€óˆ(h@(` p½ïó‚qIh[ C
++`r¶BhÂ`hÀÀ€óˆh@`pGïó‚gIh[ C
++`r¶‚hahÀÀ€óˆh@`pGøµF %ïó€\N2hR C0`r¶"}àh'iƒ»BØ%ğ•ø!}àh@à`0hÀÀ€óˆ0h@0`(Fø½pµ $ïó‚LM+h[ C*`r¶B}iÆh›³BÓa$Fğrø(hÀÀ€óˆ(h@(` Fp½pµF $ïó<M*hR C)`r¶Ah™BØÁh™BÙ}$‰Á`™BĞFğNø(hÀÀ€óˆ(h@(` Fp½pµFF %ïó)N2hR C1`r¶!iBØ¢h‚B	Ù%BĞb}ğ,øa} i@ a0hÀÀ€óˆ0h@0`(Fp½ˆ*  ü&  Ä '  '  '  '  $'  ,'  4'  <'  D'  L'  T'  \'  d'  l'  t'  |'  „'  Œ'  ”'  } Ì  P ä  µğëÿ (ÑşIJh	hŠBÑüJ!p½øµüKF "hùI ˜GùL (Ğ!q!hˆG÷Mèx(Ğ &õK –!hjFÿ ˜G ˜ (Ğ!p)x)Ğ!ÁpàíI 	hàÆp!hˆGëI8F	hˆGø½8µãKF "hàI ˜GàL (Ğ!q!hˆGŞHÁx)Ğ ! ‘x*ĞàÛI 	hàp×K!hjFÿ ˜G ˜ (Ğ!p!Áp!hˆGÒI(F	hˆG8½ğµFÁx %ÎHÎJ@yh‰°/F+F)~Ò
++ zDy’—Dàfœ² yÀĞÄI ˆq×àÂHƒqÔà!F1‘'}/ÑIy‰	)Ğ .Ğà%@à¹N@ğ8ÿ0` (Ğïó€¶I
++hR C`r¶9F³J˜hGÿ(Ğà%'à­IyJyB*ÒB
++q:F©OF0F9h0
++T€™ğ(ÿ8h¦K€"h!˜G8h6€ğ"ÿIhÀÀ€óˆh@`™HAy yiFp'|à%ìç–J!yh`G‘N1yB$Ùïó‚Kh :C`r¶I àeàÉ²1qBÙBF3h 7ß›B9FFğñşƒIhÀÀ€óˆh@` à%py1y@iFp'Dàïó‚yIhv 2C
++`r¶uJq
++hÒÒ‚óˆ
++hR
++`iFp'.à ymHy˜BÙFhFp™@Oñ"ğ ş8F00\jFPt8F01¨0ğ ş7ñ¨ğ›ş'
++à'9FhFÿ÷(üiF˜p% à%[J¸Á²hXHG Ğuqàx°q:FiFğğrşII0F	hˆG	°ğ½ğµQHƒ°jFh€%•LJ
++$ &yh!KHG (Ğ !Aq„qÅqiF	xriFIxAr†r™Ár7Is	hˆG°ğ½µF@H h€G y@Ô ½àxğ°ù½
++(Û pG9Ip  pGµ6I $
++WH!JC5IR@2ÁFğ0ş F½pµ/J $WH"QC-J.MŠ2Áx#-h ¨G ( Ñ$ Fp½pµ%J $WH"QC#J$MŠ2Áx#-h ¨G ( Ñ$ Fp½ğµŒFƒ°!ÉjF€‘€ $bF!F * Ğ!K "šVH#ZC)à  °Ş ü  Ø6 È6 $  À6 l Ì Œß ä  D' ¨J Uı  Ì6 ¸Ş Sı  t9 ÀŞ Üß  9 øKÖ2F@2–F’y’Ğ$ F°ğ½Åy- Ó$ñJ-xĞÃxoF;py{pCy;qƒy{q;ˆ¿ˆ»B Ù$-Ğ-Ñ +ÓàC[z“B Ù$z“B Ù$G9|IĞ ,ĞÑ2F 2 ’ÕqzrbF *	Ğ)Ğà$ÂçF	1pFğ}ı-Ğ-ĞhF€ˆ°„ ˜y|Ás8|ÏJA ˜IÁr0Fh,0G¨ç ˜yzu9F0F
++170ğ_ı-éÑhF€ˆ°„åçñµÃN $0x (ÙÂOÂM
++#Á²-hûV " F¨GF ˜BÜd0xä²„BîÓ»I  VH!HC²I@@0Äq ø½ğµƒ°F xiFp`xHpˆ
++€€?)ÑFÿ9U9Ğ °ğ½àx!ªN ( Ø±p¨I(hoÒ yD	yID–7Pk  V
++(Û%à0p % -\Ñ  V˜Hx )Ù—I‘˜
++#ÃV“H•Ox?h "(F¸GF˜BÜHm xí²…BëÓ  0VH!HC†I@@0Åq!`ÿ÷ÕşF_à x! V
++(Û%à0p % -SÑqWH"QCyJ#Š2!y`¸G (GÑà x! V
++(Û%à0p % -:ÑqWH"QCmJ#Š2!y`¸G (.Ñ%,à*à
++  V
++(Û%à0p % -!ÑpWH"PC`J!€@0ğ’üà  V
++(Û%à0p % -Ñ`H h€G y@Ô à yğæÿF à%[J !hXHG Ğ 0p ppVH h€G°pT ğpı 0quq ˜°qRI0F	hˆGQI F	hˆG(F°ğ½ğµ…°FF)
++ĞKH„BĞ,Ğ Fÿ8X8Ñ°ğ½èx(kÑEIpá(F ğ¢ÿ°ğ½ Fÿ8U8Ñ(Fÿ÷ÿş6á F ':Nÿ8T8&Ñ
++  9HjFh€ !‘!‘7Jyh!4HG (/ĞGq™q™ÁqiF	xriFIxAr™r™Ár&Is	hà Fÿ8W8ÑèxA)Ò'I€ 	X(FˆGà%H€ˆ€Õ$K"!h ˜G"J!Fh G1h(FˆGèàW,;Ğ,@Ğ ,nĞ Fÿ8V8kÑ(Fÿ÷Wüíç£à  Üß 	  l' 0  Ø  Ì9 ÀŞ  9 t9 '  È ¼6 È6 Ì ÿ  °Ş ¸Ş Sı  Ì6 ÈŞ 8  ¼ <: ÷I 	hˆGöHp£àèx3(jÒ yD	yID_________e!e!!!!!!!!ee!!!!!!!!!!!!!!)),4eeeeeeee8 (Fÿ÷–û}à(Fÿ÷Äûyà!F(F ğ×ş°ğ½àAàİH‡`nàãJÿ!hÛ1Ú GğûàI H`şçßHi"‘C"R‰a1h(FˆGÚI  	hQàèx(Ò yD	yID !F(F ğ«ş°ğ½!F(FğAû°ğ½Y,Ğ(Fğ:û°ğ½hziFp(zHpèyˆp¨yÈphyq(yHq¾J !hhFG (Ñ»J !hhFG (Ğ iÁk )Ñ·I	hˆG¶I(F	hˆG1h(FˆG °ğ½ (Ğˆ )	Ğb)Ğ`)Ñ!A€­IA` pG¬IA` pG!A€ªIA` pGµğöú½ğ´¦J  j¦NF *>ÚT¤OR{xdUÕ	"ºVà"ºV[Õ
++#ûVà#ûV *Ğ +Ğ ,Ğ -Ğ é’0’1"@²ÒCI²BÚFà( İ ‘BÚFà) İ!ÀÉ€IC1h@É
++ÉC0`ğ¼pG0hÀ
++Àøçğµ„¢Fƒ°QhhƒL‘  ˆ‚N€Õ!3hjF ˜Gÿ÷¡ÿnHi3"‘C"R‰azH)F'yMp #-hF ¨Gğ‡úvI  puH h€G ˆ€Õ!3hr¢ ˜GgM¨iÀÑuH h€GtH h€G¯ağrúrH h€GrH h€GqH h€GqHPIÀz (Ğ` H`àZ È`¥ È`– È`i È`iH h€GiH h€GhH h€GhH h€GgH h€GgI  	hˆGfH h€G ˆ€Õ!3hc¢ ˜Gğ>ú°ğ½ µdH…° h€G€²>H ‘ j9H`K ˆ "h\I ˜G (5ĞjFx‚qjFRxÂqjF’xrjFÒxBrjFy‚rjFRyJrjF’yŠrjFÒyÊrjFz
++sjFRzJsjF’zŠsjFÒzÊsjF{
++tjFR{JtjF’{ŠtjFÒ{ÊtCI	hˆG° ½ H€ˆ€ùÕ@K"!h ˜G° ½  l |ß   patch_PFAL_DBG_hci_vendor.c h  €À€ÕÀ 8 ¬8 è $ ¸Ş ´Ş ±Ş ¸  €  Àìp QCA6174 8  „ 4  P ^  ¸ HCI pre reset complete  ˜0 ğ p0 , ´ X  T ¸ ¼ ¨ ´' À è HCI reset complete  ì ü  Ø6 È6 ¼ pµyÁpAyqüI	hˆG ĞûJ!hùHGF`yhq ¨q yèqày(r zõIhr	h FˆGóI(F	hˆGp½ !@(Ğ(Ğ(Ğà!à! à!F€!CpGpµåJF &h!æHG Ğ(yäI (uĞğ¤üãIâH	hˆGfqèx q(yÛIàq	h FˆGp½øµÖJF $h!ÖHG Ğ>yxy  .Ğ. Ğ.(Ğ$lqøx¨qÒHîqy@yÊI(r	h(FˆGø½FÌH
++ğªÿÿ(Ğ$éç9FÈH
++ğ¥ıÿ(ãÑ$áç
++ğŞûÃH ™
++ğ±ÿÿ(ÙÑ$×ç
++ğôû
++ğCüÒçøµµJF &h!¶HG Ğ'y`y  /Ğ/"Ğ/*Ğ&nqàx¨q²Hïqy@yªI(r	h(FˆGø½F"{¡«Hğ4øÿ(éÑ"{¡¨H ›
++ğÍÿÿ(áÑ&ßçF"{¡¢HğYøÿ(×Ñ&ÕçFH
++ğÿĞçğµFÀx…° %(Ğ(lÑ˜OJ!hHG dĞ y`y ˜€" (Ğ(*Ğ(CÑFàOéç xÀ  I)Ğ)Ğ)Ğà à  à C,ĞF¢8F ›ğÀøÿ(,Ñ¢8F ›™ğsùÿ($Ñ%"à x !À @(Ğ(Ğ(Ğà!à! à!CĞ¢8F ›ğ½ùÿ(Ñà%à%à8F ™
++ğ>şuq˜°q˜ğq8zyz@]I0r	h0FˆG°ğ½ğµÅx '…°F-Ğ-Ğ-lÑ]H‡%QJ!hRHG (aĞ y`y xÀÆ²˜ (Ğ((Ğ(/Ñ<àQHåçQH†%áç .%Ğ(Ô.!Øà:.Ø˜ 3F¢)F˜ğİùÿ(&Ñ˜ 3F¢)F˜ğuúÿ(Ñ'à .Ğ(Ô.Øà:.Ù'à˜ 3F¢)F˜ğÖúÿ(Ñ'à™˜
++ğeı˜Gq˜áxq™˜Èq˜z@z™r I˜	hˆG°ğ½ğµƒ° %F• yiFppyHpˆJ?€h!HG ZĞJ©h8FG `qğx qLÑhF xàqhF@x r²ybr˜ (?Ğ#*5Ğ *%Ğ**Ğ!7àô9 ÿÿ  Ì6 Ì È6 Wı  ´/   /  Ì' ”ß œß üã ğã  ä ä ä ì9 ià2Uv ià0vàià2Sv ià0vàià2Uv ià0v à!aqûI F	hˆG°ğ½ÿµFùJFh°F !õHG Ğÿ  pV  pæp'q)F`ğëş˜àr
++ ëI`p	h FˆG°ğ½pµêM &êL (ĞêHş÷ııèHş÷şpf` `æH€~ Õ x(Ğ  pp½  páHğÙø*h!àHGp½ x(Ñ*h !ÜHG¦pp½øµÛJF $h!ØHG ĞØH h€G y@Ô$à0yÌO(8xĞ (Ğ  ÿ÷¸ÿÉHş÷ı(Ğ$lqğxÀI¨q	h(FˆGø½ (õÑÈHP# h"€²À‰ ½Hş÷lı(Ğ$æç  8pãçx !d*ØBxd*Ø€xd( Ø!FpGøµ¶JF %h!²HG 7Ğ:
++!y`yÿ#
++CšCÿ'?;@C„F; yšC?;@¡OC;x +Ğ»x +Ğ%àd)ØaFd)Ød(
++Ø¢O™H:` h¹xHCd!ğbşx` à%uqàxI°q	h0FˆGø½ğµ %ƒ°“J •••Fh.F!HG PĞ‡Kx (Ğ y(Ó%@à%>à ((Ğ™x )øÑayjFq¡yQqáy‘q!zÑq™„J	‘BèÒaznF1p¡zqpáz±p!{ñp ™	‘BÛÒš ™‘B×Óa{ÉÉ‘¦{.ĞÒXp (ĞnJ ™Q€™€™qŞp(Ğ!Qq ( Ğ ÿ÷íş}qàx]I¸q	h8FˆG°ğ½ !îçñµgH‚° h &€G`JFhü!]HG ĞVHx )
++Ğ€x (Ğ˜ y(Ğ(Ğ& à& `pfq˜HIÀx q	h FˆG°ğ½ !HJàq(Ğ(îÑihƒB7ÒR}…5àUhĞh¨B Ø % -*Ğ  C(h!8  		HC iF€  r)F F1	0ğoı({àsh{ t ©z(^ğœı`tiFx tHxàt `p)F+Hş÷æüµç!r ±ç % -ùĞ  Cèh!8  		HC iF€  r F©	0ğ?ıhxàs¨z tèz`tiFx tHxàt(| u F*|)F01 ğı/F 7*| ˜9|T)| F0)F:|11ğı(|9|@0`p)FHş÷Âümç  È6 '  È ˜< @ä Äß ”/  6ä t/  Vı  Ì6 t9 ¸Ş ¤ß ı?  ¤' µCJ !h@HG (Ğÿ!p!ApT!p=I	hˆG½<H!p!Ap":HÒ`"qAq9I8H`:I8H`:I9H`;I9H`;I:H`<J:HP`<H;I`<IA`<I`<IÁ`a;IAaaÁa:HapGµ9H !aAa-!	7Hş÷9ú $ F	ğ<ødd²
++,øÛ½µ2Lb|Ó	ĞRR btğ¤üa|"Cat½ğü½pµF)H&€z@Õ(I 	hˆG'I(F	hˆGà!L`|@@ `t(Fğ„üF`|!C`t0Fp½  '  È È6 ±Ş ¸Ş ) l a Ü  X í ¬ í   • ° ÿ Œ  = ¿ E 7 + °Ş Üß lq ,q  Ì ğµ ƒ°  É ÿ$c'$ÿ ÿ! FğüôHôN x $ÕóIh 0Ã~"CÃv %ïI 	h 1ÈuîI€ íH°GêH h€0 ~ (ÑmêH­²…BêÓåH h 0Á~II ÁvàåH°Gÿ! Fğİûÿ  pı `p%¥p àphF xàqhF@x rhF€x`rhFÀx r! Fô"I0ğÈû Fğü/ÙÓH°G(%q `q­²ø ĞIhCAø"àğ´û Fğùûm­²½BéÓ˜`pÿ  q`q©²ø ACÅHš	RàğûÀH°G Fğáû°ğ½µğâû¶H ! h€Á€½ºI‚ ºK‰Ød (Ğµ¸Hş÷)ù½pG÷µïó€µI
++hR C`r¶³H§M¨G¯J  Ğd€'±I:F­Hş÷ù¢N $0hˆÀˆBĞ H«H¨Gdä²,òÓ©I Ha¨Kšh™ ˜˜G¦I H`°ğ½pµF¤HF`A`£¡0Fğ˜û (DÑ¤H„BAÑ¤H€~‚(Ğ£Lïó€’M)hI C(`r¶ F 0F€~‚(Ğ$àœLîç i (Ğïó*hR C)`r¶{–J‰ QXˆG i{Ás!i  ˆs!iH!i a)hÉÉóˆ)hI)`°v(hÀÀ€óˆ(h@(`p½‡¡0FğMû (ÑˆH„B*Ğx¡0FğDû (Ñ„H„B!Ğ„H„BĞƒ¡0Fğ8û (Ñ‚H„BĞ‚H„BĞ¡0Fğ,û (Ñ‚H„B	Ğ‚¡0Fğ#û (Ñ Fÿ8Ü8Ñ!F0Fğûp½ğ"û (Ğ|HÀz (öĞRIïó€dˆdïó€HdğûvK "hF… ˜Gşç!F0Fğûşçğ
++ûïó€EIˆdïó€HdkHÀz (ĞjK "hF„ ˜GşçµgH xÁĞ@ÔeH x (ÑdI 	hˆGğíú½µ^H^J xxÁÉIBBĞ\I
++iIi
++CĞ€
++ÔZI  	hˆGYI pTI	hˆG½ğÔú½OIxÙĞ´OJRLiRi(Ğ(ĞàÔàÔ¡`â`¼pG!aba¼pGpGIHGIÁ`Aa>IGH`HIGH`IIGH`IIHH`JIHH`JIIH`8IIH`pG    Ñp ,    ÀŞ.    .u  n  üÿÿ_Hq  ¼u v ä  >  Èp  ş|  €  Àt  €ÀÜŞ llm_rmcdCommand.c     0/  t/  /  lB SLC_FrameInt.c  <-  ù    PF_OS.c   ?  llm_conndb.c    1  llm_connmngr.c  X   x  |ß l ø] ˜    @ ÀMB     ÷ µ ˜ [ h Ë ” Õ X ù p 7  pµFFFK"!ğúJ!F(Fğúp½  ä5   pGIH`pGí!  pµğıùH h€G ("ĞH# h$Á|JÛd )
++Ğ‰ ‰jCbÁ|‰ ‰j%Cb} )
++Ğ‰ ‰jCb }€ €j!Cbp½IH`pGd `  @@ À" T µgIÊy*ÑfJˆŠ€ğÂù½µğÄùcIbHHcJcIx	x@@‰	ÉCp½µğ¹ù^I Hc½µ\L`ˆ (Ğ[H ˆ €ğ±ù`ˆ (ĞXH h ( Ğ€ˆ  €½øµRHBˆ **ĞSISK‰‰h™BÙ  ø½MH% ˆ² ,İHH© @ˆ (ğĞFI	ˆŒB Ú!F²2F9Fğåø m¿²í² ,èÜ=Hˆ;H€ğzùø½µğ|ù<H=I iÂo
++c€0 ˆHc:HÈb:H€ic:HÈb½øµ9H9I€x"3KÑ%+O7N8L	h(š`=bĞ6M¨~ˆG¨~5I0p	h  ˆG3I`z	hˆGø½2M(xˆG(x.I0p	h  ˆG,I`z	hˆGø½µ+HI€hÂo
++c€0 ˆHcHÈbğ:ù½'I%H`'I&H`(I&H`(I'H`)I'H`)I(H`*I(H`*I)H`pG0  êŞ M/  Ğ
++  è   ´-  €ğ?Cü
++  R  Ì  T-  X  ø1   ğ?C 1    ÀŞ Œ ,  ø/  X   D	 äŞ  -  ‹" ø
++ u" 8 ­" T	 K# t	 »" h
++ å" ,	 q# à
++ Ç# ¨	 µüHAh‰Õh‰ÕùI	x)ÑøJı!Q`!`ğ¿ø½µõI  HdõIôH	h€hˆGôI @óI	hˆGëI ˆ`ñIH`ñH h€GñH x(ÑğI ÈcïH h€G½øµ &íIÀ H`ßI? ˆ`ŞMëIhxëOëL (Ğ(2ĞğJÅ!hè Gğ’ÿhF€G8h€G0h€GêH x (Ğ  `tèy(Ğ(Ğ6à0h€G8h€G0h€G/àáHÀ{ÀÑ*à0h€G8h€G0h€G¨y (!Ñ(x(óÑà`|(Ù.!Òèy (Ğ(x(Ğv`|ö²@`tÅO8h€GÅH h€G8h€G(i (Ğ`|(äØÊIèi	hˆGÉH@x(Ğà  `tèy(ãÑ | (àÑ  tİç½JÀ!h¶ Gğ-ÿhx (Ğÿ÷\ÿø½½I»H`«HÀ!A`H?!`!`¢HA`ø½ğµ™O·Kùiƒ°h|1jF³H˜G”N°hÀkĞ$´`¸j”M@1Ğ¯H h€GÀC€Ñ¬H h€G a@ ™@¨H		BÙøy(OÑàøy(Ñ‡I¨h	hˆG¢I€ Ih 	BJ	“B>Ù#Cÿ!šJ91HCP€~Iş H` F´`!±`•JQ`•Jo!Ñc9x”O)1Ğ”L”I `‡H	h€xˆGhhhmHˆG9h hˆGH h€G IÀˆ` °`dIH`‹H~I h`iH x(ÑhIí Èc°ğ½¸{ (ÑgH h€G¼sH h€G°ğ½9h ˆGhhAhVHˆGÖçpµPIˆhJh@pJÀĞˆş%TL# (Ğe`‹`  È`€ğlÿp½qH€j€ÕpH h€Gp½oH h€‰€ÿ(Ùe`‹`p½È`‹`c`p½øµ;HhIÔhÉWĞeI	h	SÔ!`cMhiÁhcHˆGcLcI €hi hˆBĞaIˆBĞaIˆB4Ñ0N.M1hhjˆG !a^I @-IÀ@ZI`éi )Ğ¨iˆG  èa   ^VO(İ"H1h€hˆGSI"@F !>hF°G   ^I@ KLhd	h hˆG#h"!<h   GH x(ÑI• ÈcEH h€Gø½ğúşø½CIû H`I ˆ`ˆhJÃH xĞ#‹`(Ñº Ğc;H h G ğ?C0    0C\1   -  DD üÿÿ&  0C”& x  @ñ?Cˆ  ğ3Cˆ5 ¤5 X0  patch_PFAL_LC_State.c   h ²  t-  @ @-  å$ Ü  @0  à Ø ÿÿÿèŞ   1C@ó6C@ @ < À @ó?Cœ €ğ?CÌ \   ñ?CT-  d-  N  ìŸ¹ç×D
++  ¨ şÿÿœ  @0C$ ÿç¯I¯K	h` !®K(pÑ¹ ĞcpGøµ«L h@Ô hÀFĞ©H h BÔ¨IÁ H`>  `¦H@iÁh¦HˆG¦I%€("Û¤Nİ¥I¤H	h€hˆG¤I"@F !7hF¸GœO   I8^	h@ C"6hF  °G  8^@à`šH=€Åtà™H™Ip	h  ˆG˜H x(Ñ—I¸ Èc–H h€Gø½ğşø½µ‰H“I@hˆBĞ’IˆBÑ‘H !Ab!bIû H`zI ˆ`H h€G…H x(Ñ„I ÈcŠH h€G½ğ÷ı½øµpL%¥`uH|Oh|N )ĞFà0‚{*Ò€K’ šX‘BÑÁ{ )Ñ| )Ñ@|(	Ğ8x(ÑÄ ğcğcwH h€Gø½vI  	hˆG (9ĞtH h€GsI"	h	hC@@ pI 	ˆBèØ_I 	hˆGmIÀ H`?  `  ``IH`¥`iHE`iIPH	hˆGhH h€GaHgI hÀ‰ğıeI€peHh?H`8x(ÁÑÂ ğcø½8x(ÑÄ ğcRHh7H`UIÀ H`?  `¥`SHE`ø½pµHH h€G7I  ^(Û:I"ÊtBJû!Q`,J!‘`OIOJIxU|8K&J6L©BÑ-M)N­h¶iµBĞ(İ)
++ĞGI H`GH h` x(	Ñ àDH h` x(Ñ– Øcp½µğGı?I 	hˆG½>I=H`?I=H`?I>H`@I>H`@I?H`AI?H`AI@H`BI@H`IAH`BI@H`BIAH`pG  Ü  Ä    ğ?C ñ?C à3CT-  d-  N  ¨  -  DD şÿÿD
++  ”-  P  @ x  @ñ?C ¼$ Ø$ €ğ?C @0C”& ˆ ø1  H œ Ø D  ÿÿÿ ğ3C 0C0& À q  Ù  < @-  t-    1CÄ   ¤ k' Ğ [* ˜ ¥* 8 ½$ œ )%   K& ˜ —+ œ Á' ” ‡( ·)  	, ` ÿµHLƒ°`z(_ÑayFMFNGHÿ)'Ğ¨ˆ€Õ#7hCJD¡ ¸GJH h€G!	CHI	h@  	 (	Ò¨ˆ€?Õ4hD¡ ›š G8àÿ `q   q!˜ğû˜ x`q˜ q8H h€G8I`˜(Ğ<J™h˜G (Ğà y qÈ 9O ?h6Kš™˜¸G (Ñ5H h€G z (Ğ¨ˆ€Õ4h1¡ ›š G  °ğ½ °ğ½µIÿ"Jq"Jr0I/H	h	‰)Ğ)Ğà,H à,H-I	hˆG-I,H	h hˆG ½,I*H`,I+H`,I`pGh 8  € |h •h Cmd/Rsp in Progress for Cmd:    ¤' ğŞ Failed to SendCommand:  0/ ”h </ X/ Failed PRUI_SendCommand:     Hè   À Ğ $ô @/ \/ D/ e- `/ =. ˆ/ @0 ıH h GpµFüI	|ÉĞûL(Ğ (ÑùI	hˆG`p (
++Ğàx &(ĞõJ)Fh  Gæpfpp½òI	hˆG  pp½ àpïH h ( Ğ€GæpîçpµìMíL(x!xˆBĞëI  	hˆG(x péMêL(x!xˆBĞèI  	hˆG(x pæLçM x)xˆBĞåI  	hˆG x(pãLäM x)xˆBĞâI  	hˆG x(pp½pGpµFŞHßL@x(Ğ x(Ğà  p(FğFûÙI "x(Ñ
++p×I€#xCp"p-Ñ¾H |ÀÑÀI 	hˆG  p½ÏHĞIÃŠ	ˆÏJ‹BØ àƒŠ‹BØ àCŠ‹BØ  à ŠˆBØ ppG ppGp´ÁIÃH‰ ˆ %ÂLÃJƒBØ%p‹‰ƒBØ àI‰BØ à àKˆ&ƒBØ&pËˆƒBØ à‰ˆBØ  à pp¼pG##p	ˆBØpp¼pG®IÉ‹BØpp¼pGpp¼pG0´ªH$ h¥J¦I
++(
++İp(Ü à(Ü à à%(İp(Ü à à #p(Û p0¼pG(Ûp0¼pG(Ûp0¼pGp0¼pG’HÂyy’’CŠJ€Axx†IC€pGøµ†J%†Kp pL  „I pˆiÀ,Ğ„H %Çy†y¿¿>C{O>€Fxx0wN8C0€}H ˆ 
++€Õ ğ?ûxI`ÿ÷—ÿàÁĞ‰p 	pjH€{ÁĞ 	 p(Ù   p $d ğ>û (	Ğ,øÓ(Fø½ÿ÷<ÿèçÿ÷ÿïç\H€"xCpñç0µƒ°F  iFraLª#h)F ˜G (ÚiF	z ‘+F\¢x!eHğ2údH€ˆ€ÕcK !h`J ˜G#hª)F ˜G (ÚdJ]Ih] GhF z°0½3µKLƒ°FF#hª  ˜G (ÚiF	| ‘+FX¢x!MHğúMH€ˆ€ÕLK !hHJ ˜G#hª)F  ˜G (ÚLJVIhF G°0½pµSLÿ !h0ˆGRIpÿ !h0ˆGPIp !h€ ˆGNIpÿ !h±0ˆGLIpÿ !h²0ˆGJI %p @wHL@x(‹à$ @T  ôŞ   , ( $     $  4 !  %  8 "  &  < #  '  H Ûp °Ş 0ß -  `S  |  9  ~  7  8  @S  8ß Lr  S  T Addr: 0x%X: Retval: 0x%X  Status: %d    `  8  „ ×  patch_PFAL_RM_HW.c  h Addr: 0x%X: Data: 0x%X  Status: %d  í  X e  f  g  h  i  Ğ |wN€ÕwIwJÈ‰ÉÉC0€h	!G0€ à5€ |ÀÑpI ppI poHrIpoHpoH xpoHpI xp!Fÿ÷{ıp½pµœšBİÒğùàšBÚšğù ,Ó "ÒCà"¢@RR $%FSB¥AŒAÚFp½Â©AûÚFp½µZHx)Ñ !pXH€ˆ€Õ\K!hV¢ ˜Gğäø½ñµ  ‚°F VH€z@_ÔLN0x([ĞSHTO‘ :h€ GRH h€G (ĞPM(h h (Ù)h  @y:h€ˆG(hd hä² BòØHHIL x(ÑHIjFxpHxPpˆxpÈxĞp ˜"hÀ²	G2H i€Õ?Hh )ĞxjFpHxPpˆxpÈxĞp ˜"hÀ²	G7H$h )Ğ˜ˆG˜(Ñ3H !Ap3Ip3I x	hˆG4p°ğ½1I0H`2I0H`2I1H`3I1H`)I2H`3I1H`3I2H`I2H`3I2H`4I2H`4I3H`pGv  Ìr \    !  $  %  &  "  '  #    8  RM_Wake: Exception  „ ,q ø  \ h ˜  ôŞ h0 øŞ ,     4  °Ş p 9/  ?/  —/ , û/ H ı/ 1 Œ !2 X …2 ß2 „ ë4 t0 5 p øµÕHÕN€i€ÕÔH2hxÒ GÓH2hxÓ GÑH2hxÿ 0GÏH2hxÿ 0Gÿ'ÍMq7 $)x2hm8FGdd²¿²,ôÛÿ'ÆMŸ7 $)x2hm8FGdd²¿²,ôÛ $ÿ%¿O52h9](FGdmd²­² ,õÛ $ÿ%¹O152h9](FGdmd²­² ,õÛ´H2hxÿ 0G²H2hxÿ 0Gø½ğµ %ƒ°,F
++ğ‹ÿ H€iÀ2Õ  ©H€{ ,Ô¨H©O©N 3h")F ˜˜G8Umdä²­² ,óÓ£H $£O%F 3h")F ˜˜G8Umdä²­² ,óÓH•KA
++	p	€ÉÀ	CHp˜°ğ½´–H ˆ
++ÉĞ¼ pG”K’J ˆ !ˆœBÒ¼FpG’I)õÛ¼pGğµ…° uL i@}ÕˆM(x (yÑ‡H„NyÀy€€C1€„Iˆxh` (ÑÈ|h`O!:hGh`yH ˆ
++É}ĞyH!‚`zJ hhGxJh!`hGuJh! hGFoH %@h •@C
++ğúşoN#7hF¸GhH •@h™
++ğîş#7hF¸GFÁ˜ •ÂQA#7hF¸G›ÂÙ •QA#7hF¸G\Jh !àhGYJh! iGVJFh!`iGFOH€h •@C
++ğ¼ş#4hF GF àYàIH •€h9F
++ğ¯ş#7hF¸GÁâ  •QA#4hF GF˜ÊÄ@TA •!F# à*à4hF GF˜ •Â” ƒ‚ FÉCaA#4hF G! ‘ #"Áÿ÷Vı0 Õ  ( İ Á².HJphb G˜ (Ğà"I"3ˆ  ˆBÒFMç‰@(öÛHçH!p˜°ğ½!I H`"I H`"I!H`pG@S  \ :  ;  <  =  ôR  S  š  º  É  È  `S  Ár Ú    Õr ú  Ìr  S  >S  ~  0ß Lr ìp \ L q  ı6 €0 Ã7 „0 y8 ˆ0 µïóøHhR C`r¶öJxIphÉÉóˆhI`ñI p
++ğöığJïHh€! xG
++ğôıíI  	hˆG½ìIÈk"CÈcêHiÂi#ÛC@#CaÂa "‚`Â` !aAapGµïóÙHhR C`r¶×JxIphÉÉóˆhI` ğ/ú
++ğÀıÓI  	hˆG½pµ
++ğ¾ıÒI  ˆ`È`aHaH`pHpÏHÏL xÏMÀĞ"hÎI	 G	 )hàÌI	 	hˆG"hËI  G)h  ˆGÀHÁk"‘CÁc¾HiÂi#ÛC@#CaÂa "‚`Â`aBap½µ¾H! o‰ˆc ğ½ú½µºH h@i (Ğ€G (Ğ¯H xÀ7ĞµH h€G²I´J	jI Ô³I#	hÛ				™B	Ù!h G ½
++ğü  ½«I	x )ĞªI	h@©I	h@@ ¨I 	ˆBØ!h  G ½ €i )Ñ¡IAa ½H xÀĞµ—J!h G‘H›J j@ ÕšIˆj#Cˆb  à `½pGøµ‰H j@ Õ‰H h€GF~M  ih C@  	((Ò(x(ÑŠH h€G (kĞ‰IN 	hˆGˆIı"x@pxH h€i ( Ğ€GƒH h€G   ‚IÀC`I `N·ixI  `H`p`~Ib Èc€ è`|I Èb|H h€G (ĞzH x (ĞmHÂj!ŠCÂbwI  	hˆGvI( ÈcSI`
++ğüRL (ĞrI0 ˆbâiRR âaHb i@ @ a!)b©`kJjCbÿ jIß0ˆGMH o¨c ğŞù (ĞfH h€GeI `·aàdHl` h€GcH h€Gø½WH h€G (ĞUH x (Ğ]H x(ÑFHÁj"CÁbPI 	hˆG8H hÁi )Ğ ˆGMI  b2Oxo¨cˆp`GK˜i0C˜ah0C`HJÈhBüĞj1Cb™h1C™`GI`hi#À (ÚhB Ñ`HÁk"‘CÁc iái"ÒC@C aáa !¡`á`!  !a`a8j@ ÔH!`5H h€G5I ˜	hˆG
++ğQûø½ä  è  ÷Ş :  Ä Ä €@ À @ À<ß Ò  h l W; p İ: ¸  0  X	  à  Ğ  ä  è  ÿÿÿÿÿÿ   À   À”( ğ d  | €á à á à€  ÀÀ  À€  À` *  $, @@ ÀÀ@ À@  ÀÑp °  â à¸ À Pe €â à€ t pGµRL
++ğÃûRH h €(Ğ(ĞàNL àNLOI F	hˆG½NIMH`OIMH`OINH`PINH`PIOH`QIOH`pGøµOH 'G`OJ9Fh GMH h€GMION
++i KJ 	`È}JJ Õ°i (ÑËiˆiÀ@°ak‹iƒBØÉiBÓ°aø½°icø½j@ ûÕ=I  kui -	Ğ¬BÓ` à(:IHC)F
++ğˆú8I
++!‚BØ°h (
++Ğ1ppx@À²pp
++('Ù7pwpta%à7pwpòh²`0i4ağ` *	Ğ (Ğ ,Ğ !
++ğcúà (Ğ ,Ğ @paà ,Ğta à1pHqicàHcIˆj"Cˆbø½   Hè   À Ğ $ô T Ù< È “; ´ ‘? H “? ° ¥< ¸ < ¼   À ¤' ¸  à  @  À<ß @B X   2I`0¿ ¿ ¿ ¿ ¿ ¿ ¿ ¿ ¿ ¿ ¿,HğÈ¾F†ó	ˆ…óˆ¤FğÈ F©F²F»FğÈÈ h€óˆ$Hb¶pG$HÀïóÀ 8ğÀ 8DFMFVF_FğÀ 8dFïó…ïó	†wFğÀ8IÀHIA`IG ¿ ¿ ¿ ¿HÈIGğÈ¾F†ó	ˆ…óˆ¤FğÈ F©F²F»FğÈÈ h€óˆH€óˆ¿óoHIhC`Hb¶pG  ÀLq      |q  ÙA     ÉA IA Hq          í à  ÿ     qFBĞ  à  IeHdı÷£ş  ¼u MB pµM(x(ÒH@!€y!‰A€I€HI€ !A€I ˆGH" {’L (Ğ#hI ˜Gp½HIaIÁ`(x!HCI#hAF ˜G#h2FI ˜Gp½IH`pG    Ğp ıÒ  pG  Öp Ñp ,q   8q ı €  À7€øüX	¼Y	qB Ğ Hh )
++ĞHxH *h	JĞ  G GpGHh"’‘C‚‰`pG          Àpµ8Lµ& x¶ % (Ñ5I0F	hˆG``%p2F3I`h
++ğµø2Hÿ! hF€6ñv±vF`1ÊŠJƒÊŠŠƒÊŠ2
++ƒF@3ƒFœ2Z‚2Z€:ZƒŠ€2ŠŠ‚T9A "Âƒ„B„‚„Â„…‚…‚ƒr€.1†‹I‹€K ˜€@ ÀC˜ ˆ˜‚ˆ‚H˜ƒÿ 0ˆƒ ƒƒH€`h€I ˆGp½µ
++ğùH x (ĞJ“!h G½IH`IH`pGXß  äì ,    À  À	  è  Ñp   patch_PFAL_UART_Common.c    h iC   %D   FµiI‰x)ØhJ‰ iLQXF$hfH G½F
++ğ8ù½ğµ…° $cI”h'F…ˆ ‰h‚˜’‚B~Ğ^H^HAx)(ĞÀx(Ğ[J©hhFGF ,,ĞiF F	x 8ÁwRJah¨ Ã™iF‰ˆhI€ÁmiF­x­'(Ğ(Ğ(ĞVàIH h€G 	Ğ`xiF€ˆ€ pÕç GàCH x@KÔBH x(GÑ˜@k€h€G AĞ>H4! h3"HC<ID0ˆiFˆ€ pd Fqh	ğªÿ5H h@ÁI	ÉÉ A1H`˜@kÁh0FˆG ,ĞiF F	x 8Áw#Jah¨ Ã™iF‰ˆhI àà€Ám­­'h˜‰B Ğtçà /ĞH h…€I€ àHAx)Ñ !Ap˜ (ĞHx )Ğ !pI °ğ½IH`IH`pG  ¸  PR	 Ğ¤ ,  ¼%  $  ü p À&    $      À    À¥D ¼ ËD ´ µFHˆ
++*Ğ F
++ğIø½oI	~‰ÕÁ² €mK —"’ h@k¢˜G	!‰aHƒ½gI F	hˆG½µbHÀ@ÕcI p
++ğ+ø½µaH x@Õ`I 	hˆG
++ğ%ø½µ[IFx@ÕZH x(ÑWI	hˆG F
++ğø½øµFUH ïó€TI
++hR C`r¶RJ!ROGNRL-Ğ  -Ğ-!ĞO û÷xüq~O û÷tüşçhC`N  G8h!C8`N  G8h!C8`IIHhJCH`à8h"!C8`àhC`N  G8h !C8`N  G8h!C8`<IHhJCH` /I@uvhÀÀ€óˆh@`ø½µF	ğÀÿ2I F	hˆG½1H {(Ğµk /I Hc.H$Äb.H.Jhh G-I 	hˆG,HÄa½pGpµ)L%eb	ğ¡ÿå`p½(I&H`(I'H`)I'H`)I(H`*I(H`*I)H`+I)H`+I*H`pGˆ~ Œ2 ì2 °Ş x  l |ß ({ ä        Ñp USB_A:  unk LP on %d       À2 ¸  À@ À @ À03 h l @@ À¡F d2 çF `3 G Ì2 ıF ¼2 7G ´2 íG 2 ÿG 43 3H ,3 !`I}"IˆÒ ‰€pGIHHapG  À&  !I ˆH I"SC
++J›z›`	#YC‰JÉˆR‹‰€pGIHHapG  `O  °§	À&  II ÀH µ:H x(Ñÿ÷Õü	ğ÷şÿ÷Áü½÷µ &4M5O5L‚° (JĞ øp3H4O h )"Ğ€G( ˆĞ€Õ!+h/¢ ˜GiF˜H€ p3KjFh0I  ˜G8à€Õ!+h.¢ ˜G:h ™G,à€G ( ˆĞ€Õ!+h,¢ ˜GhFF€#KphjF I ˜Gà€Õ!+h+¢ ˜G !:hFGà ˆ€Õ!+h+¢ ˜G0H h€Gşp °ğ½.I-H`/I-H`pG  $  „ ì  8  ` Ä/ Enable PowerUp Interrupt    åÓ PRU is already PowerUp  Enable PowerDown Interrupt  PRU is already PowerDown    Disable Power Interrupt  I ´/ ¥I È/ ğµƒ°F
++h œF ÿOF3şI?h	x)3IÉ²,,Ğ,1Ğ,Ğ	™˜‘ cF–)F F	ğş°ğ½óH© @X€€("ÙñI(F	hˆG ™ š ‰²êH’‘ x "@êMÁ²-h3F" ¨Gà ‘!Ò² ¸Gà ‘	!Ò² ¸G¤áH,ÏÒ! yD	yIDx "Càxß"@p°ğ½ÿµFF h!ÉC@ÓI‡°@  	¨ˆÑIœiFĞNˆği™ÁgiF‰‰€0€ÌKªh©(F˜G0i (Ğ{ÈJ‰ QXˆG0i{Ás !sA1aÃI¨	hˆGÂH h€GšA sÀIÁH ,Ğƒ| +Ğ‰Š#IÛCQ·q|Ità‰Š#IÛCQ!±q !Atà´I8F	hˆGF˜,A·qÑA‰IIAŸ˜ÿ!8`91	˜	ğMü@8©J8FhñiG§I p˜0a0x(Ğ 0p¤J¢Hh xGôq
++˜0r	˜°(h°b¨ˆ°… ,ÑI+ 	hˆGœJ˜h h!GšI  	hˆG°ğ½ÿµFF h!ÉC@ƒI‡°@  	¨ˆ€IœiFNˆği™ÁgiF‰‰€0€|Kªh©(F˜G0i (Ğ{xJ‰ QXˆG0i{Ás !sA1asI¨	hˆGrH h€GšA spIpH ,Ğƒ| +Ğ‰Š#IÛCQ·q|Ità‰Š#IÛCQ!±q !AtàcI8F	hˆGF˜,A·qÑA‰IIAŸ˜ÿ!8`91	˜	ğ¬û@8XJ8FhñiGWI p™1a1x)Ğ0pÁTJRHh xGôq
++˜0r	˜p(h°b¨ˆ°… ,ÑMI+ 	hˆGLJ˜h h!GJI 	hˆG°ğ½øµ8M $(x (Ñ	ğü(x (UĞÀ²(RĞèi (OĞà0@|(KÑ(i=N ' (Ğïó2hR C1`r¶{Š )I‰XˆG(i{Ás‡sG/a0hÀÀ€óˆ0h@0`ïó€1hI C0`r¶hFI	hˆG0hÀÀ€óˆ0h@0`hi (MĞïó2hR C1`r¶{Š I‰XˆGhi{Ás‡sGoa0hÀ1ànà  À -  ÈX  À4 Ä ±    ˆ  0  à lB @ ' X  X0  ,6 @ ®  7  Ä <   ¤ ä  À€óˆ0h@0`(x(Ğ (p[JYH!hÉ xG ˜A!sWI"‰ŠIÒCATIèi	hˆGFSHSJ@ ˜`!(ahéiG ˜(a(x (ĞMNMO °Gd¼BÓRJÿ!h1I Gø½(x (ğÑø½øµML x (QĞ(OĞài (LĞà0@|(HÑ iGN % (
++Ğ{‰ qXˆG i{Ás…sE%aAIhF	hˆG`i (
++Ğ{‰ qXˆG`i{Ás…sEea x(Ğ  p$J#H!hÉ xG ˜A!s I"‰ŠIÒCA.Iài	hˆGFH,J@ ˜`!háiG ˜ aø½µ!Hx )Ğ !pJH!hÉ xG	ğ]û½IH` IH` IH`!IH`!I H`"I H`pG  7  Ä X  ' üÿÿ¤< Ñp @B patch_qcom_ant_interface.c  h 0  lB @ DD @ ùK \6 ;M `6 1K d6 'P 86 {N h6 ×P 46 ÷µF†°FˆxiFtèxHthx€€(1ĞŠ,.Ø0ià0€‰À)Õ")hF	ğùkFxtXxXtŠ€™xtÙxYtŠ$Z€ BÑ4F€4`‰!É@™Ğ)ĞC
++Ğ   (	Ğ`~üI@ Z‚BĞ	°ğ½ óç ‰‚BøÑXy‰Yqy€’€ *íÑ)ëÒ
++ zDy’—DGÅÅÅ ßç(İÑˆ
++5ˆÂ@G²˜ & ( Ğ `~
++"PCáJ„ÈÉÑ/ÇÛÿ"
++! F	ğú   p`phx 	Ñ!x"C!p)x¢‰‘pkx Ô ›˜BĞ@ C‘pvö²fp.¥Ğ²­ /àÜ	°ğ½a~
++"QCÈJŠ (öÑ¨zx„ù @pQx   )+Ù­x­­¥B!Ñ€x@Õ C¼Hp€ˆ€ÛÕ¾K!h¹¢ ˜G	°ğ½ CµHp€ˆ€öÕ¶K!h¶¢ ˜G	°ğ½@À²BÓØ¬H€ˆ€õÕ®K!h±¢ ˜G	°ğ½`~
++!FHC£IEF±J!hG(xÕ@ÁI`~ğÿú	àœH€ˆ€ÕK!h§¢ ˜G`‰!C`0ix )	Ñà0Aˆ"ÒCA€§I0F	hˆG`‰ !ˆCà¤J`~h!G`‰!ˆC`Õ !C`ŸJH!h‰ xG	°ğ½óµ‡°FšI˜ˆBÑ % à%™"	¨	ğdøiFzpHzHpˆ™	x )vĞF9)sØkF™zpÙzYpˆZ™{pÙ{YpˆÙ*dÑ‚J{x’J<Fh‚N€4+Ğ+pĞ+UÑµá(RÑ)jÑiF|pH|Hpˆ‚‹|pË|KpˆK‚(2ĞÜ(Ğ(Ğ(TÑ*à(<Ğÿ8ÿ88MÑVà`‰!C`hF@Š ‚`~ -Ğ@ 1Z#Và@ 1Z#Wàa‰@ CahF@Š`‚`~ -Ğ@ 1Z#Dà@ 1Z#Eà`‰!C`hF@Šà`~ -Ğ@ 1Z#2à\â©à@ 1Z#1à8ià0€‰ÀÔ`‰!C`hF@Š `~ -Ğ@ 3ZC3Rààà@ 1ZII 1R!‰˜:á`‰ÿ!1C`hF@Š ‚`~ -Ğ@ 1Z#Cà@ 1Z#™C1Råç(nÑ)mÑ`‰ÿ!V1BhĞiF}pH}Hpˆˆ‚ (_Ñˆ|pÈ|
++FHp	ˆQ‚`‰ÂjÕb~S óZ[Û«BcĞ#Š‹B`Ñ!ÉC!ˆC!I` -CĞˆCBàÀã ¬â 8  AVDTP SNK   „ AVDTP SRC   AVDTP ROLE NOT DETECTED \ AVDTP_START ROLE NOT DETECTED    < X 7  Ä ŸI’ã    á5áC`€²Ô !C`FÖJ!hGÖJÔH!h‰ xG`‰A#Õb~Q qZ‰É©BĞkFá‰[Š™BÑ!C!ˆCÊI` -ĞˆC àC`FÂJ!hGÂJÁH!h‰ xG`‰A#Õb~Q qZ	É©BĞkFaŠ[Š™BÑ€!C@!ˆC·I` -ĞˆC àC`F¯J!hG¯J­H!h‰ xG`‰À*Ğ`~@ 0ZÀÀ¨B#ĞiF ‰IŠˆBÑ8i"à0‰C`‰£I@@ ` -ĞˆC àC`a~hFJ ŠI PR˜J–H!h‰ xG`‰Á~Õa~I qZÉÉ©BwĞjF¡ŠRŠ‘BrÑ!ICIˆCI` -ĞˆC àC`†J…H!h‰ xGòà([Ñ)}Ñ -&Ğ &kF˜|pØ|XpˆX‚|pX|Xpˆ‚8ià0 €‰„FÀ.Õ`‰#Û@Ğ.Ğ0C	Ğ   (Ğ¡‰˜BĞà&×ç ôç ‰ˆBÑ!`F	ˆC ™ˆ`‰!ˆC`Õ !C`² ÀCaÁ˜G`‰'Õ!	@Ğ.Ğ0C
++Ğ   (à‰iFĞIŠˆB à“àĞà óç	ŠˆBÑUJ`~h!G`‰SILJˆC`IH!h‰ xG`‰*Õ!‰@Ğ.Ğ0C
++Ğ àsà   ( ŠiFĞIŠˆBĞà õç	ŠˆBÑ@J`~h!G`‰ !ˆC@@IˆC`3J2Hh	 xG`‰&Õ!I@Ğ.
++Ğ0CĞ   (`ŠiFĞIŠˆBĞà õç	ŠˆBÑ*J`~h!G`‰A!ÉˆC`JH!h‰ xGa‰ˆ!Õ"F’@Ğ.
++Ğ0CĞ   ( ŠjFĞRŠBĞà õçŠB
++Ñ @CCaAJ
++Hh xGhF ‰(Ø*F8F™ÿ÷Úû	°ğ½IH`pG\ 7  Ä           Àã  @  X   T ¤6 øµFğÊşTJyxxˆ	 *Ğ(Ğ(ÑPH h€Gø½:xkFpYpˆ$€(ñĞ(ïĞ,ğÒHHæ …Y -=Ğ0  y(ĞCI ™(4Ñ(F€0Ay )/Ğ@yJ(,Ğ"9F(Fÿ÷û;HY )Ğ ˜ y(ÍĞ(iÁù1J|*ÇĞ *ÅĞïó‚3L#h[ C"`r¶
++|0Kÿ00h!˜G hÀÀ€óˆ h@ `ø½  ø½8µ $jF€xpAxQpğeşjFˆ#IˆBÑ"H€ˆ€Õ&K!h ¢ ˜G$I 	hˆG#Hp8½µğRş!L h (Ğ I	hˆG   `½µJ !h GH j@ ÔH h€G½IH`IH`IH`IHˆapG  ¦  øD `2  ä  äD   8  HCI reset complete  „ l |ß €ß Ì  ¸  ¸ -Z  ÷Z Ì 7[ ¸ Q[ ` øµúHúM@}}# $Û jh&FBÑ.p$i`	à‘BĞšBÑ.p (Ğh` àk`ïK "h0 ih˜G ,ĞìJ)xh  Gø½êH h€GêO $>F6¨h h (Ğí!	\ )ĞåI	hˆG (
++Ñ¨h°B Ñ¯`¨hd ä²¨`,çÓÚJ)xh  GÛH h€GÛH h€Gø½µğ¤ığığ¦ı(ÑÎK"x!h2 ˜G½ÒI  	x )Ğ pGÏI	x )úĞ pGøµÍH $hÌH h€GF ÀÀi!¼NI¨BÓ²|#ÛZCR	BØ(Ğ½H $ x (Ğ$à»H x ( Ğ$ ,Ğ Hw!x ¸G°|!ÉHC@		 ÀÁa Fø½pµ±H { (ĞğTıp½¯H h€G®J (Ğ!h  Gà!h  G›M}! "É +h0 ˜G¦L x(Ñ   p“H|É
++Ğ@| Ôÿ÷˜ÿ(Ğ(Ñ  pœH "A‰+h1 ˜Gp½øµ Ğ x˜N†(
++Ğ¤(zĞ™(qĞŒà›J”Ih” Gø½‘Heh§hh -Ğ(i (ĞºxR*Ğà8FˆG1h FˆGø½ûx+
++Ğ*#Ğ!*6Ğ"*<Ğ/*BĞ*JĞdà€k"@0‰’‘CvH h€GF(i¼"ZR ‰			€0c1h8FˆG1h FˆGø½zK "hN!(F˜G(i"€k@0‰’‘C1h8FˆG1h FˆGø½€k#@0‰ÛšC³ç€k#@0‰šC«ç€k#@0‰[šC£çààÀ0‹#šCƒ›ç yjFp`yPp !Q^]J  hG\I  p1h FˆGø½ZH h€G Fğ‹üø½øµWNF°y (*Ğ`y('Ñàz€	(#Ñ ğßÿÿ(Ñ ğ˜ÿÿ(ĞE(F1h0¡Fğêú(F1h0	8Fğãú0h5@]`qà ğÂÿ   p  ø½pµF>H€~0M Õ<H€x(Ğ x (Ñ:H yÀĞ:Kbyh¡7H˜Gÿ(Ğ  p Fğ>üp½)h FˆGp½ÿµAxFƒ°€F ‘)^ĞÜ)WĞ)UĞ)UĞ)|ÑRà)RĞ)LĞ)NĞ)sÑIà@T  `ß ì  øI ø1  8& 07 ¬7 ¶  ²  \ ¤' œ1  ¨9  ÷Ş ¸  Ì .  patch_llm_server.c  h ìJ ”? ˆß Ä< Œß ”/  @ä ´/  ø  8' 'à' à'şH } (Ğ)ØüH àüH(x $@ (İ˜› ™˜ğÈúÿ(Ğ0x (Ğ@  0pĞàÄ²(x@ BèÜ  °ğ½ °ğ½øµFxFIË²Ax)Ğ	)Ğ)Ğÿ)Ñà!âLà!âLàâL!‚ F –ğ-üÿ(Ğ(x (Ğ@  (pĞ  ø½ ø½ğµF  ¡°FÕHF€x (}Ğ y`y ¡¨ğŞù%{ -Ğ F0`$W{jFuÁ{Qu|‘u@|Ğu /Ğ>{ .Ğ7—*F
++ ™ğ]ı (Ñ2F
++ ™ğVı (hĞ'ÇWºH@xÀ-Ğ  iF˜Èr ˜s©iFÈ©HiF‚©ˆiFH‚Os˜  ˆrªH™€hA
++¨I	ŠB@Ø¥I@=ĞHh!hFğÿ¡H@x€.ÕP!¨ù÷ÿiF˜v ˜Hv©iFHƒ©HiFˆƒ©ˆiFÈƒ© ààpÌp˜	r
++¨*F0™ğPù©r¨2F0™ğHù !¨ğØş!°ğ½'ÿC•ç‡H@ˆ@ F˜ğsùš˜€@ ~I 	ˆ`Hh@H`®çğµF}H…° hF€GF{H!NC h1F1AZ‘±A\‘1F
++1AZv‘†]sHAy )9Ğy )6Ğgy¤ ” h€]ÿ(ĞlI ‰h à $ ,)Ğ y¸BÑ"a ˜ğŒú (Ğ`{ÿ(ĞbI ‰h à $ ,êÑà ,Ğ { (BĞ(GĞ(Ñ˜
++!@ğù@  	 `°ğ½0FğÅüÿ(ĞQI‰hŒ à $ ,ĞMI	hŠ]bsˆU'q` ™ğÇø àr™):Ù s˜
++!@ğìø@  	 `°ğ½@H€ˆ€ùÕFK !h>¢ ˜G°ğ½EJCIhCHG°ğ½ h!(  	ÉˆBØ˜
++!@ğÆø@  	 ` àr°ğ½àz@À²àr™ˆBöÓ:F1F   ›û÷€ù  s˜
++!@ğªø@  	 `-J,H!hÉ xG°ğ½óµ•°  H } (eĞJPy (aĞ™	y)]Ğ™ )]Ğ™ )]Ğ!
++‘™›	{YI{‘‘y3à´/  ğã üã ä ä  ä @ä ÿÿÿ6ä ¤' ”ß Lä 8  Tracking entry exhausted    „ 4  4` h 7  Ä ‘ !‘ (~ÙòH"h˜PCBŠ\’‚Œ\Â\\
++\’*
++Ğ*Ğà °ğ½  °ğ½! çš*tĞàš*pĞ@	V˜BkÜà
++Ğ˜›ByÛHğ”ÿÿ(`Ğdd ÙH@h (ĞiÔ  à™@\iFuÔH@h (Ğ)Ô  à™@\iFwÏH@h (ĞéÔ  à™@\©sÊH@h (Ğ©Ô  à™@\©tÅH@h (ĞiÔ  à™@\©u  	
++˜ (wÙ!" #@'(F8@  à½à(F@(F@(F@ @•˜à (ûĞ˜{ %gàà˜@0Ax½BÒxmR•² )^Ğ½B\Ø)-ĞÜ‰)RØaPÕ«š™ÿ÷¯ü(IÑà)9ĞÜ	)Ğ)	Ğ)?Ñà)Ğÿ):Ñàû 'à!5Õ«š™ÿ÷”ü(.Ñ .Ğ÷ à $(àá&Õ«š™ÿ÷ı(Ñ .òĞï à¡Õ«š™ÿ÷ı(Ñ .åĞß @ààa
++Õ« š™ÿ÷ÿü(Ñ .ÖĞ¿ @½BÒ ,”Ñ	˜
++™@À²	ˆB…Ó ,Ñ˜ (Ğ(Ğ(Ğà˜™@À²˜ÿ÷Âıà˜ (	Ñ ™˜ÿ÷ıüà˜ (Ğ˜(Ğà ˜ (Ñ˜(	Ğ˜@À²VHAy˜B ÙÁæ˜°ğ½øµXHo ,RĞ Fğ>úUNVMVO()Ğ Fğ=ú (2Ğ@<àk (AĞğ.ú (1h8FMĞˆGF1h8FˆGF Fÿ÷£û0Fÿ÷ û`yqy¢³ğ(ú (,Ğ1F Fÿ÷1ş(Ğ!à1h8FˆGFÿ÷‹û ! Fÿ÷$ş(0Ñ Fà1h8FˆGFÿ÷}û ! Fÿ÷ş(ñĞ!à Fÿ÷¦û0Fÿ÷£ûø½)h FˆGà ! Fÿ÷ş(õÑ Fÿ÷•û)h0FˆGø½ˆGFÿ÷Zû ! Fÿ÷óı(Ğ)h FˆGø½ Fÿ÷€ûø½µH h€Gğfú½µH h€Gğ_ú½´IHˆ`LH4ÌÀIH`IH`IH`IH`IH`¼pG”ß œß ğã üã ä ä  ä   Ü Ì €  ¤' ù[ ` à `ß Ÿ\ ˜> O] ¨> Ã] Œ> mg Ì> eh à> µğ‰ÿoH x (ÑnI/ 	hˆG½øµlH %h )Ğ{ )FĞhHÀ{ (BÑgIià0Â{fH h ( Ğ ‚B*Ù $à,"Ğ_H¡ @X (Ğ€h (Ğ†o .Ğ\I0F	hˆG (Ñ0F€0F@y(Ñ -ĞUI(F	hˆG (Ñx‰€ Õ5Fdä²,ÖÓKIh¨BĞ  `H` -Ğ  à  ˆsø½­çµğ1ÿFH h€GEI	hˆGÿ÷£ÿ½øµF $BOà,Òà =X -ĞÀ y(Ñ(i (Ğx @[€
++Õ¨n (Ğ8H h€G xÀÔ¨nFddä²,ßÓ0Fğÿø½µ0L h (Ğ x(Ñ/I-H	hˆG (Ğ-I	hˆG   `+H h€G+I 	hˆG*I p*J)Hh ! xG½pµ(Ñ&L¢n *Ğ#x - Ñp *Ğ@:Òk à¢n *óÑK "pğÎşp½IH`IH`IH`IHˆ`IH`pG  ´  ğ „5  ø1  @1  h> ¤' $< `2  „9 ø	  x  Ü Ì : ¨   ;  Ä   £  i Ùi Ü; ñi  < Cj D< ‹j È; pµh„H‚°F‚B/ÑXyiFq˜yHqØxpyHpœz ,ĞF	ˆ€ˆBÙ BÙyJ %€yI€yHyIpØzpxHÙypzApYzpğYş à%tJ1Fh(FG(F°p½ °p½øµFnHFBcÑmH`mH h€GmK "h!F ˜G DĞÄiHjO@x(8hĞ ( Ğ€ˆiF €eHÀz€Õˆ €ˆ €xàpHx q_H x`qğÃü (
++Ğ iF€à ( Ğ€ˆiF8€ßç8h (ĞVH xiF€x qHxàqNHÀx (Ğ€x rHxOI`r	h0FˆG -ĞCH h (ĞJI(F	hˆG?H !`ø½GHÀx€åç(FğåıEH„B	ĞDM(x (ÑCI 	hˆG (pAH„BÑAH h€G@H„BáÑ@H@j (İĞ?I`0
++xsIxAsø½
++Fµÿ:X:Ñ hÂx*Ò‘ 7JQXˆGà J hG ½ğ´ı½pµF1L1MÊk£h  )hšBÙFˆGF)h hˆG0@²p½#hšBûÒFˆGF)h hˆG0@²p½%I$H`&I$H`&I%H`'I%H`pG    ¸  º  p  q  s  <:   Œ
++  ´' Ø6 ¸  È  |&  r     È6 Ì œR	  |ß l G  Ä<   ”.  À  Œ   R  ğ& Ík ü9 Yk ø9 él : m ğ9 ŠxR<*Ğ*ÑÊx*Ğ*Ñ pGµğ0ı½µ‚xR!*ĞÜ*Ğ*6Ñ,à"*Ğ/*1Ñà
++FÀ2F‹*Ô$"Cƒ&àŠk@2‰!Ô$ä#CàŠk@2‰ÜÔ$$#CàŠk@2‰œÔ$d#CàŠk@2‰\Ô$¤#Cğòü½ÿµJ°FFhF !H
++ŸG(` (Ğ!,	ĞÜ,Ğ,Ñà",Ğ/, Ñ€&Gp(h7CGp™` ÉÉC)hˆp°ğ½IH`IH`IH`pG'  È 	n D; +n è: ³n à: µI  	hˆGJIh  G½IHÈ`pG  ¬ ü  <: 9o H pµFFğ•ü-ÑHÀz Ô`x@@ `pp½IH`pG|&  mo ¤9 µIJF€1 *Ğ
++~ÕJR‰RÔ  v½ğsü½IH`pG|&  ”-  ¡o ¸6 ğµƒ°FF  jFp¨kF<0@z4(Ğ=(ZÑWà	)WÑ8y®o#(0Ğ h (ĞI	hˆG   `œH x(Ñ›H€yÀĞ¨o`0}	
++Õ ‹ÀÕ–I0i	hˆG8yiFp	à“K "h!F(F˜GiFp (#ĞKjFh 1i˜Gà˜ z'(Ñ`hŠN€x##ÁÉ6h"(F°G€I`h	hˆG  ``™r¸x‚JÁhÉ(FGhF x°ğ½©)Ğ:F(Fğüû°ğ½ !IˆC …yJwHh! xG Õ!ˆC …tJiFh	x¨oGjI(F	hˆGhF x°ğ½øµğŞûlH %x )=ÙkOkH© DX ,1Ğ o (.ĞhI	h )Ğ	i¡B'Ğ¹} )ĞdI	hIiˆBĞ¢k *Ğ&k .Ğ1x})Ğ~ *Ñ]K "h˜G (Ğ[I F	h00ˆGYJ1Fh oGEI0F	hˆGNHm xí²…BÂÓø½ğµF…°  ´kµo41)>Ñ(F`0 ‹€8ĞJJ1Fh  G   èhà0@{ (Ğ! à !CO#?h"0F¸G°k€ˆ Ô?H h€G@y@Õ˜@}@Ô! IC …  €5 i~8MF-h5JR ¨G  4`r˜°ğ½0FğTû°ğ½pµF/H% {F€Ğ8)Ğ;)ĞFğIû Ğà % ,Ğ*  p&I 	hˆG (Ğ ,Ğ   p p½(Fp½!IH`!I H`"I H`I!H`pGÌ ©  H  `L DM 49 ; dL 7  Ä K ²  Ğ`  2  @1  `  \M Ü ôJ Ü8 ğ: t9 0u  œM „5  œ? áo $M ‘q ¨L q hM -r óµKIF	h…°Œ ˆG ~Ğ $  FK%Fhùh0Fš˜G2x   *Ù!AC‰‰ˆ )Ø©B ÙF@€²‚BòØ - Ù %hP0p *+Ğ0x!HC€ˆ‘ )ØÁˆ '‘ )Ù@ˆÀ™ğíøˆ²¨BÒ"F@C™€²¨B÷Ó˜¿²¸BÙ˜èç˜A1p (ÓÑ ,Ğ  FF -Ùo#‹@#BÑ¹BÑB İB²  à@À²I‰²©BîÓP @² 0xqxˆBÙ ˜€@²  .ĞI0F	hˆG ˜(İ  àà°ğ½(İ °ğ½ °ğ½IH`pG  H8 ? Ì s (7 ÿµFœHƒ° hFF€G oÀhà0@{ (QÑ 8v¨ •M o`#-hBŒ!¨GF¡k @\H(ĞI(ĞJ(	ĞK(Ğ*à oA˜ŠH@#à1 ‘ü!	Y  )ĞÍ{{µBÒ)F à1FµBÓ(F à0FğJøµB Ó5FhC!ošIŠ ™	‰ACˆ xH@xN;F6h)F Fš°GuHc oÀhà0@{ (Ğ 8vïó€pN1hI C0`r¶¨nI	hˆG0hÀÀ€óˆ0h@0`˜iN (Ñ2há!g G˜ (Ğ!s7!Ai fJ%F@` !¡o€5A`hj (Ğ2hí![ G˜hb^J¡ohÉhG°ğ½pµF[H h€G¡oÈhà0@{ (+ÑWH h (Ğ i B$Ğ`1}TM  ÕSN0h€G@y ÕQH h€G k`0@y (Ñ*h! FG o`0 }ÀÕ0h€G@yÀÕGI F	hˆGp½*h! FGp½pµF‚k ,F\à4 {‚°H)	ĞI)Ğ	ÔÁÔ@2‰IÕ!C s°p½ 6N #"6h€!¨°G˜ (Ğ!Áp
++"0I ğGÿ/J)Fh˜G {û!@ s¨k"@0‰’C°p½µƒoŠxÛhÔà3[{äR +Ğğ ù½!FL$#$h G½IH`IH` IH` IH`pG' Œ9 şÿÿT7 (b  ä  @ h patch_llm_afh.c üÿÿ¤< h7 @1  P7 t9 D7 \7 à: p_  è: ; Yt L7 —u ”7 v d7 v œ7 ´‡°z(NÑHyjFpˆyPpÈyqzPqHzrˆzPrÈzv{Pv|sH|Psˆ|sÈ|Ğs}tH}Ptˆ}tÈ}Ğt~uH~Puˆ~uÈ~Ğuˆ‘ˆˆB!ØÿJ€BÒ)ÓPBØhF ‰ÿ"ô2BØhF ‹÷KF
++:šBÒÀ ˆBÓôL  «B šZ¢BĞŠBÙ°¼  pG@À²(ñÓ°¼ pGÿµF iƒ°‡k™  Hp˜%7n(Ğ&FäJ€6z(Ğl(~Ğ~(}Ğz(Ğ~(zĞÓà) À](vÑÜJ Fh™G1à8F 0@z(%Ğ(#Ğ(!Ğ(Ğ(Ğ (Ğ8F 0 @z(}Ğ²à i"ÿ00 h 0{Cs™˜ÿ÷Xÿ (ĞÇI F	hˆG (ĞÅK!ihš˜˜GF0áÂN %"6h+F! i°G'á i"ÿ00 h¼MŠÀh€‹PC€€² F-h# F™¨G¶JFh F™G ()Ğ³I F	hˆG (Ğ % •q~¯N}"#R6hS °G˜!Ar ià7àOàTàWà€k@"ˆC€ìà N #"6h! i°G™  Hráààhà0@{ (ĞJ!h iG   #}"q~R àŸà–NS 6h°G˜!ArÇà”M#-h F š™¨G fĞ½à=F 5hz(Ñhq~S G i"€kŠKˆ‘C€ "hp~!˜G  hrF¤à8F 0@z(Ğ) À](}Ğ F›š™ğ~ÿ°ğ½hq~S G˜…yàhà0@{ (Ñ-Ğ™  Hr i€kˆÊ}ĞII €oJ)Fh FGtà iı"ÿ00 hhM 0{@s i"ÿ00 h-hŠÀh€‹PC€‚²# F™¨G WÑ iFÿ00 hiF[JhG   ÿ! i1	X€oÊh@k’‹#RÒ BCi&!	\ÀŠq~KN@ 6hS °G™ Hr/ààhà0@{ (Ğhq~S G ™  Hr;K!ihš˜˜Gàà8N #"6h#! i°Gààhà0@{ (Ğ˜…y ikˆˆÂĞ@@ ˆ€4J)Fh FG4Iÿ 	h¤0ˆG˜ 7pxz (#Ñ iÿ00 h€j (Ğ,I	hˆG!i  ÿ11	hˆbxz (ÑI F	hˆG (
++Ñ$H h (Ğ$J"H!hI xG(F°ğ½ÿµFƒ°   ˜F(7Ğ(5Ğ(3ĞF8Fšğ«ş°ğ½  {  w  ÿÿ  ˜M ÈK °J øK dJ ´K üK ,J œM hJ °K J  J LJ  L P8 ˜
++  7  Ä 8iÿ00 h i (Ğ °ğ½şI, 	hˆG xĞ8iÿ00 hÀhFNÉNÅF1NÉ=5NÅBjj =€jjb)b¨b˜ñI¨‚	h8FˆG˜ïN(Ğ()Ğ(VĞtà`z(w zhwàz¨v {èv`yiFr yHràyq zHq`{ ‹ˆ
++‰)F8Fğîş2h)F8FG8iÿ00 h 0yII qMà`z(w zhwàz¨v {èv`yiFr yHràyq zHq8iÿ00 h€j (Ğ z ‹ˆ
++‰)F8FğÀş2h)F8FG8iÿ00 h 0yII qà)à8iÿ00 h€j (Ğˆ©ƒÁˆiƒ¼LCˆˆ$h)F8F G2h)F8FG8iÿ00 h 0yII q8iÿ00 ha  °ğ½ °ğ½ °ğ½ÿµ…°  ˜¥LF (Ğ(ĞFš˜ğ»ı	°ğ½˜ iÿ00 h…j -Ğà˜ iÿ00 h€j (Ğ 	°ğ½!h ˆGF!h, ˆG }Ğ -{Ğ˜ iÿ00 hÀhFNÉNÄF1NÉ<4NÄjAj <€j"bab b˜ ‚˜ (Ğ(0ĞUàxz w¸z`wøz v8{àvxyiFq¸yHqøyr8zHr‰ “zOŠˆ?hF!F˜¸G.€ ˜h€ ‹¨€`‹è€  (r ŠhàŠ¨!ÿ"hğ¨ü(Fğ7ş%àxz w¸z`wøz v8{àvxyiFq¸yHqøyr8zHr(z ‰ŠˆFF!F˜ğêı.€o€ ‹¨€`‹è€ Šh(FğşYI F	hˆG˜ iÿ0 àà0 h…b˜	°ğ½ 	°ğ½Âhà2R{ *Ñiÿ22h’h *Ğ pGµğ	ı½pµFÀhGMà0@{F(Ğ(h€G x Ô p½(h€Gxpy?¢@ ix!ÿ00 h 0sAHğ¶û@H€ˆ€Õ?K!h<J ˜G(h€G"iFF;JhG  p½ (ĞµFğÔü6Hh )	ĞŒBÑğÒü ½@9Ék )õÑğÊü  ½pGpµh‚°àù0F h¡oÀh"@‹ ˆ„ o`0‹‘Cƒ o€Œ (Ğ#H h€G"I	hˆG o!J€0A~hU GJ!Fh G oKÁhxà1I{ )NĞı&2@ &2Cp "’ ‘)hF+à´8 <= èK (? P8 „9 peerFeatures[0] = %d    `  8  „ \J ˜
++  ¤' $< ˜M Ü8 ­   M@2Ëh€0-h‰~@~¨G oJ€0A~hHGH h€GI  	hˆG°p½÷&2@&2Cp¯çµÿ÷xÿH h€G½µğ>üH h€G½IH`IH`IH`IH`IH`HI`IapG  $J 
++  È9 h7 ,7 Ä< x äK ‡{ °K w} ´K å~ ¼K 	 ÈK »€ L ­€ ÷µF†°  iFFq -Ğ(i (Ğ®Kªh(F™˜G/F€7 (Ğ)iŒk”4 | (Ğ§K(AĞ(_Ğ (Ğ_àªJ/!h¢ GhF y	°ğ½˜¨(wÑ $ ”jk£My~-h#FQ ¨GhFqßà˜}(Ğ˜G(rĞ@àœJy~hQ G›H h€G@y€Õ™K"‰h1F(F˜G&  t°à°x#Á(i“MÉ-h"¨G à˜I(Ñà1ˆ{÷"@@ ˆs˜@0y@qh"F )i˜Gèh¡{à0@{ ( Ğ B Ğ*à   tƒà˜>(Ğ2F(F™ğzû	°ğ½à1ˆ{"F@@ ˆsh )i˜Gèh¡{à0@{ ( Ğ B
++Ñ   mMF"-hy~Q ¨GÕçrà   gM}"F-hy~Q ¨GÉçÿçpy p°y`pğy p0zàppz q°z`qğz q0{`Kàqh*F¡ F˜G ˆ]N@@    `¨ 6h!ˆ`ˆ«êh°GhF€‰ hF Š`˜!€ˆIC™ˆ€èhà0@{ ( Ğ MI s	h(FˆG*iFFJJhG   )iHM¢{-h# F¨G t | (ÑDH h€GDHÁz	Õy~jF‘p™Qp!|p€ˆ€Õ>L#$h‚!F GhF y	°ğ½ÿµƒ°F˜FFC0Ñ¡k@1‰y	+Õ o%Áh2Oà1I{ )Ğ@  • F#<h"™ G °ğ½*I	hˆG Fà0{"Cs'J1Fh oG€  • F#<h"™ Gäç F!F0Fšğ©ú°ğ½IH`IH`pG\M 49 patch_LLM_lp_sniff.c    h œM ˜M t9 àJ ; lM $? ¨' ÄJ ÀJ : 8  À ğ: ø< ô< A ìJ ƒƒ µ…°iF	~)Ñ"!jFvk€1Š{*Ğ*Ğ *Ğ©‘© "‘F ’Fª ğOú° ½IH`pG  …„ M µoK`1Š‹hF !˜G Fğ>ú½IHˆ`pG  7 Ù„ 89 µF )
++Ğˆo (Ğ‹k€3›{J+ĞG+Ğà  ½6,Ğ Fğ"ú½KH!h˜G½µğúş÷Fú½µğúş÷@ú½IH`HIÁbIcpG  ìJ 	… È8 A… ä8 M… pµ¶MF.{ğú . Ñ({@Õàhà0@{ (Ñ¯H h (Ğ i!iˆBĞ ik@1Iy)
++Ñ€h (Ğ*!q§I  	ià1H‚h`p½øµFF£I¡H	h iˆGLF { (Ğ£Jt!h G  s HFCña`')İ' ``à& ÀCB Ú`` hi@x(Ù-—Ih@ `–H h€Gø½øµ‰M*{ *ĞPÔ  ø½ ø½ÕI  x ,ÙK YX@à1Î{À²vv Îs BôÓïó€‡N1hI C0`r¶Ğ ' (ĞvH ih ,Ğ {(Ğ@<äk ,øÑ0hÀÀ€óˆ0h@0`({yJÀÀ (so` !h GvJuHh! xG ø½ ,ãĞrHl FˆG {às§sg'Ùçøµ[M){ )qĞaLı'"h(Ğ(Ğ (iÑtàÈÑÛ!V G({@@ (sïó€\I
++hR C`r¶ $WN2x *ÙVK  Xï!	\ÉĞÿ!1	\ )ĞVK"!ÿ0h0˜Gàdä²”BèÓKIhÀÀ€óˆh@`0x„BÓ({8@(sÕ÷"@(sïó€F	hI C `r¶CH h€G hÀÀ€óˆ h@ `({!B,Ñ<I‚ÕÀ (&Û	h ˆG (!Ğ({!C
++à0ààÀ (Ú	h  ˆG({ï!@(sàHÔÿ!1 G({€Ôÿ!"h 1 G({8@(s({(ÑH h€G({ (
++ÑJHh! xGJ !h Gø½IH`IH`IH`IH`pG  „5  @1  ø1  ' patch_llm_pca.c h q  şÿÿ˜? ²  2  ä  ˜M 7  Ä lB äD Ğ È …… |? Ù… ”? 9† œ? ñ† ˆ? µğeøH!qÁq½µJFh
++HGL h (Ğ
++I	hˆG   `½	IH`
++IH`pG  `  ü	  ¸9 €ß È6 Ùˆ ¤8 éˆ  8 æIˆ
++BˆJåIy
++wäIByÊp‚y
++qÀyHtâH h GğµFàH %ÜOƒ°FBĞ@†BhÑÜHŞJ`ÜH×I3F@2y 0–FÚJ	y”FÒ{ +Ğ+)Ñ7à»~ÕÉCÑ€~ ÕpFÀ=Ñ`F€y Õ7ÑÏKâxh!ÌH˜Gÿ(Ğ%àËKâxh!ÇH˜Gÿ( Ñ%ÇJ1Fh(FG ,Ğ½H h (ĞÃI F	hˆG¹H !`°ğ½»~ÕÉÑ€~ ÕpFÀÑ`F€y ÕĞ%Øç¶Kâxh!¯H˜Gÿ(ĞÑ%Îç²H†BUÑàx(Ø yjFq`yPq ypàyPpˆˆB Ù% z( Ù%¦Iå 	hˆG -,Ñ¸~ Õ£H€x(Ğ¢H™ByŠBÑjFAˆ’ˆ‘BÑjFˆˆ‘BÑy"z‘BÑ€yazˆBĞ%à•H™AqiF‰ˆA€iF	ˆ€!zqazq‰J1Fh(FG ,Ğ†I F	hˆG°ğ½‰H†BZÑ‰H h€G y@Õàx( Ğ    (Ğ¸~  (~H€xÚ(Ğ%0à(Ñ}J !hgHGwH!pvH!yÁqÿ÷÷şwJaH ™h-àtOF:h^HGnHx)ĞqO8o (Ğ8Fp0 8oı÷¿ùmI ˜	hˆGlI	hˆG8o (òÑ]J1Fh(FG ,§Ñ°ğ½!pdHÿ÷Çş:h!IHGìç Fğûş°ğ½µğüş (
++ÑIIÿ"‰j2	iRX‰kÒh‹R 
++‚½ğµ !ƒ°UJ‘QV(‘FĞ ğŞù˜°ğ½H!HCOID%F 5éy F@0 )Ğ)Ğ)
++Ğ€y€8Ğ (z (6Ğ F@04àyŠĞˆôÔ ñç)z ) Ñ>H?I	hˆG Ğf`ğh `èy(Ñ  „   8O™ #]Ú?hU ¸G1i  ÿ11	hv1iÿ11	hHvÊç	 Çç  ``Åç*Hˆ)‚Aˆi‚€ˆ¨‚˜ (¤Ñ' 'Khr"F,2h‘˜G˜ ğöø˜ç$I"H`$I#H`pGt/  ”/  ´/  7    Œ
++  ïßÿÿ/  ø/  ø  8' È' <: Ì Ğ'    7 @ä ,ä    t9 ˜<   Ü ´> 6ä ÀŞ Üß ü%  < œM ğ' a‰ ä6 Ã‹ ì6 ÷µïó€7M)hI C(`r¶5N5O0h $ (
++Ğ{‰ yXˆG0h{Ás„sD4`.H/Nq4`ph (
++Ğ{‰ yXˆGph{Ás„sDt`(hÀÀ€óˆ(h@(`š™ ˜ğùıı÷üı°ğ½pµF`0 ‹FÁĞ€Ôàhà0@{ (ĞI(F 0	hFˆG (ĞI0x	hˆG)F Fğİıp½	! FğŞıH€ˆ€öÕK !h¢ ˜Gp½IH`IH`pGä  è  lB -  ô,  ü7  8 8  RS Error: ltAddr    „ i K ã K µğ«ıı÷œı½µğ«ıı÷–ı½µğ«ı½ğµFH!‡°HC§L X (uÑ¥H h€G¥H h€G¨ ˜ !‘ Ã™ FŸN¡Œ6hJ˜°G&F 6à`ñy ‘ ™O#[!?h¢Œ ¸Gïó€•O9hI C8`r¶¨“I	hˆG8hÀÀ€óˆ8h@8`™ )8Ğ"…H²q'"rr"
++
++"Jš#P`hH`ğyH"}NjC’,$@2(Ò ~D6y¶·D ŒsyCq
++à5 ˆsyCqàŒsy#Cq(Fšğ”ştJrIh˜G°ğ½ğµF…°  ,FH eNDC0Y (zĞcH h€G0F&1F 1‘Éy  #aO‘ ?hF!F¸Gïó€]I
++hR C`r¶UH Y (Ğ{[J‰ QXQOˆG8Y{Ás9Y  ˆs9YH9Y8QOO8hÀÀ€óˆ8h@8`ïó€9hI C8`r¶¨HI	hˆG8hÀÀ€óˆ8h@8`˜ (Ğ™‚"Šq0!s!9H h€GF?H=J@˜`!A…h8IG;H"xCp-H˜€y Õ7ON ¸G˜6I@ˆBÓÿ!51 à!à8J2 hGà"H˜€y éÔ*H÷"xO@p˜:FÁyH hC€@0 )
++Ğš)Ğ)ĞyII q°ğ½yı"@qph (öĞ…!	\)òĞ"I	hˆG!Iph	hˆG I°h	hˆG  °`p`°ğ½IH`IH`IH`pG  Üß ' ¤' ¬< À ä  @ \1  ¤< lB üÿÿ±  Ñp  † patch_llm_rmcdCommand.c h $' Ğ& „8 • = ¡ = ­ Ä< óµ° !Ğ˜ (Ğğx4yÁ˜É…oDH -Ğ ,%Ğ,#Ğ,!Ğ,Ğ,Ğ,Ğ,Ğ,Ğ1F˜ğüû°ğ½?JE!h7 G°ğ½€ˆ€úÕ;K" !h ˜G°ğ½™"R]2pÂzÒ
++Õ€ˆ€Õ	3OË²!?h2F ¸G1K,ĞÜ ,Ğ,Ğ,Ğ,0Ñà,(Ğ,Ğ,)Ñàh2F^ ™˜G"àh2F[ ™˜Gàh2Fn )i˜Gàh2Fq )i˜Gàh2Fx )i˜G
++àh2Fy )i˜Gàh2Fz )i˜G0Fş÷Eş (ªÑI0F	hˆG°ğ½IH`pG  8  patch_LLM_LE_control_pdu.c  h ¼ À 49 Ì Õ‘ lJ pµÿJFhFGF(Fğù`C€²p½ÿµF ›°÷M *ĞFF$*h FGF FğûøxCÀ²    $ ëI””	hR ˆG˜–†B~Ø$˜ ' x>F=F (Ù(F!HC$™ßJ@h€ˆ™Gj iFˆR(Ùy²°B ÙF$˜m x¨BæØ™B}Ó™˜—CÑ™˜ğ¹ø )Ğ™˜ğ³ø )Ğ˜$˜x¹BfØÉI| 	hˆG˜4F†BØ$˜x  % /Ùi hFAZ Fğ–ø )Ñm¯BôØ˜ (Ñ „²˜„BçÙ@, Ù@$ÿ"!¨ğ§ù  $˜ x (JÙ˜"A hFAZ˜‘PC$š…hˆğmøïˆ˜F‡B ÓF àÅà¦B,Ò % /%Ùr  !’ğù
++FÁCĞCš›@@‘!F˜ğMø
++F  !ğöø
++FÁCĞC à›àš›@@m‘½BÙÓ˜†¦BÒÓ˜@™˜ˆB´Ø %ŠI•	h/Fµ ˆG & ,Ù2F™˜ğxúÀĞ˜m@­²€²½BÙp@€²/F à %v¦BæÓ˜‡BØ‡BÑ™˜ˆBÒ /8Ğ™˜ğıÿ )2Ñ™˜ğ÷ÿ ),Ğ™˜ğñÿ )Ğ™˜ğëÿ )Ñ˜ (>Ñ˜˜˜  dN—0`p` ,Ù'9F@Ê›*@@uh3h*CC@r`1` BïÓ˜ (Ñ˜„BÒ™˜ğ¾ÿ )Ñ™˜ğ¸ÿ )Ğ™˜ğ²ÿ )Ğ™˜ğ¬ÿ )Ğ˜”˜™@€²ˆB Ø¹æCIø 	hˆG%™˜H€˜ (Ğ%™˜€%™˜ˆ€ °ğ½%˜ !€%˜€F°ğ½ÿµF6 ° h hFFp %hFD] ,Ğ!F0Fğrÿ`C„²¼BÒmí²4F-îÓ@,Ò!F à@!H€² )Ğ$N'9F@Êuh3h*CCr`1`F@€² )ñÑ˜€°ğ½ÿµ‡°H !œ`A`  ,CĞ x & (?Ù pCøˆ™ˆB Ù (ÑJÿ!hO1 G¸ˆ (ÑJÿ!hP1	 Gxˆ¹ˆˆBÓÿ!Q1 Jà?  ? 8
++    patch_LLM_SyncLinkMngr.c    h hG xv°B¿ØÿNÿ 1hU0ˆG
++˜(ÙıJÿ!hW1úHG  já x (0ĞöIÿ 	hi0ˆG• ”›	š™˜ÿ÷ÏıFiˆ˜BÒïJÿ!ho1ìHGiˆ˜BÙêJÿ!hp1çHG .Ğ©ˆ
++˜BJÒ˜(GĞ   ˜ (uĞ’à˜˜ ©‘İI	˜	h‘iFq &¨‡] /Ğ9F ˜ğ£şxC™€²ˆBÒvö² ˜.íÓ@(ÒF à@"Q‰² *ĞÍO"Š@>hÓh2CÊN;Cs`2`
++FI‰² *ïÑ™€  (€hˆ( Ó ¨€à(ˆiˆˆBÓ¼Jÿ!hw1¹HG¨ˆ(	Ù)ˆ@I€²)€¨€(Ù ¨€±Iÿ 	hñ0ˆG˜ (~Ğ!x   )Ù!AC	Ëˆš“B ÙÊ€!x@BóØ  °ğ½ÿçhˆ x ' (Øà/Ó Jÿ!h•1HG ŸJxC hiˆ€ˆG(Ğ x¸BéØ”Iÿ 	h¨0ˆG ˜ ( Ğ˜à x>F°BÙ.ÓJÿ!h›1‹HG pC
++‰J€J‰ˆŠ€‰‰€ xv°BéØÀ²@ p  Óç˜(Ù@€²qà x ' (+Ù ~JxChiˆ°ˆGñˆBÓ x>F°BÙ pC ‰B€B‰‚€€‰ àZàˆ€ xv°BïØÀ²@ p   à x¸BÖØ ˜ (AÑ(ˆ (ÑdJÿ!hÔ1aHG!x '&)Ù #pC{C ‚ˆ›ˆšBÙ@ˆ*ˆB Ò7Fv±BíØ¹BÙ xC €ˆ (ÑRJÿ!há1OHG x¸BÙ xC ‰B€B‰‚€€‰ˆ€ x¸BñØÀ²@ p˜@ , ÑÄææ °ğ½ÿµFCI…°F	hŒ ˆG Ğ /Ğ€7z~ àÿ"<H=Kih F˜G¨#2F ”™˜ÿ÷şF ,Ğ5I F	hˆGhF ‰@ èƒhF@‰(ƒ0F	°ğ½ ! (mĞğ´ƒ°‚‰kF€Â‰Z€Šš€BŠÚ€‚ŠÂŠZ "T kF[$L£BĞ@+ÒM$/hœ@æmh<@.@4CĞL $I£É²RÒ²*äÓ #M5à"š@Ô.hoh2@<@"C*Ğ $"F )
++ÙV 6¶‰B!ĞRÒ²ŠBöÓ ,ÑJ à ? L— h H— 8
++  ? H8 ø1  ? Ì ÿÿ  I“É²[Û²)Ò@+ÅÓ ) Ñ°ğ¼pGpGiškÿ33h 3Ûx +Ñc)
++ÑÀhà0@{(Ñ@2Py(Ñ  PqpGÿµF iƒ°ÿ00h  p#5Xp(xFF (Ñ˜c(Ğ F™ğÿ°ğ½#i˜kÿ33h 2Òx *
++Ñâhà2R{*Ñ@0By*Ñ "BqBJ FhG"F€20pF’ (
++Ğ)+Ğ))Ğ$)Ğ  (p ppà (p   ˜6N}"A~#R6hT °G(x ('Ğ(%Ğ(#Ğ
++(!Ğ i"ÿ00 h 0AyCAq(x (Ğ.à(O€#?h" i¸G   ˜"O}"A~#R?hT ¸G
++ (p  Åç i÷"ÿ00 h 0Ay@Üç i€k@0@y (
++ÑH h (ĞJH!hI xG˜iF@~ˆq˜Hq(xqHÁz	 Ôtç€ˆ€ûÕL#$hª…!F G°ğ½I	H`pG  |J œM dJ ˜
++  7  Ä 8  À ó› pJ øµF JFFh !0FGK ÿ"h! F˜G¥p1Fàğ³ûIH	hˆG  ÑJiFh0FG (Ğ ˜ i€k€0€{(Ğ(Ğ (ĞI F	hˆGø½H`H€ˆ€øÕK !h¢ ˜Gø½IH`pG8 Ä6 ü	  ¼9 T8 È6 €ß 8  RnR WAIT... „  x: µIF	hÛ0ˆG"Fà2Q‰ËÕIˆBØ (Ğák}"FÒ QCBÓÿ"2Y )ĞàcàJFhGàc
++I F	hˆG½#CQàc½IH`pG  à 0üWä °' A è ÓH x (Ñµğ·ı½pGµFğ·ı¡{F2)Ğ3)Ñ`hÁhà1I{ )Ñ i$!ÿ00 h	\ÉÑÀh€‹ (ÑP2Ò²F½øµFFF);Ğ)9Ğ¼H x (7Ñà (Ğ@  à†Ğ ‰d"a‰PCğûF³Hx‘B"Ø@xÀĞ±H±OÀk@0 yÀĞ¯H xÿ(Ñ.
++Ñhy€	(Ñ;h2F)FªH˜Gÿ(Ğ F;h2F)F,0˜Gÿ(Ğ  ø½ ø½ğµF¢Hƒ°{ )aÑh¨oB]ÑOŸN9iÀh|13h|0jF˜G ˜›J€  	 hFˆ ˜€€PC0,Ø8i•KF€0ˆ’²€šBÙÌod$$	Ìg\B€²˜B)Ù‘Jè!hŠ Gğ2úH„B(Ó8iKF€0ˆãÒ’²‚K€šB	Ù'Ìo?<Cd$$	ÒÌg€²˜BÙJø!hy Gğú¨o|1Àh3h|0jF˜G°ğ½zM(x (ùÑzJ !hxHG (òĞ¤!p!	²jFuJ‘BİtJ‰jFiF	zqiFIzrJAqhoIGqJpHh ! xG (p°ğ½µFğÀü Fÿ÷bÿ½pµFF ("Ğ-Ñ`y€	(ÑFğ—şJIÿ(pĞ`I@
++hF1T0\àBH\IÀkˆBĞ@K*Fh!F@H˜Gÿ(Ğ p½  p½ pGµ(Ğğü½QH hxÈ  0*Ñ!ğú0~0½H!KJAC‰H"PCµHJ 1Éy€„Œ)ĞFHh )Ğ€{(ÑCH!F ğñù`C€²„B Ó F½µFğcü!<Hğeü (Ğ6I h‰h"ÉoÒ@!	C€ h		  	B Ù!`½1I0HÈ`2I0H`2I1H`3I1H`3I2H`4I2H`4I3H`5I3H`pG  ´ß L
++  ±Ş T-  8' „ß ø  „5  ø1  ä ˆ  ‡  patch_SLC_utils.c   h ğM  à±ÿÿˆß ,'  È q  ûÿÿ`  Ğ 7  Ä Œß t/   -  Üß 1  ÿ  \1  ½ < Ï `D Ÿ ¸D É  ÌD Ù  œD 1¡ ¤D 5¡ PD ›¡ ÀD óµƒ° Ğ¨{(ĞàùJv!hò GğÁø÷L`h (Ğğ½û (Ğ`hk‰ˆÉ
++Õà0€‰ ÕïHi‰€ŠBÙîHh¨{(Ñ h(F@8 !Ác4h ,~ĞçI¬BÑáJŸ!hÚ Gğ‘ø"‰ h€*h  	ˆBÙF*‰€  	 ,Ñà&@<äk ,ßÑŠà¬BÑÑJ¹!hÉ Gğpøj‰`‰—¿‰JÕ HÕ¨{(Ğ*F {(Ğ F {(Ğ"(Ğ#(Ğ
++(Ğ(Ğ(Ğ-(Ğ.(Ğ2(
++Ğ3(Ğ4(Ğ'à½Hißç»H iàç ˜€{(Ğ"(Ğ#(Ğ
++(Ğ(Ğ(	Ğ-(Ğ.(Ğ2(Ğ3(Ğ4(	Ñ¯IF	hˆG­IF	h ˜ˆGF à,àBØ h™A
++!	ÉŠBØ)h H		BÙ(h!h@œH		BØh‰ Ô`‰ Ô˜ ,Äc5`Ğ°ğ½&@<äk , Ğtç5`˜E`°ğ½ñµ  L„°N rA1d!ar`sŒH€h hğ` (}ĞŠHğh{ )ĞˆMh*hS€K?	ŸB/Ù…I	x)Ğà‚I	x)ÑIÕ"ÊcÀ{Èc€IzH	h€hˆG (}Ğ}I	hˆGÇàyIÓ"Êcòh’{Êcñh
++h!	
++CrI	hQ	I	1d@‰ AÕ  rîà‘BlI	x~Ñ)ÑkIÑ"Êc€{ÈckH h€GFğh %{)ÑAh )ĞfK|1hjF˜˜GdIhF	hˆG0i ™ h@ 		ÀB Ù% /Ğx‰!‚ğh‰@‰’ˆC‚BÙ -Ğğh!B‰‰ àwàŠC™ŠBÒ -qĞF¬ÊPI¬Á#csA‰	Õ#r !1d‰ ) ĞF@9Ék )ĞJ‰ÕE‰’’­­ àLàªBÙ#rh!	C6I	h@ @	0dà@9Ék )ãÑ4I.H	h€hˆGñh‰{Š 6I‰XˆG( ààĞ   r`s'à(H x(Ñ'Hß!Ác !Ác °ğ½)Ñ"IÒ"Êc€{Èc!IH	h€hˆGñh%J‰{‰ QXˆG (ĞJÿ!h¯1 GğèşH€h hğ` (7Ğ
++ç5àpatch_SLC_dispatcher.c  h 1  X  (€  ÿÿÿ\1  `D œ1   -  ˆ1  D
++  x  @ñ?CÜ Ì Ğ? à h	 (c  L@ \A ùH x(ÑøIß Èc  Èc  °ğ½µğ£ù(ÑóJÄQhà1‹‰£C‹‘i )ĞïKiÛo››É‘a½µğ’ù(ÑçJ‘{)Ğ)ÑQh#à1Š‰ÛCŠ½µAh )Ğ	i )Ğğù½ (ĞÜI	hˆGÜI  `½µÚIÛJ‰h	i`ğsù½øµØLFØM h(`×H `0FğmùF(Ñ°{3(ÑÓI- 	hˆG(h `8Fø½øµËLFËM h(`ËH `0FğZùF0FğVù(Ñ°{4(ÑÅI- 	hˆG(h `8Fø½ğµÁOƒ°:i$h‘ (ĞµIF‰	h‚BĞˆG  °ğ½»J—!h‰ ¸HGğ	şˆG  8a®Ixa`µHµM x (
++Ğúy´H *Ğ:x*Ğ*Ğ "Bt8x (Ğ($Ğ((Ğ(qÑnàC|[Û²Ct+ïÙ¨H x(
++Ğ(éÑ*çÑ xp hp °ğ½*öĞİç HH` H h€G  °ğ½HH`¸i i`JàœHH`¸i i`øy(BÑ™HjF h   €ò²–N…H6h€h#iF°G (ĞiF‰ˆ )Ğ ™I			 ‘ h!	C ™@$	,Ò $ àä, Ù$„H†I h   	` ,ÑpI{H|LH` h€G€H h€G h€G  °ğ½àtHH`
++ kIhp	h+ ˆG8xeL(Ğ(Ğà"!$h  › Gà" !$hF› G °ğ½µ]JiBĞ (ĞRI	hˆG  ½x)Ğ)Ğğtø½ !QaQpC!sÑy)Ğ_I"‰ŠIÒCA![I\JIk`hYIG  ½YIñçğµFUHƒ° h BÑUIRH	hˆGF@M(i BĞ ,Ğ5I F	hˆG  °ğ½èy &(3ÑBHCO h hF†€/H#?h€h"iF¸G ($Ğ{)Ğ")Ğ#)ÑiF‰ˆ )Ğ ™I			 ‘ h!	C ™@  	(
++Ò h3J  `h0I FG  °ğ½ ,ĞI F	hˆG.aH InaA`! 0Ap °ğ½pµFğ÷ÿF¨B	Ò!H h (Ğ#IH	hˆG Ä² Fp½x  @ñ?C1  ø1  Ì è  ô,   -  ¨ °ß ë× < 0  ¼¦ h ²  @-  X0  ØY  d ˆ5 ¼$ Ø$ D
++  @ ìŞ ¤5 X  \1  @ €  Ü @ µF¤HÀx(Ñ£Hd"A‰ ‰PCğáü¡I	xˆBØ¡IŸH	hˆG K "h!FšH˜G½µFğŒÿ(Ğ  ½ ` ½pµF–HÄ(FğƒÿF”H x(	Ñ ,Ğ.Ñ -ĞI(F	hˆG0Fp½I‰x)ÑH!HCµŒI@"D!F‹Hõ÷
++ú!F@1F‰HğjüˆI yp½pG‚I‰x)ÑH!HCµI@"DI Fõ÷ñù F@0F|IğQü|H x q½pGpµFtH $€x(Ğ(Fğ<ÿp½ -Ğ¨‰D² FH!HCmI@"AFlHõ÷Íù1F@1FjHğ-üjI°yp(Fğ!ÿ(âÑgJñypfIpp½øµFFH!HC]IFDFÿ÷9úF'  ](Ğ" à "àh\K0  	˜B
++Øy àh@  	à`0  	˜BõÙ *ĞTISH	hˆG  (Ù@@áh€   	à`MJ(`h9F(FGààh(` (ø½pµF<H€x(Ğ FğÓşp½ ‰Å² {0(ĞCJ@Ih@HGğ|û@H h BÑ?I>H	hˆG ,Ğ,I F	hˆG;I  ˆqH!MC*Ii 1ˆqp½µFğ°ş!!½0´4H3Ib5I3H`5I4H`6K4H˜f5HØf5HØc5Hd6H5J6I‚c
++a6JBcÊ`6J5LT`7L5Me`6LÔ`7L6J"`7JŠa7JZg7J`7Jc7H`8I6H`0¼pG´/  t/  ±Ş  /  Ì'  @ h*  õ  Ì ÀŞ Üß Ø/  á  ­  äŞ …ß ÿÿÿP
++  8 (D   ¼¦ h \1  Ü ø/  ÜA İ¢ @ «¤ ¬C A§ L@ o§ •§ »§ ÿ§ Ì@ A Í§ 7¨ LA Ç© \B 'ª ëª @ •« Í« å« y¬ Y­ µ­ ĞC øµF  F  h (Ğ Fğş Ğ h (Ğà0|ß"@tûN0y (ĞúH@h@y(ĞàşJb!hö Gğ”ú' -Ğ /Ñ hï!	\ÉÑo	h )Ñ€h (Ñ  òI h	hˆG -Ği  q‰ 	íKIÕ!hŠoŒ )ĞêOy/ĞŞOhy/Ğà€èçI i		×n		??	ŸB ÙÑf!hŠoo×‹ ä$$	œBÙ › +Ğ…#›\„+Ñs‰[ÕŒ *ĞÈJRhRy*ĞÑJ@Èf(Fø½µğıÎIŠ{*ÑIh#à1Š‰ÛšCŠ½µğ„ıÆIŠ{*ĞIh#à1Š‰ÛšCŠ½pµFğzıF(DÑ¾M¾IhhˆB?Ñ½H¾Jj­HhÀmG (.Ğ»I	x		)Ñi )	Ğ€0@yJ(ĞµK"h‰o˜ ˜G¨I³H	h iˆG©I @ájÈa¯Hh`™H !q®H®I h`®I ˆb­Iàj	hˆG  p½«I- 	hˆGªI 	hˆG0Fp½µğ3ı§I  p½µğ2ı‡HÁ| )Ğ@‰@Õ…IHj (
++ĞIhIy)Ğ)Ñ`0A‹"CAƒ½µğı{IHh@y(Ğ(ÑIj`1H‹Â"š@CHƒ½µJÿ!pğı½øµFğıŠH%{ h€G ahF xˆshF@xÈshF€xthFÀxMHt(xÿ(Ğ€N@1h0	 ğ´ù(x1h@0\`qø½pµvMF(xÿ(ĞvL@!h0	UHÀmğùdI¿"x@p*x#hR2š\’C
++p0FğĞüp½øµFF@h]IˆBXÑXO!x8x6 )3ÑbI‰y )MĞ .Ğ.IÑéj@1	yÉDÑ=I@ÉmÀ(>ÑHy€	(:ÑF ğîıSIÿ(pĞSI@
++hF1Q0\ÿ#(h3X›~“BÑ€o"@0ğÙú (Ğ x(Ñ.Ñèj % 08xÂ	‘BÑÀ	ĞAHà  pîç@HI"Ém‰ğ¼ú ( Ğ%pø½pµLFà| (Ğ(H x@	ÕHÀmAy‰	)Ñ ğ£ı-Ip y (zĞ1J !h.HG sĞ .I p	h FˆG,H¡ }by (Ñ*H@y(Ñ)Kèjh˜G(IRà”-  T-  patch_SLC_FrameInt.c    h DD ÿÿÿ¸-  üÿÿ1   -  # /  ¬8 ´-  @D ø1  ü" è
++ h  €ğ?C¨& < @ ´ß „ß X	 Œß á  ü%  D'  È 8 ´/  ¸Ş T €  
++àKJ FhGKJIH!h	 xGHIèj	hˆGp½øµFKFØ|FF (Ğy (ĞCJ !hAHG ĞAI>p	hˆG8J?Ih8FG7J6H!h	 xG -Ğ4Iàj	hˆGø½µğ±û6Hÿ!@h1 i	X€kÉh	‹I ‚½µğ¨û/H@x@²ÿ÷ğû½µğ¥û+H@x@²ÿ÷çû½µğ¢û&H@x@²ÿ÷Şû½%H$I`%Ic&H$IAa&I%H`'H%IAb'I&JJ`
++a&JÊaŠb'J%I`&IaI&H`'I%H`'I&H`(I&H`(I'H`)H'IAb)H(J`Áa)I(HbpGĞ 7  Ä ¨& ”-  D'  È 8 €  Ø/  „ß 	¯ ¤ ° 3° ä í° dD Q° ä" û° Ô% /± W±  ¹² e± ·± \ ÷±  9´ < ç³  W´ $# i´ d# {´ $$ pµ6H7Mx5H|(~(
++Ñ5H x(Ñ4H}IÔA}IAuğû(~(Ñ!j~a@‘B	ÒO FC+H0@2@R|@0Btp½øµ!H#Nx!H|0~(
++Ñ H x(ÑH}IÔA}‰Auğãú0~(#Ñ F#X@q~NFˆBÒO hC€@7€|@0Gt¤à²BØ@À²FZ@ŠBÒO!MC©@0C|ˆ@0Ctø½
++IH`
++I	H`pG6  ¨a  <&  ª	  Ø,  ha  ™µ ( ëµ $ ÿµF  ƒ°F -Ñ£Jd!h Gìù4`|( ÑŸH@j (Ñ˜ (Ñ¨oğ-ø)Fà1H‰ê„Fı2À˜K ’ (Úÿ"`F2CHh¢|! ˜˜G   u°ğ½ }B	* Ğ 0À² uÂ#Ñ
++|':BĞ@	@
++0 uàªo–F€2W‰¿ÕrFÒhà2R{ *Ğ@	@
++0 u	à@	@ ùç@	@€ u ˜ (}Ğ .Ğ.Ñ¨oh *Ñªh *	Ğ|!B,Ğ }@	@
++0 uà!}ÊHĞÊÒ*Ù‰àI	I!u™)Ñ .ÑÀhà0@{ (,Ğ }Á2ĞA	I`)DÙÀÀ uh¢|! ˜˜G°ğ½¨oŠ!	Z‰ÕÀhà0@{ (Ğ }@	@€Çç`F !@0CÑ¨h (Ğ }@	@ ºç }@	@¶ç }@	@€±ç   u¨o¢|Àhà0@{ (Ğh! ˜˜G°ğ½àh! ˜˜G°ğ½h"|! ˜˜G°ğ½˜ (úÑ }Á÷Ğ@ uÀóÑ u¨o"|Àhà0@{ (Ğh! ˜˜G°ğ½h! ˜˜G°ğ½µ)L h (Ğ i (Ñ#Jã!h G!h"Kh (Ñi‚h *	Ğiÿ!1
++\ÿ00h!˜G½ÿ00 "hF˜G½µïóL"hR C!`r¶ğsù hÀÀ€óˆ h@ `½IH`IH`IH`pGpatch_SLC_poll.c    h T-  äD @1  ä  ¶ ´& Ÿ¸ Ä& í¸ ¼& µEH x (ĞDH€(ÙCH h€GBH h (ĞAI	hˆG½µFğ.ù~ÊÕÊCà4 *Ğ		)Ğ)ÑŠ6)Øáˆ‰Õ!v½Š2J‘BúØáˆÉ÷Õ!àŠÿ"p2‘BğØáˆÉíÕ!v½ğµF)Hƒ° x(Ñî  ]ğ!C%IÈc M¨h B!Ğ#O$N (Ğà0@{ (Ğ)h  Èp!K!FhjF|1H˜GIhF	hˆG ˜8@0`HDbH¬` h€GI  p°ğ½I F	hˆG@8@   	éçIH`IH`IHˆ`pGQ  ü&  lD  -  „& §  x  @ñ?CüÿÿD
++  ˆ1  à h	 \1  l& ®  DD i¹ ¤& ï¹ ˆ& ‘¹ < µğøH !@nÑ! Ñ1É² 
++Ñ	É² 	‚Ñ‰É²€ÀÑIÉ²)ÒL ~(
++Ñ
++H
++I ˆˆBÒğ¦ÿ (Ñ  v½IH`pG  \1  œ1  Ú	  ¸  İº ğD ´şIJy‚BÙhûJ\’hÿ)Ğ	Q à ! )
++Ğ $sI{ÿ)Ğ	Q à ! )õÑÿ!T¼pGp´îH !Dy ,Ù "hƒhÿ&ŒBÙh\ÿ(Ğ  à   (	Ğs@{ÿ(Ğ  à   (õÑnTIÉ²ŒBåØp¼pGpµÜHßMÁxÛH $AqÛI	qÚIJ‰B€	‰€(x (ĞØHô÷…û,p×H!Aqq"B€€Äq„qr hp¬pÒHìp2!App„pD`p½øµÎI  HqÎJˆqPqÍJÎMPrÎNhrÎOprÎKxrXrPhy (Ğá‰‰ ğ;ühh (Ğá‰‰ ğ3üph (Ğá‰‰ ğ+üxh (Ğá‰‰ ğ#ü¼H@h (Ğä¡‰ ğüø½¸H°I yq@ 1q¯Ir1r1r1r1r±çøµ¯M°Lhi (Ğ!hˆG¨i (Ğ!hˆG $la¬aªMªO(iªN (Ğ{A)Ñïó2hR C1`r¶ÿ!1yXˆG(i{Ás„sD,a0hÀÀ€óˆ0h@0`hi (Ğ{B)Ñïó2hR C1`r¶ÿ!	1yXˆGhi{Ás„sDla0hÀÀ€óˆ0h@0`èi (Ğñ!T‰I	hˆG¨iÄ`ìa¨i (Ğ€0@y(ĞƒI p„J‚Hh ! xG¨iF€0DqFI	hˆGI¨i	hˆG¬a}H!`D`„`Ä`{Hp{HqAqlHdI yq@ 1qcIr1r1r1r1rÿ÷ÿğüşÿ÷êşÿ÷Âşõ÷Éşø½pµkMF(y $ (Ù`)h0"1Fğôü (Ğd(yä² BğØÿ p½ Fp½pµ^Nˆ°1yF )7Ğ`y€	(Ğ`JÌ!hY Gğû   àxjFĞs ys`y %Ps )Ù0hiBiF¨ö÷‘ùhFÀ!xˆBÑhF€axˆBÑhF@¡xˆBÑ(F°p½m0yí²¨BáØÿ °p½ÿ pGÿ pG0µƒ°F )5Ğ -3ĞHyjFPpˆypzĞpˆzqÈzPqÈ{q|ĞqH{rˆ{PrH|rˆ|Ğr{ $ (Ğ(~Ğ p*h *zĞhy)yˆBÒ $ (YÙiF	x#cCÓ\‹BRØdä² BMàŒàzàLä ´/  ,ä ”/  t/  @ä Äß 6ä ¤ß ”ß œß ğã üã ä ä  ä ¸Ş ”.  Ì 0  lB ä  „8   ;  Ä ¼& Ğ& „5  ˆß Œß patch_SYS_database.c    h §Ø B
++Ù#cCÑ3Ó BCFğŒú )h`CiF	ˆ€iFIˆA€iFààà‰ˆ€iFÉˆÁ€iF	‰iFI‰AhyiF@hqx (Ğà pjçphç(y!HCûI	hˆG(` (Ğlq $Íçÿ °0½¨y@¨q F°0½0´h -ĞBz *ĞP #R<$DC,]ŒBÙ (ĞB˜@à0¼ÿ pGŒBÒC˜@“BêÙÿ 0¼À²pGøµFF%h>F -Ğbz *ĞQ #R< HC(\°BÙ )ĞJ˜Aàÿ à°BÒK˜A“BëÙÿ!È²ÿ(ĞbzQBİ<!ACFR< <1ëBCiFğøù`z@`r`hÁ]IÁU`z (ÂÑø½0´h -ĞBz *ĞP #R$$DC,]ŒBÙ (ĞB˜@à0¼ÿ pGŒBÒC˜@“BêÙÿ 0¼À²pGøµF hF (<Ğ%h>F -Ğbz *ĞQ #R$ HC(\°BÙ )ĞJ˜Aàÿ à°BÒK˜A“BëÙÿ!È²ÿ(ĞbzQBİ$!ACFR$ $1ëBCiFğ‘ù`z@`r`hÁ]IÁU`z (ÂÑø½0´h -ĞBy *ĞP #RÄ ,]ŒBÙ (ĞB˜@à0¼ÿ pGŒBÒC˜@“BëÙÿ 0¼À²pGóµF h° (5Ğÿ'%h -Ğby *ĞQ #RÈ (\°BÙ )ĞJ˜Aà8Fà°BÒK˜A“BìÙÿ!È²ÿ(ĞayJ‚B	İ	Ê À F1:i(ğ.ù`y@  `qÊÑ°ğ½´h ,ĞBy *Ğ   *Ù#CC[ã\‹BÑ¼À²pG@‚BóØ¼ÿ pGøµ FĞ#h +Ğ`yÿ% (Ğ " (
++Ù'WCÙ]±BÑÕ²àRBôØÿ-ĞCI'
++h)FyCR\ *Ğàÿ ø½¢yR¢qBªBİ
++F2ŸB[R BC9FFğÕø`y1F@`q4Hÿ÷jÿ1F3Hÿ÷ ÿ1F2Hÿ÷üş1F1Hÿ÷”ş1F0Hÿ÷ş1F/Hÿ÷Œş(Fø½pµ‚°FFF )TĞ -RĞ ¨0ğŸøhFDpp(h (,Ğjy)yŠBDÒ $ *Ùá CX ³B
++Ø³BÑ	AX›™BØdä²¢BïØ¢BÙã Á3ÀÒ ğ„ø(há @iFğöûhy@hq F°p½I(y	hÀ ˆG(` (Ğ  hqFçç ”ß œß ğã üã ä ä  ä ÿ °p½ğµhƒ°FF .!ĞEy -Ğ ¨0ğ?øhFDppl  má rX ›šBÙ ,	ÑàšBÓ	qXš‘BÙ ,ĞeALàÿ °ğ½‘BÒ`AL¨BàÙÿ$à²°ğ½pµF )Ğ ,Ğ h (Ğ Fÿ÷½ÿF`yA©B
++İ@Â è F#h1:Yğøÿ-Ğ`y@`q(Fp½ÿ p½øµFFFF"÷I ğÛÿ Fÿ"!0ğ7ù !'pp¡p@áp(ĞÜ(Ğ(Ğ(Ğ(!Ñà(Ğ(Ğ(Ğ(Ñàapà!ap(?ĞÜ(Ğ(Ğ( Ğ(Ñà(3Ğ(Ğ(/Ğ(Ğ  ø½0Õ  )‹x! "ST*\@À²
++t(ôÓ/à(x thx`t*à0Õ  )y! "ST*\@À²
++t(ôÓà(x thx`t¨x tèxàtà0Õ  )
++|!
++u*\@À²
++q(õÓà")F ğaÿ ø½ÿµF h“° (9Ğhz (6Ğ˜iF@@ÿ÷kÿ (.Ğ¯H…BĞ¯H…BKÑ˜iF 'Ônz $ .Ùx/h„F$!aCz\bEÑ  y‹\2mFŠ\--y@*@“BÑ@À²(ğÓ(Ğd¦BäØ¦BtĞwàÿ °ğ½nz $ .Ùx-h„F$"bC«\cEÑ  «š\?yºBÑ@À²(õÓ(Ğd¦BéØ¦BQĞTànz 'tvÿ,NĞhFÈ	“’
++‘¨È˜’˜“‘ Õ  	©	
++y}@@À²
++q(õÓà  !F$"QCŒF*haFQF2Š\	©	
++uy@@À²q(ïÓ$ )h`C	$"	¨ğTø (Ú ,Ğf¸Dàÿ$à (İg¸D·BÙÿ$àÿ,°Ñà²°ğ½ğµF‰°FF *[Ğ ,YĞiFÿ÷³ş (TĞ h (Ğ`z!zˆBMÒ % ()Ù$ !hhC	$"hFğø (Ûm`zí²¨BğØà z$!GMHC)hˆGFO `)h8yˆG``!h )+Ğ ()Ğ !arF9yÉ‰‰ ğ\şcz«BÙ(F$!"hHC$0Z$#ZCğkş$ !hhC$"iFğKş`z@`r`h]IU(F	°ğ½ÿ 	°ğ½pµFF *$Ğ ,"Ğ h (Ğ Fÿ÷ÒşbzFP¨Bİ(F$!HC#hAYRR$#ZCğ7şÿ-Ğ`z@`r`h]IU(Fp½ÿ p½ÿµ°
++ FFĞ .Ğ /Ğ! ğıı F0ÿ"! ğ^ÿ˜@@(Ğ(Ğ(Ğ  °ğ½Yd	ğã üã  ”ß   `p%pà `p%pà `p%p˜ 	Õ}*F1F ğÒıq*F ˜à:F1F ğÉı ÔçğµF‘°F !˜‘ *}Ğ -~Ğiz ){ĞøN!6h Õ[`@©°G (oĞà© F°G (iĞ,&Ğ,$Ğ IÕnz   .ÙiF	y-hŒF<!ACFê\bEÑ !ªì‹Wã\¿x»BÑIÉ²)õÓ)Ğ@†BçØ†BUĞUànz   .ÙiF	y/hŒF<!AC
++F»\cEÑ !º‹Ô\3­Ó\m­x@+@œBÑIÉ²)ğÓ)Ğ@†BãØ†B.Ğ.àkz)hX $[ŒF !<"FWC zfF²X®uYªB
++Ù (ĞCà àà@àÿ °ğ½ªBÒDà@à)	ĞIÉ²)àÓ™ )ÑœB×Ùÿ À²°ğ½ğµF  ‘°F *lĞ ,jĞ˜ (F§M©-h¨G (aĞ'h /Ğ`z!z„FˆBYÒ %`F (2Ùª  <!.FNCƒ ñyXÓX™B'Ø™BÓ@À²(óÓ˜ (Ñà•M z)h@ˆG“N `)h0yˆG``!h )2Ğ (0Ğ !arF1yÉ‰‰ ğÒüàmí²¬EÍØcz«BÙ(F<!"hHC<0Z<#ZCğÜü< !hhC<"©ğ¼ü`z@`r`h™šA\IT(F°ğ½ÿ °ğ½øµF *%Ğ ,#Ğ h ( Ğ F –ÿ÷ØşbzFP¨Bİ(F<!HC#hAYRR<#ZCğ¥üÿ-Ğ`z@`r`h]IU(Fø½ÿ ø½ y(Ğ  pG pG y (Ğ(Ğ  pG pGpµFˆBÑ$ à $"F(Fğüı (Ğ   ,Ğ (Ğ p½ ÷ç  p½FŠF‘BÒAx™BĞx@B÷Ó  pGpµBL`y (Ğ y (Ñ=N0y`qÀ€€ ğ,ü % ` (Ğ0y(Ùÿ àeqp½@  q  À€€ ğü ` (Ğ`yÿ"À‰  hğ{ı y À‰  hó÷±ùp½%q hğ¢ÿeqp½pµ#M)y4ÊŠÓ²ªh] ,Ğly¡BÙ 0\ (Ğdä²¡BöØH@x (ÑœBÙJH!hÉ xG(y BÑÿ p½ Fp½øµF  ÀC H &Ay )xÙH % h€]ÿ(ĞI ‰hà  Àß  ”ß Lä ˆß 7  Ä  $ ,UĞ { (Ğ(	Ğ(!ÑàñJîIhîHGğjû h8 		ÀBÙà h9
++!	ÉŠBÙI CÀ  ™ 	ˆB Ò `{%Fÿ(%ĞßIà"yc1F ô÷ü`{ -	Ğhs   ``` `à`h{ÿ(ëÑàÕI
++hU   ``` `à`h€]ÿ(Ğ‰h àà $ ,©ÑËHv@yö²°B†Ø ˜ÈL@Ğ ˜ÇKA"h8 ˜G `pø½øµÃNFthğh B Ø $ ,Ğ/F7 {){ˆBÑ F"9F0ğÏü (	Ñ ! ViVˆBÑ`hihˆBĞ0}ğh„B Ó $ ,áÑ Fø½p´­IFÍhHh $…B Ø   " (Ğ&63C}hY			‘BÙF
++F0¨B Ó   (ñÑ Fp¼pGøµI &Èh Lh B Ø $% ,Ğ} ¡z ^ğ0û@²¨BÜ&FF ˜<„B Ó $ ,îÑ0Fø½øµNF1i°hBÒq}D à $ ,Ğ/F7`xixˆBÑ"© ğ`ü (
++Ñ |*|BÑ F9F0ğUü (Ğp}$0i„B Ò $ ,áÑ Fø½p´FuHtIi€h %K}†BÒÀ à   " (Ğ!	CÁha			‘BÙF
++FÀ°B Ò   (ñÑ(Fp¼pG0´cIcJi‰h  T}BÒ	 à !# )Ğ"ŠVšBÜFF	©B Ò ! )óÑ0¼pGµô÷‰ı½øµTNRMF )NĞÿ÷ÿ (	Ğzÿ)Ğ‰#‰ÒIrø½KI(hIxHCd!ğúFjhèh€F2‘BÓ*i©h‰G!F?Hó÷˜ù (Ğihèh*i@©h‰A;H@h¸BÚÙˆBØØô÷Lıø½ğx (Ñ hÿ÷ÿ (Ğ*}!Fğ#úğx(ïÑÿ÷ÿ (ëĞ*}!Fğúø½ÿ÷5ÿ (úÑ)I(h	xHCd!ğHúF*i¨h€FP2‘BÓjhéh‰!FHó÷uù (Ğihèh*i@©h‰AH@h¸BÖÙˆBºÙø½ğx (Ñàhÿ÷5ÿ (Ğj}!Fğàùğx(ïÑÿ÷Nÿ (ëĞj}!FğÕùø½I
++H`pG²	  Ø¿ h Lä ˆß ì Äß @ä ¤ß ß¼ Ì& pµFF!(Ğ",ĞğMı,Ñ!)pp½Š @Z 
++Õi (Ğà0 |€Õ  p½. p½ p½pµûH h€G (-ĞúH x ()ĞùM€!lm FˆChe÷H h€GöH h€GöH h€GõH "h )ĞôK``óHÂwóH x(ÑòIÈj"CÈbñIle	h FˆGïH h€Gp½pµãJ’xy*ÑæJ~ *
++Ğ)Ñd!xd	)Ğ)Ğğòüp½¡x xbxáK )Ğ)öÑ/(ôÒÿ1ŞKA1h‰~"˜Gp½/(üÒÿ0A0‚vp½åx-ûÒÖH h€GÖKé ÊP` ˆP€ xXTp½µÒI	hˆG (Ğ`0 ~(
++ÒÎIÀ 
++X *Ğ@ y (Ğ(Ğ  ½ ½÷µ %†°F,F'ïó€ÄI•
++hR C`r¶ .zĞ´H~ )vĞ¾I!€É (pÑ˜(2Ò¸JÁ PX (-Ğ‰	y))ÑF.Ñÿ÷»ÿ (Ğ¯I F	hˆGF@iÁhà1I{ )Ğ ' i€k`0ÀzÀÀà'õçàhà0@{ (#Ğ ' i€k`0ÀzÀÀhF   H h€G  iFq Hqq˜ÈqOr˜ˆr˜r˜(Ğuà'Úç“J.RĞ.Ğ.lÑ -Ñÿ!h1 G(F 0A}jF‘}‘s)x )Ğ)Ğ)(ĞVàZà |(Ğ(Ğ(NÑà  ĞrJà ĞrGà ĞrDà |(Ğ(
++Ğ(Ğ(;Ñà Ğr7à Ğr4à Ğr1à	 Ğr.à |(Ğ(Ğ('Ñà Ğr#à Ğr à Ğrà ,Ñÿ!hÜ1g GlI F	hˆG (Ğ iiF€k Šˆ i€kÀ‰ˆs i€k€‰Èsà  iFˆaJ€ h™GTIhÀÀ€óˆh@`	°ğ½ñµF:H‚° hÿ%€G (Ğ8H x (ĞTJh (Ğ€o (
++ĞQH $)Ğ )ÑOHx+Ğÿ °ğ½pPi (Ğ()Ñà)Ğ )Ğ)Ñ0FğûFÿ(êÑCHB| *<ĞFtt0h 2H h€G>I	hˆGp{´h·{5{vh ,Ñ,J9Ih+ G8J Fh ™GF%H h€G F4Lf` `˜ r.HerÁ{asçs | s àr.I s	h FˆGF rÿ(~Ğ+I(H	hˆG”àRà  ` *  ,a Ä( È( À( 4  8  0e Pe    À°( à( ¸  Ø ¤' Xä ğ( `2  ä  °a + h patch_PFAL_COEX_MCI.c    + ˆ(  -  ˜\ ¬ß $å € ;  t ¼\ ( , ïHB|*<ÑDth ’Bh’B{„h’‡{{éH% h€GèI	hˆG ,ÑéJæIhæHGçJ Fh ™GFßH h€G àà FâL `˜``˜ rfrØHçsÁ{as | s¥s ÜIàr	h FˆGF rÿ( Ğeç(F°ğ½µÖH„° h€G (ĞÔH x (ĞÓH~ )Ğ€ (ÑlF! F ğïşÃH h€G  iFq HqÉJ!Fh€ G°½ğµFÂH…° h€G (8ĞÀH x (4Ğ ,2Ğ™ ]¿H h€G¾Kî FòPhaiˆB ØF!	C8 ™]@	 )ĞQˆBÜhF¦H h€G  iFqHqq  Èqai«Jy	I	‘ªIˆUh€ ™G°ğ½§K"8!hK GµH h€G (
++ĞœH x (Ğ H¡I h`ğ:ú½  ½  pG  pGøµF’HF h€G (`ĞH x (\Ğ$-#Ğ-WÒ¨ “I‡NP-Ğ-OÑM‘J/`ĞiI|0¨`z	xA)sq{ésx)RĞ !is‘‰i`‰I@\¨s; (t4à‡HpÚçoM/`†O¸h (ÑqJ„IhnHG¸h™"|0¨`8hoR\*sr{ês~Jj`Éh~Nà1I{ )Ğ !is{IÀk	hˆG¨s8hyIÿ00 h 0€y€ X!€ ğ`ş(tltø½lsÜ!	\ÿ0©s0 hoI 0€y€ X!€ ğMş(tëçlsQ‰i`iI	hˆG¨s: «çÿµ°FFF*(Ñ\H„h|4ÑGJaIhDHGEJ1Fh FGF=H h€G\I ˆBÙ[H$[H[I€hˆBĞ8 hF9¡BØ20 BÒÿ °ğ½3F*F8F™ğ~ù°ğ½8µF˜ F Fğzù<I¨ 	x ˆBÓ1ˆBÒ7I hÉyC `!H h€Gà`8½pµ(JF~„°F (Ğ (ÑHnF h€G  iFq HqŒqJÍqh1F€ G°p½5I3H`5I4H`6I4H`6I5H`7I5H`7I6H`8I6H`8I7H`9I7H`9I8H`pGå + € i  Ö h t ¼\ ( ` *  0e ˆ( ¤' Xä ì œ L  xY $å 0  -  Á0  ¬ß  -  b  æ  d ğ& ˆC ˜C p6 ª  ÿÿÿ?q  0h 4h …Ñ  ÃÑ ¬ -Ò ü ßÒ Ì µ× H+ Á× ´ ÅÔ ¤ ï×   ùØ ¨ iÙ ˜ pGóµ8M $h~° (Ñ6N'& °Gd, Óov3H@hÀĞ1HG`ovàh~ (îĞ™˜ğŸø°ğ½µ+H h€G)I (Ğ)H x (ĞHiJh’Õ‰i@@Õ$I pğ‹ø½JiHhH`Ja½pµïó€L!hI C `r¶H h€GH h€GH h€G #MF-hF ¨GH h€GH h€G hÀÀ€óˆ h@ `p½IH`IH`IH`IH`pG0e Ñp À E@` *  ´ß ä  ”(  ( P ` d ıÚ Œ( ÿÚ ˆ( ?Û Ô( {Û Ì( øµF 'hFpnH h€G (PĞlH x (LĞkHlJk"LhÒ¡BDĞ%F=*x²B:Ñ¨x (ĞeKîxhjF1F(F˜G(ÑbK(xh2F !˜GhFx .Ğ\KpFh1F(F˜G(ìĞïóXHhR C`r¶bh!hJ`bh!h`hÉÉóˆhI`/`o`¯` ï`ø½dhHJKJ¡BºÑ  ø½øµFHH=?H.F h6€G (!Ğ=H x (Ğ(F(yAKÁ:HĞ:I!kÉ8K#QhÛŠBĞBYĞ4KIh#ÛŠB÷Ñ>Ji!h5 GMà  ø½,p !ipép©piq)y"C)q(I!k&KÉ#ÛQh'KŠBĞF =-~¥BÒïó€hR C`r¶hF`q`0``hÀÀ€óˆh@` ø½IhMMŠBßÑïóhd !C`r¶Ih!F`r`0``hÉÀÀ€óˆh@` ø½IH`IH`pG` *  0h °a ì( Ì ä  €   ) patch_PFAL_COEX_MCI_UTIL.c  h 9Ü ğ* óÜ è( ğµF 0 zƒ°B	x±NÀ ­H $h­H*h°ˆÒ }D-ym¯D'3;ŒˆG°ˆ€Õ¤K!h¤¢ ˜G°ğ½€ûÕ!¢¢ ˜G°ğ½€ûÕ!¢¢ ˜G°ğ½€ûÕ!£¢ ˜G°ğ½ˆG°ˆ€ùÕ’K!h ¢ ˜G°ğ½€ûÕ!£¢ ˜G°ğ½xh % (@Ù¨ ÀA‰IÕ ‰
++! ğ/û ™ )
++ĞœIAd)Ù'!‰@Â(Ø($à˜I@F( Ø$m˜í²¨BŞØ,Ğ(,Ñ’L`ˆÀÑ;  qN àqH h€G`ˆ!C`€ ˆ !C €°ˆ€½ÕjK!h‡¢ ˜G°ˆ€´ÕeK!h‰¢ ˜G°ğ½€ûÕ!‰¢ ˜G°ğ½H x(ÑŒI	hGpGµ‹L h (Ñ€  ğŒú ``h (Ñ€  ğ…ú`` ğZş½ÿµ‡°  MFF-hœ«	š™˜¨G (+Ñ ,Ğ˜„B&Ñ /'Ğ ,%ĞwM«-h	š™˜¨G (ÑqHEh -Ğ˜€²(F ğ[úš ”©¨’lL‘$h;F	š™˜ G (Ğ  °ğ½lJÿ!h1d G  °ğ½˜hL€² $h "1F(F	› G˜dK€²h"(F˜G °ğ½ğµFRHƒ° h &FF*Ò ,Ğ (Ñà °ğ½SJÿ!h»1K G˜ (Ğ€! ğ
++ú    FOL«$h*F9F G ĞLJ˜hG0F°ğ½FIIH`JIHH`JIIH`KIIH`KIJH`pG¸ „ 8  LTE OFF LTE IDLE SLEEP  LTE CONNECT SLEEP   LTE INVALID LTE ACTIVE NO CONN NO SLEEP LTE ACTIVE IDLE ÷ÿÿÄõÿÿì] è LTE B7 or B41 ACTIVE    LTE ACTIVE CONN LTE RFU FOR CONNECT SETUP      $, ¸ß H H È. patch_PFAL_COEX_MWS.c   h Ì. Ğ. $H + ›à ¹ß   ßß Ø. QŞ ¼ ©ß t. µI	x )ĞI	hˆG½ ğı½µIH	h	‰)Ğ)ĞàH àHI	hˆGH h€G½I
++H`IH`pGT  Ì  Hè   À Ğ $ô T \ Iâ l aâ T øµHN $ph!Cp`FO8x(ÑEMy )hˆGÀÀCMàN ¨G@Iy 	hˆGÀÀ (Ğ>J !hFG  8p;H h€G;I pph!Cp` ğù7H@h7M8L (Ğ(j@  Ô&à Fdd(ÔÛâç3H h€G (Ğ1H h€G (Ğ €@i (Ğ-I	BØ,H h (
++Ñà(j@ Õ ğòøø½(H h (Ğ h€Gø½%H h€Gø½pµ ğ…üFH j@ Õ ,ĞH I x	xMCĞH h€G(Ğ)i C)aà $à(i@@ (a Fp½IH`IH`pG €À÷Ş ` Ñp  À ^   ğ?C¸  À ¼  (   €â à â àÈ ²  ¶  €ÕÀ”( Éâ ì ™ã HÀx(ÑH h ( Ğ pGµ ğ)ü½IH`pG$  D  Iä ô    ğøÀFÀF  ğüµ ğø ğü½µ !  ğü ½  SIGABRT: Abnormal termination   ´H½		´H½³ÿ ´H½¥	´H½$	´H½¡"	´H½*´H½g@	´H½@	´H½i#	´H½³´H½Ï%´H½…H´H½î´H½;H´H½%	´H½9%	´H½	´H½Õ- ´H½•$	´H½C+ ´H½[‡ ´H½!„ ´H½{<´H½É/ ´H½™´H½»´H½¥D´H½] ´H½§z ´H½³I ´H½Íg ´H½Uj ´H½}N ´H½aV ´H½_´H½ƒY´H½	L´H½/b´H½İL´H½•r´H½Ïª´H½M	´H½•	´H½S	´H½Iå´H½­æ´H½¡?	´H½Ûá´H½í’´H½=â´H½	ä´H½©• ´H½k ´H½;´H½!$´H½ó´H½E´H½)´H½Û&´H½™Ò´H½ã­´H½S°´H½c¦´H½Õ#	´H½ÑR´H½ãI´H½{P´H½Ÿ´H½+w´H½ë´H½Ñ´H½'!´H½"	´H½u¥´H½–´H½­±´H½ÏŒ´H½[#´H½ß"´H½qV´H½Yp´H½³e´H½k´H½á¹´H½7ç´H½C²´H½³´H½ı´H½Ş´H½=—´H½W´H½¿´H½’´H½]“´H½õ“´H½ˆ´H½yq´H½	k´H½Ãı´H½7D´H½ ´H½Ùü´H½+ı´H½_I´H½ö´H½ù¼´H½Ç´H½ïz´H½¥|´H½Iz´H½wÀ´H½¿Â´H½{Ì´H½[U´H½s	´H½áW´H½+¬´H½Õ¬´H½C¼´H½Y¾´H½oº´H½¥‹´H½/ç´H½¯}´H½Ã~´H½óp´H½ír´H½]š´H½g™´H½é´H½i´H½áX´H½¡Z´H½Ù—´H½uœ´H½¥“´H½Å§´H½G°´H½»°´H½Û´H½o®´H½â´H½å´H½g ´H½Ã$´H½_*´H½%´H½´H½Ÿ´H½É´H½}´H½ó{´H½SL´H½7?´H½§Å´H½qN´H½@	´H½	´H½uÚ ´H½‡Ï ´H½?â ´H½ûê ´H½óä ´H½á² ´H½)ƒ´H½€´H½!û ´H½e=´H½»p´H½cw´H½A9	´H½ã8	´H½a?	¤Á´¤ıÀ¤ü
++’ŒY
++ŒZ´ ¤ÿ´¤ı (¼¡ğ¹Ö Aˆ! Bˆ"€#ˆ#ÆÁ¡ğ¹Â*¼@µ€¥ş€	,æ£ğ¹äÒ@1h·¡ğ¹•3Á¡ğ¹t*õ¸ğN3âÅ¡ğ¹€	Á ˆ	´¤ÿ»»*¼4µ€¥ş€,æ£ğ¹¢Ò@1htÁ¡ğ¹bt3âÆ¡ğÁ¹I€ Áˆ´¤ÿ»…*¼4µ€¥ş€,æ£ğ¹lÒ@1ht¡ğÁ¹,t3âÆÁ¡ğ¹€Á ˆ´¤ÿ»O*¼Bµ€¥ş#@‰# €,¼
++Á#@‰#Æ@1h·¡ğ¹²3âÆ¡ğÁ¹ª#%@¼€Á ˆ´¤ÿ»€#·*ıä[Í*ü¼µ¥ÿ\¥ş¸*şä]Í* âÅ*¾ˆ#µ ¥ÿ €¼†º×ŒTµ€¥ş€,æ£ğ¸ÀÒ@1hˆ(„Tt·Á*âÏ*âË*âÇ—*âÂ—T¡ğ¸W·!+Á¾3âÅ¡ğ¸I€ˆ´¤ÿº…µ€¥ş€,æ£ğ¸pÒ@1h(„T’mu–í¡ğÁ¸€ Áˆ´¤ÿºU´@¤ş ü¤üÀ‰'Á¡ğÊÁt—éÁ'¸ˆ%‰&€ ,¼Á´@¤ÿÀš¡ğ¸\€%&¸ ú âÇ¡ğ¸0 l€,ãÁ‰ »ä´@¤ş´€¤ıÀ´ Á¡ú%¼
++”è´€¤ü¸¡ğÄÁ»æ‰$Š)š¡ğÁ¸€t,ã€Áˆ‚)$¸"¼V"€âÎBÿ¸VÁ€#¸6BÁÿ¼,¶ŒXŒZ´ ¤ÿ ü¤ü´¤ıÀÁŒY
++ÁŒZ´ ¤ÿ ü¤ü´¤ıÀš»¼€#ˆ#´ ¤ÿ €½&»µ‰'¡ğ»6#%@ât—Á½ô'¸ÀÀAug 14 2014 19:34:52                                § = Ã ‹                               b  e  h  l  m  o  q  r  v  y  z  |                                                        è  ø1  7     sh ÿ                                                                       ÕÈ ¾Å ¤·Ó6HÿÈlù‹ó©ü}ŒÆÑOPS_"cm9Ì•w¸…Â;ÎÒq·B'ï¯3T¼m?¨ƒçá•ÍòÇ¬ß2$"“:U@ö;£µ‘¹2d¸“ ¤úòêpFÒ½bÜäà~$¢çjœ)ÿx¥Ì&³oâT%ë¬S‹h­´“/†PY$Mum;Tğé_Ó—(´ábeQë¹î+“`z¢&…G°Ôìä³—@Bm!İø2K‰—†¿iÎ•Õ´´î×òÖ×–²6Z+GÿG»É2¯·¹HŒTĞ9ó¡Df:XŠˆâ³4¤‡†˜më¥bÎEu“P\gÚ$ë'}p
+\ No newline at end of file
+diff -Naur android-x86-unpatch/vendor/qcom/proprietary/bt/hci_qcomm_init/target.h android-x86-patched_update_kk/vendor/qcom/proprietary/bt/hci_qcomm_init/target.h
+--- android-x86-unpatch/vendor/qcom/proprietary/bt/hci_qcomm_init/target.h	1970-01-01 08:00:00.000000000 +0800
++++ android-x86-patched_update_kk/vendor/qcom/proprietary/bt/hci_qcomm_init/target.h	2014-12-23 15:38:42.416459700 +0800
+@@ -0,0 +1,83 @@
++#ifndef TARGET_H
++#define TARGET_H
++/*===========================================================================
++
++      T A R G E T   C O N F I G U R A T I O N   H E A D E R   F I L E
++
++DESCRIPTION
++  All the declarations and definitions necessary for general configuration
++  of the DMSS software for a given target environment.
++
++-----------------------------------------------------------------------------
++Copyright (c) 1998-2002 Qualcomm Technologies, Inc.
++All Rights Reserved. Qualcomm Technologies Proprietary and Confidential.
++-----------------------------------------------------------------------------
++===========================================================================*/
++
++/*===========================================================================
++                      EDIT HISTORY FOR FILE
++
++This section contains comments describing changes made to this file.
++Notice that changes are listed in reverse chronological order.
++
++$Header: //linux/pkgs/proprietary/oncrpc/main/source/inc/target.h#3 $
++
++when       who     what, where, why
++--------   ---     ----------------------------------------------------------
++07/12/02   jct     The appropriate target file is now included via customer.h
++                   in cust*.h.  TG is now fixed to be T_G and all other T_xxx
++                   vars that could be assigned to T_G are deleted.  The use of
++                   TG is deprecated. 
++10/06/00   dsb     The appropriate target file is now included automatically
++                   a make macro. Removed check on T_ACP, T_SMS, and T_SMS_UI.
++                   Cannot remove check on T_AUTH as many files still use this 
++                   instead of FEATURE_AUTH as they should.
++                   Eventually, we want to eliminate T==T_xxx codes, but many
++                   upper layer files still use them, so I have left them in.
++                   When the rest of the DMSS stops using them, they should be
++                   removed here.
++08/13/99   jkl     Included T_Q2
++01/15/99   hrk     Integrating from COMMON_ARM.03.01.00 VU from MSM3000 subsystem.
++                   Re-introduced #defines for all targets. Removal of support for
++                   these targets will be done in the next phase.
++12/16/98   jct     Created for MSM3000+ support
++
++===========================================================================*/
++
++#define T_PC    1       /* PC test software, 80386/80486, running MSDOS  */
++#define T_P     2       /* Portable Phone hardware                       */
++#define T_M     3       /* Mobile Phone hardware                         */
++#define T_REX   4       /* REX test software, 80386/80486, REX and MSDOS */
++#define T_S     5       /* Stretch-portable hardware                     */
++#define T_B2    6       /* Beta II mobile hardware                       */
++#define T_I1    7       /* ISS1 WLL hardware                             */
++#define T_DM    8       /* Diagnostic Monitor                            */
++#define T_G     9       /* Gemini Portable hardware                      */
++#define T_I2    10      /* ISS2 WLL hardware                             */
++#define T_C1    11      /* CSS1 WLL hardware                             */
++#define T_SP    12      /* Service Programming Tool                      */
++#define T_T     13      /* TGP (Third Generation Portable)               */
++#define T_MD    14      /* 1900 MHz Module (Charon)                      */
++#define T_Q     15      /* Q phones (Q-1900, Q-800)                      */
++#define T_O     16      /* Odie (5GP)                                    */
++#define T_Q2    17      /* Q phones (Q-1900, Q-800)                      */             
++
++/* This is deprecated - force to always be T_G
++*/
++#define TG T_G
++
++/* Backward compatibile migration, needs to be eliminated completely
++*/
++#undef T_AUTH
++#ifdef FEATURE_AUTH
++   #define T_AUTH
++#endif
++
++/* All featurization starts from customer.h which includes the appropriate
++**    cust*.h and targ*.h
++*/
++#ifdef CUST_H
++   #include "customer.h"
++#endif
++
++#endif /* TARGET_H */
+diff -Naur android-x86-unpatch/vendor/qcom/proprietary/common/inc/armasm.h android-x86-patched_update_kk/vendor/qcom/proprietary/common/inc/armasm.h
+--- android-x86-unpatch/vendor/qcom/proprietary/common/inc/armasm.h	1970-01-01 08:00:00.000000000 +0800
++++ android-x86-patched_update_kk/vendor/qcom/proprietary/common/inc/armasm.h	2014-12-23 15:38:42.416459700 +0800
+@@ -0,0 +1,283 @@
++#ifndef ARMASM_H
++#define ARMASM_H
++/*=============================================================================
++
++                        ARM Assembly Language Definitions
++
++GENERAL DESCRIPTION
++  This file contains assembly language macros for use with the ARM assembler.
++
++
++-----------------------------------------------------------------------------
++Copyright (c) 1998 - 2001 Qualcomm Technologies, Inc.
++All Rights Reserved. Qualcomm Technologies Proprietary and Confidential.
++-----------------------------------------------------------------------------
++=============================================================================*/
++
++
++/*=============================================================================
++
++                            EDIT HISTORY FOR FILE
++
++$Header: //linux/pkgs/proprietary/oncrpc/main/source/inc/armasm.h#3 $
++
++when       who     what, where, why
++--------   ---     ----------------------------------------------------------
++09/13/05   ck      Copied from 6100 branch
++07/12/02   jct     Removed conditional inclusion of customer.h and target.h
++05/17/01   kar     Bigger SVC stack available to support REX from MSM archive
++01/25/01   day     Merged from MSM5105_COMMON.00.00.05.
++                     Added support for Interworking
++                     Added define for system stack size
++04/02/99    sk     Increased Abort stack size.
++04/02/99    ms     Reduced stack sizes.
++02/03/99    ms     Renamed blx to blatox since blx is a keyword in Assembler
++                   of ARM SDK 2.5
++01/18/99    ms     Moved ARM_TRAP_FRAME related declarations to boot_trap.h.
++                   Moved context frame related macros to rexarm.s.
++                   Incorporated exception frame related macros directly into
++                   boot_abort_handler in bootsys.s.
++12/10/98   jkl     Included r12 in the context frame.
++11/23/98   jkl     Clean up code. Changed save_context_from_task macro.
++10/27/98   jkl     Revised for new context
++09/13/98   hcg     Changed exception/trap frame names
++07/10/98   jct     Revised for coding standard, removed unused code
++01/01/98   bwj     Created
++=============================================================================*/
++
++#include "target.h"
++#include "customer.h"
++
++/*  CPSR Control Masks         */
++#define PSR_Thumb_Mask       0x20
++#define PSR_Fiq_Mask         0x40
++#define PSR_Irq_Mask         0x80
++#define PSR_Mode_Mask        0x1f
++
++/*  Processor mode definitions */
++#define PSR_User             0x10
++#define PSR_Fiq              0x11
++#define PSR_Irq              0x12
++#define PSR_Supervisor       0x13
++#define PSR_Abort            0x17
++#define PSR_Undef            0x1b
++#define PSR_System           0x1f
++#define PSR_Thumb            0x20
++
++/*===========================================================================
++**  GENERAL PURPOSE ASSEMBLY MACROS.
++**=========================================================================*/
++
++#if defined(_ARM_ASM_)
++
++        GBLS    current_node_name
++        GBLS    current_node_type
++        GBLA    current_node_aregcount
++        GBLA    current_node_vregcount
++
++/*===========================================================================
++
++Name: pusha, popa
++
++Description: Readable names for push and pop.
++
++MODE: Any
++STATE: ARM
++
++Registers modified: sp
++
++=============================================================================*/
++
++        MACRO
++        pusha   $stack, $reg
++        str     $reg, [$stack, #-4]!
++        MEND
++
++        MACRO
++        popa    $stack, $reg
++        ldr     $reg, [$stack], #4
++        MEND
++
++/*===========================================================================
++
++Name: Entry_Node, Entry_Node_End
++
++Description: Defines an empty function prolog and epilog of a piece of assembly code.
++             These macros take care of the following:
++               - Exporting the entry point label
++               - Creating a stack frame
++               - Software stack checking
++
++Defined Labels:
++   "node_name" - The main thumb mode entry point of the function.
++   "node_name"_end - A label marking the begining of the function epilog.
++
++Arguments:
++  Leaf_Node
++  Node_Name - The function name of the function to be defined.
++  Leaf_Node_End
++  None
++
++MODE: Any
++STATE: ARM
++
++Registers modified: None
++
++=============================================================================*/
++
++        MACRO
++        ENTRY_NODE $node_name
++current_node_name       SETS    "$node_name"
++        EXPORT  $node_name
++        ALIGN
++        ROUT
++$node_name
++        MEND
++                                        ;  The end of an entry node.
++        MACRO
++        ENTRY_NODE_END
++$current_node_name._exit
++current_node_name       SETS    ""
++        MEND
++
++/*===========================================================================
++
++  Name: Leaf_Node, Leaf_Node_End
++
++  Description: Defines the function prolog and epilog of a function that makes
++               no function calls. These macros take care of the following:
++                 - Exporting the entry point label
++                 - Creating 16 and 32 bit entry points.
++                 - Creating a stack frame
++                 - Software stack checking
++
++  Defined Labels:
++     "node_name" - The main thumb mode entry point of the function.
++     "node_name"_32 - The ARM state entry point to the function.
++     "node_name"_end - A label marking the begining of the function epilog.
++
++  Arguments:
++    Leaf_Node
++     Node_Name - The function name of the function to be defined.
++    Leaf_Node_End
++     None
++
++  MODE: Any
++  STATE: ARM and Thumb state entry points. Code runs in ARM state.
++
++  Registers modified: None
++
++=============================================================================*/
++        MACRO
++        LEAF_NODE $node_name
++current_node_type       SETS    "Leaf"
++        CODE16
++        ENTRY_NODE $node_name
++        bx      pc
++        ALIGN
++        CODE32
++#ifndef __APCS_INTERWORK
++        orr     lr, lr, #0x01
++#endif
++        EXPORT  $node_name._32
++$node_name._32
++        MEND
++
++        MACRO
++        LEAF_NODE_END $node_name
++        ASSERT  "$current_node_type" = "Leaf"
++        ENTRY_NODE_END $node_name
++        bx     lr
++current_node_type       SETS    ""
++        MEND
++
++
++/*===========================================================================
++
++  Name: Leaf_Node_End, Leaf_Node_End_16
++
++  Description: Defines the function prolog and epilog of a Thumb mode only function that makes
++               no function calls. These macros take care of the following:
++                 - Exporting the entry point label
++                 - Creating a 16 bit entry point.
++                 - Creating a stack frame
++                 - Software stack checking
++
++  Defined Labels:
++     "node_name" - The main thumb mode entry point of the function.
++     "node_name"_end - A label marking the begining of the function epilog.
++
++  Arguments:
++    Leaf_Node_16
++     Node_Name - The function name of the function to be defined.
++    Leaf_Node_End_16
++     None
++
++  MODE: Any
++  STATE: Thumb
++
++  Registers modified: None
++
++=============================================================================*/
++
++        MACRO
++        LEAF_NODE_16 $node_name
++current_node_type       SETS    "Leaf16"
++        CODE16
++        ENTRY_NODE $node_name
++        MEND
++
++        MACRO
++        LEAF_NODE_END_16 $node_name
++        ASSERT  "$current_node_type" = "Leaf16"
++        ENTRY_NODE_END $node_name
++        bx     lr
++current_node_type       SETS    ""
++        MEND
++
++
++        MACRO
++        ALTERNATE_ENTRY_16 $node_name
++        ASSERT  "$current_node_type" = "Leaf16"
++        EXPORT $node_name
++$node_name
++        MEND
++
++
++/*===========================================================================
++
++  Name: blatox
++
++  Description: Calls a function from ARM state without having to know whether that
++     that function is ARM or Thumb state code.
++
++  Arguments:
++    destreg - The register that contains the address of the function to be called.
++
++  Registers modified: lr
++
++  MODE: Any
++  STATE: ARM. Can call either ARM or Thumb state functions.
++
++=============================================================================*/
++
++        MACRO
++        blatox     $destreg
++        ROUT
++
++        tst     $destreg, #0x01         /* Test for thumb mode call.  */
++
++        ldrne   lr, =%1
++        ldreq   lr, =%2
++        bx      $destreg
++1
++        CODE16
++        bx      pc
++        ALIGN
++        CODE32
++2
++        MEND
++
++#endif   /* ARM_ASM  */
++
++#endif   /* ARMASM_H */
+diff -Naur android-x86-unpatch/vendor/qcom/proprietary/common/inc/comdef.h android-x86-patched_update_kk/vendor/qcom/proprietary/common/inc/comdef.h
+--- android-x86-unpatch/vendor/qcom/proprietary/common/inc/comdef.h	1970-01-01 08:00:00.000000000 +0800
++++ android-x86-patched_update_kk/vendor/qcom/proprietary/common/inc/comdef.h	2014-12-23 15:38:42.416459700 +0800
+@@ -0,0 +1,1288 @@
++#ifndef COMDEF_H
++#define COMDEF_H
++/*===========================================================================
++
++                   S T A N D A R D    D E C L A R A T I O N S
++
++DESCRIPTION
++  This header file contains general types and macros that are of use
++  to all modules.  The values or definitions are dependent on the specified
++  target.  T_WINNT specifies Windows NT based targets, otherwise the
++  default is for ARM targets.
++
++       T_WINNT  Software is hosted on an NT platforn, triggers macro and
++                type definitions, unlike definition above which triggers
++                actual OS calls
++
++DEFINED TYPES
++
++       Name      Definition
++       -------   --------------------------------------------------------
++       byte      8  bit unsigned value
++       word      16 bit unsigned value
++       dword     32 bit unsigned value
++
++       uint1     byte
++       uint2     word
++       uint4     dword
++
++       uint8     8  bit unsigned value
++       uint16    16 bit unsigned value
++       uint32    32 bit unsigned value
++       uint64    64 bit unsigned value
++
++       int8      8  bit signed value
++       int16     16 bit signed value
++       int32     32 bit signed value
++       int 64    64 bit signed value
++
++       sint31    32 bit signed value
++       sint15    16 bit signed value
++       sint7     8  bit signed value
++
++       int1      8  bit signed value
++       int2      16 bit signed value
++       int4      32 bit signed value
++
++       boolean   8 bit boolean value
++
++DEFINED CONSTANTS
++
++       Name      Definition
++       -------   --------------------------------------------------------
++       TRUE      Asserted boolean condition (Logical 1)
++       FALSE     Deasserted boolean condition (Logical 0)
++
++       ON        Asserted condition
++       OFF       Deasserted condition
++
++       NULL      Pointer to nothing
++
++       PACKED    Used to indicate structures which should use packed
++                 alignment
++
++       INLINE    Used to inline functions for compilers which support this
++
++  -----------------------------------------------------------------------------
++  Copyright (c) 1990, 1992-1994, 1997-2007 Qualcomm Technologies, Inc.
++  All Rights Reserved. Qualcomm Technologies Proprietary and Confidential.
++  -----------------------------------------------------------------------------
++===========================================================================*/
++
++
++/*===========================================================================
++
++                      EDIT HISTORY FOR FILE
++
++This section contains comments describing changes made to this file.
++Notice that changes are listed in reverse chronological order.
++
++$Header: //linux/pkgs/proprietary/oncrpc/main/source/inc/comdef.h#4 $
++
++when       who     what, where, why
++--------   ---     ----------------------------------------------------------
++01/09/06   bfc     Added Pthe OST_ALIGN macro.
++09/22/06    th     Added FIQLOCK_SAV/FIQFREE_SAV macros for Windows Mobile
++05/10/06   taw     Added FIQLOCK_SAV/FIQFREE_SAV macros.
++01/25/06   sam     Added MSM_INTLOCK/MSM_INTFREE macros.
++07/13/05   adm     Merged in changes related to supporting BootLoader compilation
++                   for L4 builds
++07/06/05   ptm     Merge to 6550 for L4.
++06/30/05   adm     Merging in 6800's later changes and made some fixes.
++06/29/05   adm     Merged in 6800 l4 related changes
++02/28/04   jcw     Removed TASKLOCK/TASKFREE definition to INTLOCK/INTFREE for L4.
++02/14/04   hcg     Add TASKLOCK/TASKFREE definition to INTLOCK/INTFREE for L4.
++08/25/04   jac     suppress lint error 413 for FPOS macro
++11/19/03    gr     Added multiple definition protection for the ARR_SIZE
++                   macro.
++10/18/03    gr     Moved TASKLOCK/TASKFREE into this file from rex.h. DMSS
++                   expects to pick these up just by including comdef.h.
++10/17/03    gr     Made inclusion of target.h unconditional (TG is now
++                   deprecated).
++10/16/03    gr     Defined LOCAL away unconditionally. DMSS doesn't build with
++                   LOCAL set to static.
++01/07/04   ajn     Re-integrated 11/14/03 change
++11/20/03   ak      ARR_SIZE conflict with BREW files fixed
++11/14/03   ajn     Removed #include "rex.h" to avoid circular include issue.
++                   Instead, prototypes for rex_int_lock()/rex_int_free()
++                   have been explicitly included for INTLOCK/INTFREE macros.
++06/11/01    gr     Added MOD_BY_POWER_OF_TWO macro.
++04/12/01    sq     Added inpdw and outpdw macros
++           vas     Added solaris support
++04/06/01    gr     Removed the definitions of abs and labs.
++01/25/01   day     Merged from MSM5105_COMMON.00.00.05.
++             Added include for stdlib.h within WINNT ifdef
++       Added support for ARM_ASM
++       Added support SWIG preprocessor.
++09/09/99   tac     Merged in a bunch of panther changes.
++08/11/99   jct     Corrected conditional compilation around labs to check for
++                   labs instead of abs
++06/30/99   jct     Added PC_EMULATOR capability for INTLOCK and INTLOCKSAV
++06/15/99   jct     Cleanup to make work in Windows NT environment.  Addition
++                   of int(n) types where n is 8,16,32,64 and addition of
++                   unit64.  Removal of OS comments and defines as this is replaced
++                   by T_WINNT.  Conditional inclusion of MAX, MIN, labs, abs,
++                   NULL definitions.  Removal of volatile from packed definition
++                   stdlib.h included for Win32 based targets since this replaces several
++                   of the define here.  Changed out uts calls to be comet calls.
++                   Added a defines for Windows NT targets to define away symbols
++                   no longer supported
++04/09/99    ms     Lint cleanup.
++04/01/99    ms     Lint cleanup.
++02/17/99    ms     Parenthesized abs and labs.
++                   Defined __packed to volatile to exploit lint.
++12/16/98   jct     Removed 80186 support
++12/01/98    ms     Removed definition of bsp_io_base.
++11/20/98    ms     Typecast to volatile pointers in inp,outp,inpw and outpw.
++10/10/98   jct     Honing of OS and T_ definitions, added T_WINNT as a target
++                   which triggers something different then which OS since
++                   we may be running REX on an NT platform, but strictly
++                   speaking, the application software is using REX, not NT
++                   as the OS.  Changed ROM for WINNT/ARM targets to be nothing
++                   instead of const
++09/09/98   jct     Updates to merge ARM support with 186 support, added some
++                   new type aliases, added some segmented architecture macros,
++                   updated comments, removed unused code, updated declaration
++                   of inp/outp to have cdecl
++08/01/98   jct     Updates to support ARM processor
++03/25/96   jah     Moved SET_VECT to 80186.h
++02/06/96   fkm     Put ()s around Macros to Make Lint Happy
++01/12/95   jah     Updated dependency in MACRO INTLOCK_SAV / INTFREE_SAV.
++12/20/94   jah     Corrected typo in ARR_SIZE() macro comments
++03/11/94   jah     Added #ifdef _lint of NULL as 0 for near/far lint problem.
++06/11/93   jah     Changed FPOS() to cast the pointer to 'near' to avoid the
++                   compiler complaints about lost segments.
++01/28/93   twp     Added ARR_SIZE macro to return number of array elements.
++07/17/92   jah     Changed int1 from 'char' to 'signed char'
++06/10/92   jah     Added WORD_LO/HI, INC_SAT
++05/19/92   jah     Added header comments for macros & made them lint-friendly
++05/04/92   jah     Added define for ROM
++03/02/92   jah     Added in/outp prototypes, INT* Macro comments w/lint
++02/20/92   arh     Added LOCAL macro and ifdef/endif around file
++
++===========================================================================*/
++
++
++/*===========================================================================
++
++                            Data Declarations
++
++===========================================================================*/
++
++#ifdef __cplusplus
++extern "C" {
++#endif
++
++#include "target.h"
++#include "armasm.h"
++
++#if defined FEATURE_L4  && !defined FEATURE_L4_KERNEL && \
++    !defined BUILD_BOOT_CHAIN && !defined BUILD_BOOT_CHAIN_OEMSBL
++  #ifndef _ARM_ASM_
++    #ifdef FEATURE_QUARTZ_135
++      #include <l4/cust/msm_syscall.h>
++    #else /* FEATURE_QUARTZ_135 */
++     #include <msm/msm_syscall.h>
++    #endif /* FEATURE_QUARTZ_135 */
++  #endif /* _ARM_ASM_ */
++#endif /* FEATURE_L4 && !FEATURE_L4_KERNEL &&
++          !FEATURE_L4_KERNEL && !BUILD_BOOT_CHAIN_OEMSBL */
++
++/* For NT apps we want to use the Win32 definitions and/or those
++** supplied by the Win32 compiler for things like NULL, MAX, MIN
++** abs, labs, etc.
++*/
++#ifdef T_WINNT
++   #ifndef WIN32
++      #define WIN32
++   #endif
++   #include <stdlib.h>
++#endif
++
++/* ------------------------------------------------------------------------
++** Constants
++** ------------------------------------------------------------------------ */
++
++#ifdef TRUE
++#undef TRUE
++#endif
++
++#ifdef FALSE
++#undef FALSE
++#endif
++
++#define TRUE   1   /* Boolean true value. */
++#define FALSE  0   /* Boolean false value. */
++
++#define  ON   1    /* On value. */
++#define  OFF  0    /* Off value. */
++
++#ifdef _lint
++  #define NULL 0
++#endif
++
++#ifndef NULL
++  #define NULL  0
++#endif
++
++/* -----------------------------------------------------------------------
++** Standard Types
++** ----------------------------------------------------------------------- */
++
++/* The following definitions are the same accross platforms.  This first
++** group are the sanctioned types.
++*/
++#ifndef _ARM_ASM_
++typedef  unsigned char      boolean;     /* Boolean value type. */
++
++typedef  unsigned long int  uint32;      /* Unsigned 32 bit value */
++typedef  unsigned short     uint16;      /* Unsigned 16 bit value */
++typedef  unsigned char      uint8;       /* Unsigned 8  bit value */
++
++typedef  signed long int    int32;       /* Signed 32 bit value */
++typedef  signed short       int16;       /* Signed 16 bit value */
++typedef  signed char        int8;        /* Signed 8  bit value */
++
++/* This group are the deprecated types.  Their use should be
++** discontinued and new code should use the types above
++*/
++typedef  unsigned char     byte;         /* Unsigned 8  bit value type. */
++typedef  unsigned short    word;         /* Unsinged 16 bit value type. */
++typedef  unsigned long     dword;        /* Unsigned 32 bit value type. */
++
++typedef  unsigned char     uint1;        /* Unsigned 8  bit value type. */
++typedef  unsigned short    uint2;        /* Unsigned 16 bit value type. */
++typedef  unsigned long     uint4;        /* Unsigned 32 bit value type. */
++
++typedef  signed char       int1;         /* Signed 8  bit value type. */
++typedef  signed short      int2;         /* Signed 16 bit value type. */
++typedef  long int          int4;         /* Signed 32 bit value type. */
++
++typedef  signed long       sint31;       /* Signed 32 bit value */
++typedef  signed short      sint15;       /* Signed 16 bit value */
++typedef  signed char       sint7;        /* Signed 8  bit value */
++
++#ifdef FEATURE_WINCE
++  #define WCE_MSG  RETAILMSG
++  #define WCE_MSG6 RETAILMSG
++  #define WCE_MSGT RETAILMSG
++  #define WCE_MSG_SDBG RETAILMSG
++#endif
++/************************** The PACK() macro *****************************
++  This block sets up the semantics for PACK() macro based upon
++  upon the target compiler. PACK() is necessary to ensure portability of C
++  variable/struct/union packing across many platforms.  For example, ARM
++  compilers require the following:
++    typedef __packed struct { ... } foo_t;
++
++  But GCC requires this to achieve the same effect:
++    typedef struct __attribute((__packed__)) struct { ... } foo_t;
++
++  And, of course, Microsoft VC++ requires an alignment #pragma prologue and
++  epilogue. To satisfy all three, the following form is recommended:
++
++    #ifdef _WIN32
++		#pragma pack(push,1) // Save previous, and turn on 1 byte alignment
++    #endif
++
++    typedef PACK(struct)
++    {
++      ...
++    } such_and_such_t;
++
++    typedef PACK(struct)
++    {
++      ...
++    } this_and_that_t;
++
++    typedef PACK(struct)
++    {
++      PACK(struct)
++      {
++        ...
++      } hdr;
++      PACK(union)
++      {
++        such_and_such_t sas;
++        this_and_that_t tat;
++      } payload;
++    } cmd_t;
++
++*********************** BEGIN PACK() Definition ***************************/
++#if defined __GNUC__
++  #define PACK(x)       x __attribute__((__packed__))
++#elif defined __arm
++  #define PACK(x)       __packed x
++#else
++  #error No PACK() macro defined for this compiler
++#endif
++/********************** END PACK() Definition *****************************/
++/* ---------------------------------------------------------------------
++** Compiler Keyword Macros
++** --------------------------------------------------------------------- */
++#if (! defined T_WINNT) && (! defined TARGET_OS_SOLARIS)
++#ifndef SWIG  /* The SWIG preprocessor gets confused by these */
++  /* Non WinNT Targets
++  */
++  typedef  signed long long   int64;       /* Signed 64 bit value */
++  typedef  unsigned long long uint64;      /* Unsigned 64 bit value */
++
++#if defined(__ARMCC_VERSION) 
++  #define PACKED __packed
++  #define PACKED_POST
++  #define ALIGN(__value) __align(__value)
++  #define POST_ALIGN(__value)
++  #define INLINE __inline
++  #define inline __inline
++#else  /* __GNUC__ */
++  #define PACKED 
++  #ifndef FEATURE_WINCE
++    #define ALIGN(__value) __attribute__((__aligned__(__value)))
++    #define POST_ALIGN(__value)
++    #define PACKED_POST    __attribute__((__packed__))
++  #else /* FEATURE_WINCE */
++    #ifdef WINCE_TODO
++      /*----------------------------------------------------------------------
++        Should we be using something closer to the T_WINNT case below?
++      ----------------------------------------------------------------------*/
++    #endif /* WINCE_TODO */
++    #define ALIGN(__value)
++    #define POST_ALIGN(__value)
++    #define PACKED_POST
++    #define INLINE 
++  #endif /* FEATURE_WINCE */
++    
++
++  #ifndef INLINE
++    #define INLINE inline
++  #endif
++#endif /* defined (__GNUC__) */
++
++  #define CDECL
++#endif /* SWIG */
++  #define far
++  #define near
++  #define _far
++  #define _near
++//  #define _cdecl
++  #define cdecl
++  #define _pascal
++  #define _interrupt
++
++#else /* T_WINNT || TARGET_OS_SOLARIS */
++
++  /* WINNT or SOLARIS based targets
++  */
++#if (defined __GNUC__) || (defined TARGET_OS_SOLARIS)
++  typedef long long           int64;
++  typedef unsigned long long  uint64;
++#else
++  typedef  __int64            int64;       /* Signed 64 bit value */
++  typedef  unsigned __int64   uint64;      /* Unsigned 64 bit value */
++#endif
++  #define PACKED
++  #define PACKED_POST
++  #define ALIGN(__value)
++  #define POST_ALIGN(__value)
++  #ifndef INLINE
++
++  /* INLINE is defined to __inline because WINNT targets work fine with it
++   * and defining it to nothing does not work because the inline function
++   * definition is then multiply defined.  Solaris may need a different value.
++   */
++  #define INLINE __inline
++  #endif
++  #ifndef CDECL
++     #define CDECL __cdecl
++  #endif
++  #define _pascal
++  #define _far
++  #define far
++  #define near
++  #define _near
++  #define cdecl
++  #define _cdecl
++  #define _interrupt
++  #define __packed
++  #define _fmemcpy memcpy
++
++#endif /* T_WINNT */
++#endif // #ifndef _ARM_ASM_
++
++/* ----------------------------------------------------------------------
++** Lint does not understand __packed, so we define it away here.  In the
++** past we did this:
++**   This helps us catch non-packed pointers accessing packed structures,
++**   for example, (although lint thinks it is catching non-volatile pointers
++**   accessing volatile structures).
++**   This does assume that volatile is not being used with __packed anywhere
++**   because that would make Lint see volatile volatile (grrr).
++** but found it to be more trouble than it was worth as it would emit bogus
++** errors
++** ---------------------------------------------------------------------- */
++#ifdef _lint
++  #define __packed
++#endif
++
++/* ----------------------------------------------------------------------
++**                          STANDARD MACROS
++** ---------------------------------------------------------------------- */
++
++#ifndef SWIG /* these confuse the SWIG preprocessor and aren't needed for it */
++
++
++/*===========================================================================
++
++MACRO MEM_B
++MACRO MEM_W
++
++DESCRIPTION
++  Take an address and dereference it as a byte/word, allowing access to an
++  arbitrary memory byte/word.
++
++PARAMETERS
++  x     address to be dereferenced
++
++DEPENDENCIES
++  None
++
++RETURN VALUE
++  MEM_B byte at the given address
++  MEM_W word at the given address
++
++SIDE EFFECTS
++  None
++
++===========================================================================*/
++
++#define  MEM_B( x )  ( *( (byte *) (x) ) )
++#define  MEM_W( x )  ( *( (word *) (x) ) )
++
++
++
++/*===========================================================================
++
++MACRO MAX
++MACRO MIN
++
++DESCRIPTION
++  Evaluate the maximum/minimum of 2 specified arguments.
++
++PARAMETERS
++  x     parameter to compare to 'y'
++  y     parameter to compare to 'x'
++
++DEPENDENCIES
++  'x' and 'y' are referenced multiple times, and should remain the same
++  value each time they are evaluated.
++
++RETURN VALUE
++  MAX   greater of 'x' and 'y'
++  MIN   lesser of 'x' and 'y'
++
++SIDE EFFECTS
++  None
++
++===========================================================================*/
++#ifndef MAX
++   #define  MAX( x, y ) ( ((x) > (y)) ? (x) : (y) )
++#endif
++
++#ifndef MIN
++   #define  MIN( x, y ) ( ((x) < (y)) ? (x) : (y) )
++#endif
++
++
++
++/*===========================================================================
++
++MACRO FPOS
++
++DESCRIPTION
++  This macro computes the offset, in bytes, of a specified field
++  of a specified structure or union type.
++
++PARAMETERS
++  type          type of the structure or union
++  field         field in the structure or union to get the offset of
++
++DEPENDENCIES
++  None
++
++RETURN VALUE
++  The byte offset of the 'field' in the structure or union of type 'type'.
++
++SIDE EFFECTS
++  The lint error "Warning 545: Suspicious use of &" is suppressed within
++  this macro.  This is due to the desire to have lint not complain when
++  'field' is an array.
++
++===========================================================================*/
++
++#define FPOS( type, field ) \
++    /*lint -e545 */ ( (dword) &(( type *) 0)-> field ) /*lint +e545 */
++
++
++
++/*===========================================================================
++
++MACRO FSIZ
++
++DESCRIPTION
++  This macro computes the size, in bytes, of a specified field
++  of a specified structure or union type.
++
++PARAMETERS
++  type          type of the structure or union
++  field         field in the structure or union to get the size of
++
++DEPENDENCIES
++  None
++
++RETURN VALUE
++  size in bytes of the 'field' in a structure or union of type 'type'
++
++SIDE EFFECTS
++  None
++
++===========================================================================*/
++
++#define FSIZ( type, field ) sizeof( ((type *) 0)->field )
++
++
++
++/*===========================================================================
++
++MACRO FLIPW
++
++DESCRIPTION
++  Takes a 2 byte array, with the most significant byte first, followed
++  by the least significant byte, and converts the quantity into a word
++  with Intel byte order (LSB first)
++
++PARAMETERS
++  ray   array of 2 bytes to be converted to a word
++
++DEPENDENCIES
++  None
++
++RETURN VALUE
++  word in Intel byte order comprised of the 2 bytes of ray.
++
++SIDE EFFECTS
++  None
++
++===========================================================================*/
++
++#define  FLIPW( ray ) ( (((word) (ray)[0]) * 256) + (ray)[1] )
++
++
++
++/*===========================================================================
++
++MACRO FLOPW
++
++DESCRIPTION
++  Reverses bytes of word value and writes them to a 2 byte array.
++  Effectively the reverse of the FLIPW macro.
++
++PARAMETERS
++  ray   array to receive the 2 bytes from 'val'
++  val   word to break into 2 bytes and put into 'ray'
++
++DEPENDENCIES
++  None
++
++RETURN VALUE
++  None
++
++SIDE EFFECTS
++  None
++
++===========================================================================*/
++#define  FLOPW( ray, val ) \
++  (ray)[0] = ((val) / 256); \
++  (ray)[1] = ((val) & 0xFF)
++
++
++
++/*===========================================================================
++
++MACRO B_PTR
++MACRO W_PTR
++
++DESCRIPTION
++  Casts the address of a specified variable as a pointer to byte/word,
++  allowing byte/word-wise access, e.g.
++  W_PTR ( xyz )[ 2 ] = 0x1234;  -or-    B_PTR ( xyz )[ 2 ] = 0xFF;
++
++PARAMETERS
++  var   the datum to get a word pointer to
++
++DEPENDENCIES
++  None
++
++RETURN VALUE
++  Word pointer to var
++
++SIDE EFFECTS
++  None
++
++===========================================================================*/
++
++#define  B_PTR( var )  ( (byte *) (void *) &(var) )
++#define  W_PTR( var )  ( (word *) (void *) &(var) )
++#define  D_PTR( var )  ( (dword *) (void *) &(var) )
++
++
++/*===========================================================================
++
++MACRO WORD_LO
++MACRO WORD_HI
++
++DESCRIPTION
++  Take a word and extract the least-significant or most-significant byte.
++
++PARAMETERS
++  xxx   word to extract the Low/High from
++
++DEPENDENCIES
++  None
++
++RETURN VALUE
++  WORD_LO       Least significant byte of xxx.
++  WORD_HI       Most significant byte of xxx.
++
++SIDE EFFECTS
++  None
++
++===========================================================================*/
++
++#define  WORD_LO(xxx)  ((byte) ((word)(xxx) & 255))
++#define  WORD_HI(xxx) \
++  /*lint -e572 */  ((byte) ((word)(xxx) >> 8))  /*lint +e572 */
++
++
++/*===========================================================================
++
++MACRO RND8
++
++DESCRIPTION
++  RND8 rounds a number up to the nearest multiple of 8.
++
++PARAMETERS
++  x     Number to be rounded up
++
++DEPENDENCIES
++  None
++
++RETURN VALUE
++  x rounded up to the nearest multiple of 8.
++
++SIDE EFFECTS
++  None
++
++===========================================================================*/
++
++#define RND8( x )       ((((x) + 7) / 8 ) * 8 )
++
++/* -----------------------------------------------------------------------
++** Temporary inclusion of rex.h because there is code in AMSS that expects
++** to pick up Rex definitions by just including comdef.h.
++** ----------------------------------------------------------------------- */
++//#include "rex.h"
++
++/*===========================================================================
++
++MACRO INTLOCK / INTFREE
++
++DESCRIPTION
++  INTLOCK Saves current interrupt state on stack then informs the kernel
++  not to process interrupts in this thread. One interrupt may still occur, 
++  but it will not be processed until either INTFREE is called or a context 
++  switch to another thread which has interrupts enabled is made.
++
++  INTFREE Restores previous interrupt state from stack. Used in conjunction
++  with INTLOCK.
++
++  INTLOCK/INTFREE may be nested, in which case inner INTLOCK/INTFREE
++  pairs will have no effect.
++
++PARAMETERS
++  None
++
++DEPENDENCIES
++  None
++
++RETURN VALUE
++  None
++
++SIDE EFFECTS
++  INTLOCK stops interrupt processing.
++  INTFREE restores the interrupt mask saved previously.
++
++===========================================================================*/
++#if defined PC_EMULATOR_H && !defined T_REXNT
++
++   #define PC_EMULATOR_INTLOCK
++   #include PC_EMULATOR_H
++   #undef PC_EMULATOR_INTLOCK
++
++#elif defined T_WINNT || defined FEATURE_ANDROID
++
++   #define INTLOCK()
++   #define INTFREE()
++
++#elif defined FEATURE_WINCE_OAL
++  #define INTLOCK()  INTERRUPTS_OFF()
++  #define INTFREE()  INTERRUPTS_ON()
++#elif !defined _ARM_ASM_ && (!defined FEATURE_L4 || defined FEATURE_L4_KERNEL)
++
++  #ifdef __cplusplus
++    extern "C" {
++  #endif
++      extern dword rex_int_lock( void );
++      extern dword rex_int_free( void );
++#ifdef FEATURE_WINCE
++      extern int rex_ints_are_locked( void );
++#endif
++
++  #ifdef __cplusplus
++    }
++  #endif
++
++  #define  INTLOCK( )  { dword sav = rex_int_lock();
++  #define  INTFREE( )  if(!sav) (void)rex_int_free();}
++
++#endif
++
++
++/*===========================================================================
++
++MACRO MSM_INTLOCK / MSM_INTFREE
++
++DESCRIPTION
++  MSM_INTLOCK Saves current interrupt state on stack then locks interrupts. 
++  No interrupts will be taken until either MSM_INTFREE is called or a context 
++  switch to another thread which has interrupts enabled is made. This
++  macro is slower than INTLOCK and should only be used when interrupt 
++  locking is needed to ensure timing. To simply prevent context switching, 
++  use the INTLOCK/INTFREE macros above.
++
++  MSM_INTFREE Restores previous interrupt state from stack. Used in conjunction
++  with MSM_INTLOCK.
++
++  MSM_INTLOCK/MSM_INTFREE may be nested, in which case inner 
++  MSM_INTLOCK/MSM_INTFREE pairs will have no effect. It may also be nested
++  inside or outside of INTLOCK/INTFREE.
++
++PARAMETERS
++  None
++
++DEPENDENCIES
++  None
++
++RETURN VALUE
++  None
++
++SIDE EFFECTS
++  MSM_INTLOCK prevents any interrupts from occurring until MSM_INTFREE is
++    called or a context switch to a thread with interrupts enabled is made.
++  MSM_INTFREE restores the interrupt mask saved previously.
++
++===========================================================================*/
++#ifndef _ARM_ASM
++#if defined FEATURE_L4
++  #ifdef __cplusplus
++    extern "C" {
++  #endif
++      extern dword rex_msm_int_lock( void );
++      extern void rex_msm_int_free( dword set );
++  #ifdef __cplusplus
++    }
++  #endif
++
++  #define MSM_INTLOCK()  { dword sav = rex_msm_int_lock();
++  #define MSM_INTFREE()  rex_msm_int_free( sav ); }
++
++#else
++
++  #define MSM_INTLOCK() INTLOCK()
++  #define MSM_INTFREE() INTFREE()
++
++#endif
++#endif
++
++/*===========================================================================
++
++MACRO FIQLOCK / FIQFREE
++
++DESCRIPTION
++  FIQLOCK Saves current FIQ state on stack then disables FIQ interrupts.
++  Used in conjunction with FIQFREE.
++
++  FIQFREE Restores previous FIQ interrupt state from stack.  Used in 
++  conjunction with FIQLOCK.
++
++PARAMETERS
++  None
++
++DEPENDENCIES
++  This is currently only available in L4 based builds.
++
++RETURN VALUE
++  None
++
++SIDE EFFECTS
++  FIQLOCK turns off FIQ interrupts.
++  FIQFREE restores the FIQ interrupt mask saved previously.
++
++===========================================================================*/
++#if defined FEATURE_L4 && !defined _ARM_ASM_
++
++  #ifdef __cplusplus
++    extern "C" {
++  #endif
++      extern dword rex_fiq_op( dword lock );
++  #ifdef __cplusplus
++    }
++  #endif
++
++  #define  FIQLOCK()  { dword sav = rex_fiq_op(1);
++  #define  FIQFREE()  if(!(sav & PSR_Fiq_Mask)) (void)rex_fiq_op(0);}
++    
++#else
++
++  #define FIQLOCK()
++  #define FIQFREE()
++
++#endif
++
++/*===========================================================================
++
++MACRO INTLOCK_SAV / INTFREE_SAV
++
++DESCRIPTION
++  INTLOCK_SAV Saves current interrupt state in specified variable sav_var
++  then disables interrupts.  Used in conjunction with INTFREE_SAV.
++
++  INTFREE_SAV Restores previous interrupt state from specified variable
++  sav_var.  Used in conjunction with INTLOCK_SAV.
++
++PARAMETERS
++  sav_var       Current flags register, including interrupt status
++
++DEPENDENCIES
++  None.
++
++RETURN VALUE
++  None
++
++SIDE EFFECTS
++  INTLOCK_SAV turn off interrupts
++  INTFREE_SAV restore the interrupt mask saved previously
++
++===========================================================================*/
++
++
++#ifdef _lint    /* get lint to 'know' the parameter is accessed */
++
++  #define  INTLOCK_SAV(sav_var)   (sav_var = 1)
++  #define  INTFREE_SAV(sav_var)   (sav_var = sav_var + 1)
++
++#else
++
++   #if defined PC_EMULATOR_H && !defined T_REXNT
++
++      #define PC_EMULATOR_INTLOCKSAV
++      #include PC_EMULATOR_H
++      #undef  PC_EMULATOR_INTLOCKSAV
++
++   #elif defined T_WINNT
++
++     #define  INTLOCK_SAV( sav_var )
++     #define  INTFREE_SAV( sav_var )
++
++#elif !defined _ARM_ASM_ && (!defined FEATURE_L4 || defined FEATURE_L4_KERNEL)
++
++     #define  INTLOCK_SAV( sav_var )  sav_var = rex_int_lock()
++     #define  INTFREE_SAV( sav_var )  if(!sav_var) rex_int_free()
++
++   #endif
++
++#endif /* END if _lint */
++
++/*===========================================================================
++
++MACRO FIQLOCK_SAV / FIQFREE_SAV
++
++DESCRIPTION
++  FIQLOCK Saves current FIQ state in specified variable sav_var 
++  then disables FIQ interrupts.  Used in conjunction with FIQFREE_SAV.
++
++  FIQFREE_SAV Restores previous FIQ interrupt state from specified variable
++  sav_var.  Used in conjunction with FIQLOCK_SAV.
++
++PARAMETERS
++  sav_var       Current flags register, including interrupt status
++
++DEPENDENCIES
++  This is currently only available in L4 based builds.
++
++RETURN VALUE
++  None
++
++SIDE EFFECTS
++  FIQLOCK_SAV turns off FIQ interrupts.
++  FIQFREE_SAV restores the FIQ interrupt mask saved previously.
++
++===========================================================================*/
++#ifdef _lint    /* get lint to 'know' the parameter is accessed */
++
++  #define  FIQLOCK_SAV(sav_var)   (sav_var = 1)
++  #define  FIQFREE_SAV(sav_var)   (sav_var = sav_var + 1)
++
++#else
++
++  #if defined FEATURE_L4 && !defined _ARM_ASM_
++  
++    #ifdef __cplusplus
++      extern "C" {
++    #endif
++        extern dword rex_fiq_op( dword lock );
++    #ifdef __cplusplus
++      }
++    #endif
++  
++    #define  FIQLOCK_SAV(sav_var)  (sav_var = rex_fiq_op(1))
++    #define  FIQFREE_SAV(sav_var)  if(!(sav_var & PSR_Fiq_Mask)) \
++                                      (void)rex_fiq_op(0)
++
++  #elif defined FEATURE_WINCE
++
++    #define  FIQLOCK_SAV(sav_var)  (sav_var = FIQLockSave())
++    #define  FIQFREE_SAV(sav_var)  if(!(sav_var & 0x40)) (void)FIQLockRestore()
++
++  #else
++  
++    #define FIQLOCK_SAV()
++    #define FIQFREE_SAV()
++  
++  #endif
++  
++#endif
++
++
++/*===========================================================================
++MACRO TASKLOCK/TASKFREE/TASKLOCK_SAV/TASKFREE_SAV
++
++DESCRIPTION
++  TASKLOCK prevents context switching from the point at which it is invoked
++  until a matching TASKFREE is invoked.  While task locked, the current task
++  is guaranteed to not be replaced by a different task, even if the other
++  task has a higher priority.  However, TASKLOCK does not block interrupts
++  from occurring.  An ISR will pre-empt the task, but even if the ISR causes
++  a higher priority task to become ready, control will still resume at the
++  interrupted task.
++
++  Note that a rex-wait() while a TASKLOCK is in effect will not work as
++  normal, as the calling task will not be suspended.
++
++  Also, TASKLOCK/TASKFREE have no effect if called from within an ISR.
++
++  TASKFREE re-enables context switching.
++
++  TASKLOCK_SAV and TASKFREE_SAV are similar to TASKLOCK and TASKFREE
++  respectively, except that the TASKFREE_SAV that matches a TASKLOCK_SAV
++  does not have to be at the same static scope within a function. This
++  makes it easier, for instance, to enable task scheduling and return from
++  the middle of a function.
++
++===========================================================================*/
++#ifdef T_WINNT
++#ifdef __cplusplus
++   extern "C" {
++#endif
++   unsigned char rexnt_is_rex_thread( void );
++#ifdef __cplusplus
++   }
++#endif
++   /* tasks must not be locked by non-REX threads */
++#define TASKLOCK( ) {\
++   unsigned char REXNT_IS_REX_THREAD=rexnt_is_rex_thread();\
++   if ( REXNT_IS_REX_THREAD ) rex_task_lock( ); {
++
++#define TASKFREE( ) \
++   } if ( REXNT_IS_REX_THREAD ) rex_task_free( ); }
++
++#else
++
++#define TASKLOCK( ) { rex_task_lock( );
++
++#define TASKFREE( ) rex_task_free( ); }
++
++#define TASKLOCK_SAV( ) rex_task_lock( )
++
++#define TASKFREE_SAV( ) rex_task_free( )
++
++#endif /* T_WINNT */
++
++/*===========================================================================
++
++MACRO UPCASE
++
++DESCRIPTION
++  Convert a character to uppercase, the character does not have to
++  be printable or a letter.
++
++PARAMETERS
++  c             Character to be converted
++
++DEPENDENCIES
++  'c' is referenced multiple times, and should remain the same value
++  each time it is evaluated.
++
++RETURN VALUE
++  Uppercase equivalent of the character parameter
++
++SIDE EFFECTS
++  None
++
++===========================================================================*/
++
++#define  UPCASE( c ) ( ((c) >= 'a' && (c) <= 'z') ? ((c) - 0x20) : (c) )
++
++
++/*===========================================================================
++
++MACRO DECCHK
++MACRO HEXCHK
++
++DESCRIPTION
++  These character attribute macros are similar to the standard 'C' macros
++  (isdec and ishex), but do not rely on the character attributes table used
++  by Microsoft 'C'.
++
++PARAMETERS
++  c             Character to be examined
++
++DEPENDENCIES
++  None
++
++RETURN VALUE
++  DECCHK        True if the character is a decimal digit, else False
++  HEXCHK        True if the chacters is a hexidecimal digit, else False
++
++SIDE EFFECTS
++  None
++
++===========================================================================*/
++
++#define  DECCHK( c ) ((c) >= '0' && (c) <= '9')
++
++#define  HEXCHK( c ) ( ((c) >= '0' && (c) <= '9') ||\
++                       ((c) >= 'A' && (c) <= 'F') ||\
++                       ((c) >= 'a' && (c) <= 'f') )
++
++
++/*===========================================================================
++
++MACRO INC_SAT
++
++DESCRIPTION
++  Increment a value, but saturate it at its maximum positive value, do not
++  let it wrap back to 0 (unsigned) or negative (signed).
++
++PARAMETERS
++  val           value to be incremented with saturation
++
++DEPENDENCIES
++  None
++
++RETURN VALUE
++  val
++
++SIDE EFFECTS
++  val is updated to the new value
++
++===========================================================================*/
++
++#define  INC_SAT( val )  (val = ((val)+1 > (val)) ? (val)+1 : (val))
++
++
++/*===========================================================================
++
++MACRO ARR_SIZE
++
++DESCRIPTION
++  Return the number of elements in an array.
++
++PARAMETERS
++  a             array name
++
++DEPENDENCIES
++  None
++
++RETURN VALUE
++  Number of elements in array a
++
++SIDE EFFECTS
++  None.
++
++===========================================================================*/
++#if !defined(ARR_SIZE)
++#define  ARR_SIZE( a )  ( sizeof( (a) ) / sizeof( (a[0]) ) )
++#endif
++/*===========================================================================
++                     MACRO MOD_BY_POWER_OF_TWO
++
++     Will calculate x % y, where x is a non-negative integer and
++     y is a power of 2 from 2^0..2^32.
++
++     Will work for 2^0, 2^1, 2^2, 2^3, 2^4, ... 2^32
++      ie.            1,   2,   4,   8,  16, ... 4294967296
++===========================================================================*/
++
++#define MOD_BY_POWER_OF_TWO( val, mod_by ) \
++           ( (dword)(val) & (dword)((mod_by)-1) )
++
++/* -------------------------------------------------------------------------
++**                       Debug Declarations
++** ------------------------------------------------------------------------- */
++
++/* Define 'SHOW_STAT' in order to view static's as globals
++** (e.g. cl /DSHOW_STAT foo.c) If 'SHOW_STAT' is not defined,
++** it gets defined as 'static'
++*/
++#ifdef LOCAL
++   #undef LOCAL
++#endif
++
++/* Permanently turn on SHOW_STAT since this has always been the case anyway
++*/
++#define SHOW_STAT
++
++#ifdef SHOW_STAT
++  #define LOCAL
++#else
++  #define LOCAL static
++#endif
++
++/* Provide a new macro that will hopefully be used correctly to conditionally
++** turn static on/off
++*/
++#ifdef GLOBALIZE_STATIC
++   #define STATIC
++#else
++   #define STATIC static
++#endif
++
++
++/*===========================================================================
++
++                      FUNCTION DECLARATIONS
++
++===========================================================================*/
++
++
++
++/*===========================================================================
++
++FUNCTION inp, outp, inpw, outpw, inpdw, outpdw
++
++DESCRIPTION
++  IN/OUT port macros for byte and word ports, typically inlined by compilers
++  which support these routines
++
++PARAMETERS
++  inp(   xx_addr )
++  inpw(  xx_addr )
++  inpdw( xx_addr )
++  outp(   xx_addr, xx_byte_val  )
++  outpw(  xx_addr, xx_word_val  )
++  outpdw( xx_addr, xx_dword_val )
++      xx_addr      - Address of port to read or write (may be memory mapped)
++      xx_byte_val  - 8 bit value to write
++      xx_word_val  - 16 bit value to write
++      xx_dword_val - 32 bit value to write
++
++DEPENDENCIES
++  None
++
++RETURN VALUE
++  inp/inpw/inpdw: the byte, word or dword read from the given address
++  outp/outpw/outpdw: the byte, word or dword written to the given address
++
++SIDE EFFECTS
++  None.
++
++===========================================================================*/
++
++#ifdef PC_EMULATOR_H
++
++  /* For PC emulation, include a header which defines inp/outp/inpw/outpw
++  ** with the semantics above
++  */
++  #define PC_EMULATOR_IO
++  #include PC_EMULATOR_H
++  #undef  PC_EMULATOR_IO
++
++#else
++
++  /* ARM based targets use memory mapped i/o, so the inp/outp calls are
++  ** macroized to access memory directly
++  */
++
++  #define inp(port)         (*((volatile byte *) (port)))
++  #define inpw(port)        (*((volatile word *) (port)))
++  #define inpdw(port)       (*((volatile dword *)(port)))
++
++  #define outp(port, val)   (*((volatile byte *) (port)) = ((byte) (val)))
++  #define outpw(port, val)  (*((volatile word *) (port)) = ((word) (val)))
++  #define outpdw(port, val) (*((volatile dword *) (port)) = ((dword) (val)))
++
++#endif
++
++
++/*===========================================================================
++
++FUNCTION enable, disable
++
++DESCRIPTION
++  Interrupt enable and disable routines.  Enable should cause the CPU to
++  allow interrupts and disable should cause the CPU to disallow
++  interrupts
++
++PARAMETERS
++  None
++
++DEPENDENCIES
++  None
++
++RETURN VALUE
++  None
++
++SIDE EFFECTS
++  None.
++
++===========================================================================*/
++
++#ifndef T_WINNT
++
++  #if !defined _ARM_ASM_
++    /* ARM has no such definition, so we provide one here to enable/disable
++    ** interrupts
++    */
++    #define _disable() (void)rex_int_lock()
++    #define _enable()  (void)rex_int_free()
++
++  #endif
++#endif
++
++#endif /* SWIG */
++
++#ifdef __cplusplus
++}
++#endif
++
++#endif  /* COMDEF_H */
+diff -Naur android-x86-unpatch/vendor/qcom/proprietary/common/inc/common_log.h android-x86-patched_update_kk/vendor/qcom/proprietary/common/inc/common_log.h
+--- android-x86-unpatch/vendor/qcom/proprietary/common/inc/common_log.h	1970-01-01 08:00:00.000000000 +0800
++++ android-x86-patched_update_kk/vendor/qcom/proprietary/common/inc/common_log.h	2014-12-23 15:38:42.416459700 +0800
+@@ -0,0 +1,41 @@
++#ifndef COMMON_LOG_H
++#define COMMON_LOG_H
++/*==========================================================================
++
++  -----------------------------------------------------------------------------
++  Copyright (c) 2012 Qualcomm Technologies, Inc.
++  All Rights Reserved. Qualcomm Technologies Proprietary and Confidential.
++  -----------------------------------------------------------------------------
++
++===========================================================================*/
++
++
++#ifdef __cplusplus
++extern "C" {
++#endif
++
++#ifndef LOGE
++#define LOGE ALOGE
++#endif
++
++#ifndef LOGW
++#define LOGW ALOGW
++#endif
++
++#ifndef LOGD
++#define LOGD ALOGD
++#endif
++
++#ifndef LOGV
++#define LOGV ALOGV
++#endif
++
++#ifndef LOGI
++#define LOGI ALOGI
++#endif
++
++#ifdef __cplusplus
++}
++#endif
++
++#endif  /* COMMON_LOG_H */
+diff -Naur android-x86-unpatch/vendor/qcom/proprietary/common/inc/customer.h android-x86-patched_update_kk/vendor/qcom/proprietary/common/inc/customer.h
+--- android-x86-unpatch/vendor/qcom/proprietary/common/inc/customer.h	1970-01-01 08:00:00.000000000 +0800
++++ android-x86-patched_update_kk/vendor/qcom/proprietary/common/inc/customer.h	2014-12-23 15:38:42.416459700 +0800
+@@ -0,0 +1,11 @@
++/******************************************************************************
++ ----------------------------------------------------------------------------
++ Copyright (c) 2007 Qualcomm Technologies, Inc.
++ All Rights Reserved. Qualcomm Technologies Proprietary and Confidential.
++ ----------------------------------------------------------------------------
++*******************************************************************************/
++
++#ifndef CUSTOMER_H
++#define CUSTOMER_H
++
++#endif /* CUSTOMER_H */
+diff -Naur android-x86-unpatch/vendor/qcom/proprietary/common/inc/rex.h android-x86-patched_update_kk/vendor/qcom/proprietary/common/inc/rex.h
+--- android-x86-unpatch/vendor/qcom/proprietary/common/inc/rex.h	1970-01-01 08:00:00.000000000 +0800
++++ android-x86-patched_update_kk/vendor/qcom/proprietary/common/inc/rex.h	2014-12-23 15:38:42.416459700 +0800
+@@ -0,0 +1,15 @@
++#ifndef REX_H
++#define REX_H
++
++/*----------------------------------------------------------------------------
++ Copyright (c) 2007 Qualcomm Technologies, Inc.  All Rights Reserved.  
++ Qualcomm Technologies Proprietary and Confidential. 
++----------------------------------------------------------------------------*/
++  
++/// @todo RJS !!! Fix
++#define rex_task_lock( )
++#define rex_task_free( )
++typedef dword   rex_sigs_type;
++
++
++#endif /* REX_H */
+diff -Naur android-x86-unpatch/vendor/qcom/proprietary/common/inc/stringl.h android-x86-patched_update_kk/vendor/qcom/proprietary/common/inc/stringl.h
+--- android-x86-unpatch/vendor/qcom/proprietary/common/inc/stringl.h	1970-01-01 08:00:00.000000000 +0800
++++ android-x86-patched_update_kk/vendor/qcom/proprietary/common/inc/stringl.h	2014-12-23 15:38:42.416459700 +0800
+@@ -0,0 +1 @@
++#include "string.h"
+diff -Naur android-x86-unpatch/vendor/qcom/proprietary/common/inc/target.h android-x86-patched_update_kk/vendor/qcom/proprietary/common/inc/target.h
+--- android-x86-unpatch/vendor/qcom/proprietary/common/inc/target.h	1970-01-01 08:00:00.000000000 +0800
++++ android-x86-patched_update_kk/vendor/qcom/proprietary/common/inc/target.h	2014-12-23 15:38:42.416459700 +0800
+@@ -0,0 +1,83 @@
++#ifndef TARGET_H
++#define TARGET_H
++/*===========================================================================
++
++      T A R G E T   C O N F I G U R A T I O N   H E A D E R   F I L E
++
++DESCRIPTION
++  All the declarations and definitions necessary for general configuration
++  of the DMSS software for a given target environment.
++
++-----------------------------------------------------------------------------
++Copyright (c) 1998-2002 Qualcomm Technologies, Inc.
++All Rights Reserved. Qualcomm Technologies Proprietary and Confidential.
++-----------------------------------------------------------------------------
++===========================================================================*/
++
++/*===========================================================================
++                      EDIT HISTORY FOR FILE
++
++This section contains comments describing changes made to this file.
++Notice that changes are listed in reverse chronological order.
++
++$Header: //linux/pkgs/proprietary/oncrpc/main/source/inc/target.h#3 $
++
++when       who     what, where, why
++--------   ---     ----------------------------------------------------------
++07/12/02   jct     The appropriate target file is now included via customer.h
++                   in cust*.h.  TG is now fixed to be T_G and all other T_xxx
++                   vars that could be assigned to T_G are deleted.  The use of
++                   TG is deprecated. 
++10/06/00   dsb     The appropriate target file is now included automatically
++                   a make macro. Removed check on T_ACP, T_SMS, and T_SMS_UI.
++                   Cannot remove check on T_AUTH as many files still use this 
++                   instead of FEATURE_AUTH as they should.
++                   Eventually, we want to eliminate T==T_xxx codes, but many
++                   upper layer files still use them, so I have left them in.
++                   When the rest of the DMSS stops using them, they should be
++                   removed here.
++08/13/99   jkl     Included T_Q2
++01/15/99   hrk     Integrating from COMMON_ARM.03.01.00 VU from MSM3000 subsystem.
++                   Re-introduced #defines for all targets. Removal of support for
++                   these targets will be done in the next phase.
++12/16/98   jct     Created for MSM3000+ support
++
++===========================================================================*/
++
++#define T_PC    1       /* PC test software, 80386/80486, running MSDOS  */
++#define T_P     2       /* Portable Phone hardware                       */
++#define T_M     3       /* Mobile Phone hardware                         */
++#define T_REX   4       /* REX test software, 80386/80486, REX and MSDOS */
++#define T_S     5       /* Stretch-portable hardware                     */
++#define T_B2    6       /* Beta II mobile hardware                       */
++#define T_I1    7       /* ISS1 WLL hardware                             */
++#define T_DM    8       /* Diagnostic Monitor                            */
++#define T_G     9       /* Gemini Portable hardware                      */
++#define T_I2    10      /* ISS2 WLL hardware                             */
++#define T_C1    11      /* CSS1 WLL hardware                             */
++#define T_SP    12      /* Service Programming Tool                      */
++#define T_T     13      /* TGP (Third Generation Portable)               */
++#define T_MD    14      /* 1900 MHz Module (Charon)                      */
++#define T_Q     15      /* Q phones (Q-1900, Q-800)                      */
++#define T_O     16      /* Odie (5GP)                                    */
++#define T_Q2    17      /* Q phones (Q-1900, Q-800)                      */             
++
++/* This is deprecated - force to always be T_G
++*/
++#define TG T_G
++
++/* Backward compatibile migration, needs to be eliminated completely
++*/
++#undef T_AUTH
++#ifdef FEATURE_AUTH
++   #define T_AUTH
++#endif
++
++/* All featurization starts from customer.h which includes the appropriate
++**    cust*.h and targ*.h
++*/
++#ifdef CUST_H
++   #include "customer.h"
++#endif
++
++#endif /* TARGET_H */

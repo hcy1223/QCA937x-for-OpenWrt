@@ -1,0 +1,557 @@
+#!/bin/sh
+echo "Welcome"
+echo "This is used to test apfind function"
+
+
+# change as your need, "wlanX"
+WLAN_INTERFACE=wlan0
+
+# never change these
+VENDOR_ID=1374
+SUBCMD_ID=52
+
+my_shell="/bin/sh"
+my_shell_value=0
+
+my_dec2hex ()
+{
+    base=16
+    count=0
+    a=$1
+
+
+    if [ "$my_shell" = "/bin/sh" ]
+    then
+        my_shell_value=2
+    elif [ "$my_shell" = "/bin/bash" ]
+    then
+        my_shell_value=1
+    else
+        echo "Only run in /bin/sh and /bin/bash"
+        exit -1
+    fi
+
+
+    if [ "$my_shell_value" -eq "1" ]
+    then
+        :
+        #s=( 0 1 2 3 4 5 6 7 8 9 'a' 'b' 'c' 'd' 'e' 'f' )
+    else
+        s0=0
+        s1=1
+        s2=2
+        s3=3
+        s4=4
+        s5=5
+        s6=6
+        s7=7
+        s8=8
+        s9=9
+        s10='A'
+        s11='B'
+        s12='C'
+        s13='D'
+        s14='E'
+        s15='F'
+		
+                                                
+        r0=0                                              
+        r1=0                                              
+        r2=0                                              
+        r3=0                                              
+        r4=0                                              
+        r5=0                                              
+        r6=0                                              
+        r7=0                                              
+        r8=0                                    
+    fi                                          
+                                                
+    # save the hex result in array              
+    while [ "$a" -ge "$base" ]                  
+    do                                          
+        let b=$a%$base                          
+        let a=$a/$base                                    
+                                                          
+        if [ "$my_shell_value" -eq 1 ]                    
+        then                                              
+            :                                             
+            #r[$count]=$b                                 
+        else                                              
+            eval r$count=$b                               
+        fi                                                
+                                                          
+        let count=$count+1            
+    done                              
+                                      
+    # at least one in array           
+    if [ "$my_shell_value" -eq 1 ]
+    then                          
+        :                         
+        #r[$count]=$a             
+    else                          
+        eval r$count=$a           
+    fi                            
+                                      
+    let count=$count+1                
+                                      
+                                      
+    # print the hex result from array 
+    if [ "$my_shell_value" -eq 1 ]                        
+    then
+        :
+        #let j=$count-1
+        #while [ "$j" -ge 0 ]
+        #do
+        #    echo -n "${s[${r[$j]}]}"
+        #    let j=$j-1
+        #done
+    else
+        let j=$count-1
+        while [ "$j" -ge 0 ]
+        do
+            #temp=eval "echo -n $`echo r$j`"
+            temp=$(eval echo -n \$"r$j")
+            eval echo -n \$"s$temp"
+            let j=$j-1
+        done
+    fi
+}
+
+apfind_enable ()
+{
+#./wpa_cli -iwlan1 VENDOR 1374 52 11001000050607080100040003000000
+##                                 0 1 2 3 4 5 6 7 8 9 a b c d e f
+##                               idVid Len Hdl Tri typ len Enable
+
+	echo "apfind_enable Parameter #1 is $1"
+	max_val=7
+
+	if [ $1 -gt $max_val ];
+	then
+	  	echo "invalid input $1 > $max_val"
+	  	return 0
+	fi
+
+	enable_str=1100100000000000010004000SS000000
+	enable_str=${enable_str/SS/$1}
+	./wpa_cli -i $WLAN_INTERFACE VENDOR $VENDOR_ID $SUBCMD_ID $enable_str
+	echo "enable_str: $enable_str"
+}
+
+apfind_set_ssid ()
+{
+# for apfind_set ssid
+#./wpa_cli -iwlan1 VENDOR 1374 52 2100'3c'0005060708000004000'3'000000020004000'1'000000030020003132333435363738393031323334353637383930313233343536373839303132
+#                                                      0 1 2 3 4 5 6 7 8 9 a b c d e f 0 1 2 33 4 5 6 7 8 9 a b c d e f 0 1 2 3 4 5 6 7 8 9 a b c d e f 0 1 2 3 4 5 6 7 8 9 a b 
+#                                                      Vid Len Hdl Tri typ len index   typ len flag    typ len ssid
+
+	echo "apfind_set_ssid Parameter #1 is $1, #2 is $2"
+	ssid_str=$2
+	#str_len is temp
+	str_len=$(echo `expr length "$ssid_str"`)
+	ssid_str_len=$str_len
+	echo "apfind_set_ssid ssid_str_len = $ssid_str_len"
+	max_val=9
+	max_string_len=32
+
+	if [ $1 -gt $max_val ];
+	then
+	  	echo "apfind_set_ssid invalid index $1 > $max_val"
+	  	return 0
+	fi
+	if [ $str_len -gt $max_string_len ];
+	then
+	  	echo "apfind_set_ssid invalid ssid leng $str_len > $max_string_len"
+	  	return 0
+	fi
+	##_INDEX_
+	ssid_cmd_str=2100_LL2_0000000000000004000_INDEX_000000020004000_SSIDFLAG_0000000300_SSIDLEN2_00_SSIDSTR_
+	ssid_cmd_str=${ssid_cmd_str/_INDEX_/$1}
+
+	##_SSIDFLAG_
+	flag=1
+           #disable 0
+	if [ -z "$ssid_str" ]                           # Is parameter #1 zero length?
+   	then
+     		echo "apfind_set_ssid -Parameter #1 is zero length.-"  # Or no parameter passed.
+     		flag=0
+	else 
+              is_wild=$(echo `expr index "$ssid_str" '*'`)
+              #echo "is_wild = $is_wild"
+   		if [ $is_wild -eq 0 ]
+   		then
+	    		#specific 1
+	    		echo "normal string"
+			flag=1
+
+   		else
+	    		#wildcard 2
+	    		echo "apfind_set_ssid wildcard string"
+	    		# remove wildcard
+			flag=2
+			let str_len=$str_len-1
+			ssid_str_len=$str_len
+			ssid_str=$(echo ${ssid_str:0:$str_len} )
+			echo "apfind_set_ssid After change, #2 is $ssid_str"
+		fi
+   	fi
+	ssid_cmd_str=${ssid_cmd_str/_SSIDFLAG_/$flag}
+
+	##_SSIDLEN2_
+	#str_len=$(echo "obase=16; $str_len" | bc)
+	str_len=$(my_dec2hex $str_len)	
+	str_len="0$str_len"
+	tmp_len=$(echo `expr length "$str_len"`)
+	let tmp_len_2=$tmp_len-2
+	str_len=$(echo ${str_len:$tmp_len_2:2} )
+	echo "Hex str_len = $str_len"
+	ssid_cmd_str=${ssid_cmd_str/_SSIDLEN2_/$str_len}
+
+	##_SSIDSTR_
+	#ssid_hex_str=$(hexdump<<<$ssid_str | sed "s/ *//g;s/^.\{7\}//;s/\(..\)\(..\)/\2\1/g" | tr -d '\n')
+	ssid_hex_str=$(echo $ssid_str | hexdump | sed "s/ *//g;s/^.\{7\}//;s/\(..\)\(..\)/\2\1/g" | tr -d '\n')
+	TRANSLENGTH=$(expr "$ssid_hex_str" : '.*0a')
+	let TRANSLENGTH="$TRANSLENGTH-2"
+
+	ssid_hex_str=$( expr substr $ssid_hex_str 1 $TRANSLENGTH)
+	#echo $ssid_hex_str
+	ssid_cmd_str=${ssid_cmd_str/_SSIDSTR_/$ssid_hex_str}
+
+
+	##_LL2_
+	let apfind_msg_len=8 
+	#index field
+	let apfind_msg_len=$apfind_msg_len+8
+	#flag field
+	let apfind_msg_len=$apfind_msg_len+8
+	#ssid field
+	let apfind_msg_len=$apfind_msg_len+4+ssid_str_len
+
+
+	#apfind_msg_len=$(echo "obase=16; $apfind_msg_len" | bc)
+	apfind_msg_len=$(my_dec2hex $apfind_msg_len)	
+	apfind_msg_len="0$apfind_msg_len"
+	tmp_len=$(echo `expr length "$apfind_msg_len"`)
+	let tmp_len2=$tmp_len-2
+	apfind_msg_len=$(echo ${apfind_msg_len:$tmp_len2:2} )
+	#echo "Hex apfind_msg_len = $apfind_msg_len"
+	ssid_cmd_str=${ssid_cmd_str/_LL2_/$apfind_msg_len}
+	
+
+	echo "apfind_set_ssid $ssid_cmd_str"
+	./wpa_cli -i $WLAN_INTERFACE VENDOR $VENDOR_ID $SUBCMD_ID $ssid_cmd_str
+	echo "end apfind_set_Ssid"
+}
+
+apfind_set_mac ()
+{
+# for apfind_set_mac
+#./wpa_cli -iwlan1 VENDOR 1374 52 3100'1c'0005060708000004000'8'00000004000'8'00D8C7C82B5F800000
+##                                                   0 1 2 3 4 5 6 7 8 9 a b c d e f 0 1 2 3 4 5 6 7 8 9 a b 
+##                                                   Vid Len Hdl Tri typ len index   typ len mac 
+
+	echo "apfind_set_mac Parameter #1 is $1, #2 is $2"
+	mac_str=$2
+	#mac_str_len is temp
+	mac_str_len=$(echo `expr length "$mac_str"`)
+	#echo "apfind_set_mac mac_str_len = $mac_str_len"
+	max_val=9
+	let target_mac_str_len=12+5
+
+	if [ $1 -gt $max_val ];
+	then
+	  	echo "apfind_set_mac invalid index $1 > $max_val"
+	  	return 0
+	fi
+	if [ $mac_str_len -ne $target_mac_str_len ];
+	then
+	  	echo "apfind_set_mac invalid input format $mac_str. It should be apfind_set_mac 8 00:11:22:33:44:55"
+	  	return 0
+	fi
+       is_token=$(echo `expr index "$mac_str" ':'`)
+       #echo "is_token = $is_token"
+	if [ $is_token -eq 0 ]
+	then
+	  	echo "apfind_set_mac invalid input format $mac_str. It should be apfind_set_mac 8 D8:C7:C8:2B:5F:80"	return 0
+	fi
+	##_INDEX_
+	mac_cmd_str=3100_LL2_0000000000000004000_INDEX_00000004000800_MACSTR_0000
+	mac_cmd_str=${mac_cmd_str/_INDEX_/$1}
+
+	##_MACSTR_
+	mac_str=${mac_str//:/}
+       #echo "mac_str:$mac_str"
+	mac_cmd_str=${mac_cmd_str/_MACSTR_/$mac_str}
+
+
+	##_LL2_
+	let apfind_msg_len=8 
+	#index field
+	let apfind_msg_len=$apfind_msg_len+8
+	#mac field
+	let apfind_msg_len=$apfind_msg_len+4+8
+
+	#apfind_msg_len=$(echo "obase=16; $apfind_msg_len" | bc)
+	apfind_msg_len=$(my_dec2hex $apfind_msg_len)	
+	apfind_msg_len="0$apfind_msg_len"
+	tmp_len=$(echo `expr length "$apfind_msg_len"`)
+	let tmp_len2=$tmp_len-2
+	apfind_msg_len=$(echo ${apfind_msg_len:$tmp_len2:2} )
+	echo "apfind_set_mac Hex apfind_msg_len = $apfind_msg_len"
+	mac_cmd_str=${mac_cmd_str/_LL2_/$apfind_msg_len}
+	
+
+	echo "apfind_set_mac $mac_cmd_str"
+	./wpa_cli -i $WLAN_INTERFACE VENDOR $VENDOR_ID $SUBCMD_ID $mac_cmd_str
+	echo "end apfind_set_mac"
+}
+
+ dec2hexstr()
+{
+	#echo "dec2hexstr Parameter #1 is $1"
+	#dec_str=$(echo "obase=16; $1" | bc)
+	dec_str=$(my_dec2hex $1)
+	dec_str="0000000$dec_str"
+	tmp_len=$(echo `expr length "$dec_str"`)
+	let tmp_len2=$tmp_len-2
+	sub_s1=$(echo ${dec_str:$tmp_len2:2} )
+	let tmp_len=$tmp_len-2
+	let tmp_len2=$tmp_len-2
+	sub_s2=$(echo ${dec_str:$tmp_len2:2} )
+	let tmp_len=$tmp_len-2
+	let tmp_len2=$tmp_len-2
+	sub_s3=$(echo ${dec_str:$tmp_len2:2} )
+	let tmp_len=$tmp_len-2
+	let tmp_len2=$tmp_len-2
+	sub_s4=$(echo ${dec_str:$tmp_len2:2} )
+	hex_str="$sub_s1$sub_s2$sub_s3$sub_s4"
+	#echo "dec2hexstr return $hex_str"
+	echo "$hex_str"
+}
+
+apfind_set_params ()
+{
+
+# for apfind_set_params
+#wpa_cli_cmd "apfind_set_params 65500 110 11111 22222 33333 44444 55555 2412 60000 60007 60008 60009 60010 60011";
+#./wpa_cli -iwlan1 VENDOR 1374 52 4100'48'000506070805000400'ffffffff'060004001101000007002C00111100002222000033330000444400005555000066660000777700008888000099990000aaaa0000bbbb0000
+#                                                      0 1 2 3 4 5 6 7 8 9 a b c d e f 0 1 2 3 4 5 6 7 8 9 a b c d e f 0 1 2 3 4 5 6 7 8 9 a b c d e f 0 1 2 3 4 5 6 7 8 9 a b c d e f 0 1 2 3 4 5 6 7
+#                                                     Vid Len Hdl Tri typ len inval   typ len dwell   typ len chs 
+
+	echo "apfind_set_params Parameter #1 is $1, #2 is $2, #3 is $3, #4 is $4, #5 is $5, #6 is $6, #7 is $7, #8 is $8, #9 is $9, #10 is ${10}, #11 is ${11}, #12 is ${12}, #13 is ${13}"
+	ssid_str=$2
+	#str_len is temp
+	let num_arg=$#
+	echo "#=$#, num_arg=$num_arg"
+	max_ch_fre=6000
+	max_arg=13
+	let min_arg=3
+
+	if [ $num_arg -gt $max_arg ];
+	then
+	  	echo "apfind_set_params invalid argument $# > $max_arg"
+	  	return 0
+	fi
+	if [ $num_arg -lt $min_arg ];
+	then
+	  	echo "apfind_set_params invalid argument $# < $min_arg"
+	  	return 0
+	fi	
+
+	params_cmd_str=4100_LL2_000000000005000400_SCAINTERVAL_06000400_DWELL_0700_CH_ITEMS_LEN2_00_CH1__CH2__CH3__CH4__CH5__CH6__CH7__CH8__CH9__CHA__CHB_
+
+	## scan interval
+	scan_int=$(dec2hexstr $1)	
+	#echo "Hex scan_int = $scan_int"
+	params_cmd_str=${params_cmd_str/_SCAINTERVAL_/$scan_int}
+
+	##channel dwell time
+	ch_dwell=$(dec2hexstr $2)	
+	#cho "Hex ch_dwell = $ch_dwell"
+	params_cmd_str=${params_cmd_str/_DWELL_/$ch_dwell}
+
+	##channels
+	let ch_num=$num_arg-2
+	echo "ch#=$ch_num"
+
+	ch1_str=''
+	if [ $ch_num -gt 0 ];
+	then
+		ch1_str=$(dec2hexstr $3)	
+		#echo "Hex ch1 = $ch1_str"
+	fi	
+	params_cmd_str=${params_cmd_str/_CH1_/$ch1_str}
+
+	ch2_str=''
+	if [ $ch_num -gt 1 ];
+	then
+		ch2_str=$(dec2hexstr $4)	
+		#echo "Hex ch2 = $ch2_str"
+	fi	
+	params_cmd_str=${params_cmd_str/_CH2_/$ch2_str}
+
+	ch3_str=''
+	if [ $ch_num -gt 2 ];
+	then
+		ch3_str=$(dec2hexstr $5)	
+		#echo "Hex ch3 = $ch3_str"
+	fi	
+	params_cmd_str=${params_cmd_str/_CH3_/$ch3_str}
+
+	ch4_str=''
+	if [ $ch_num -gt 3 ];
+	then
+		ch4_str=$(dec2hexstr $6)	
+		#echo "Hex ch4 = $ch4_str"
+	fi	
+	params_cmd_str=${params_cmd_str/_CH4_/$ch4_str}
+
+	ch5_str=''
+	if [ $ch_num -gt 4 ];
+	then
+		ch5_str=$(dec2hexstr $7)	
+		#echo "Hex ch5 = $ch5_str"
+	fi	
+	params_cmd_str=${params_cmd_str/_CH5_/$ch5_str}
+
+	ch6_str=''
+	if [ $ch_num -gt 5 ];
+	then
+		ch6_str=$(dec2hexstr $8)	
+		#echo "Hex ch6 = $ch6_str"
+	fi	
+	params_cmd_str=${params_cmd_str/_CH6_$ch6_str}
+
+	ch7_str=''
+	if [ $ch_num -gt 6 ];
+	then
+		ch7_str=$(dec2hexstr $9)	
+		#echo "Hex ch7 = $ch7_str"
+	fi	
+	params_cmd_str=${params_cmd_str/_CH7_/$ch7_str}
+
+	ch8_str=''
+	if [ $ch_num -gt 7 ];
+	then
+		ch8_str=$(dec2hexstr ${10})	
+		#echo "Hex ch8 = $ch8_str"
+	fi	
+	params_cmd_str=${params_cmd_str/_CH8_/$ch8_str}
+
+	ch9_str=''
+	if [ $ch_num -gt 8 ];
+	then
+		ch9_str=$(dec2hexstr ${11})	
+		#echo "Hex ch9 = $ch9_str"
+	fi	
+	params_cmd_str=${params_cmd_str/_CH9_/$ch9_str}
+
+	ch10_str=''
+	if [ $ch_num -gt 9 ];
+	then
+		ch10_str=$(dec2hexstr ${12})	
+		#echo "Hex ch10 = $ch10_str"
+	fi	
+	params_cmd_str=${params_cmd_str/_CHA_/$ch10_str}
+
+	ch11_str=''
+	if [ $ch_num -gt 10 ];
+	then
+		ch11_str=$(dec2hexstr ${13})	
+		#echo "Hex ch11 = $ch11_str"
+	fi	
+	params_cmd_str=${params_cmd_str/_CHB_/$ch11_str}
+
+	##_CH_ITEMS_LEN2_
+	let ch_field_len=$ch_num*4
+	#ch_total_len2=$(echo "obase=16; $ch_field_len" | bc)
+	ch_total_len2=$(my_dec2hex $ch_field_len)
+	ch_total_len2="0$ch_total_len2"
+	tmp_len=$(echo `expr length "$ch_total_len2"`)
+	let tmp_len2=$tmp_len-2
+	ch_total_len2=$(echo ${ch_total_len2:$tmp_len2:2} )
+	#echo "apfind_set_param Hex ch_total_len2 = $ch_total_len2"
+	params_cmd_str=${params_cmd_str/_CH_ITEMS_LEN2_/$ch_total_len2}
+
+
+	
+
+	##_LL2_
+	let apfind_msg_len=8 
+	#scan interval
+	let apfind_msg_len=$apfind_msg_len+8
+	#dwell tim
+	let apfind_msg_len=$apfind_msg_len+8
+	#chans
+	let apfind_msg_len=$apfind_msg_len+4+ch_field_len
+
+	#apfind_msg_len=$(echo "obase=16; $apfind_msg_len" | bc)
+	apfind_msg_len=$(my_dec2hex $apfind_msg_len)	
+	apfind_msg_len="0$apfind_msg_len"
+	tmp_len=$(echo `expr length "$apfind_msg_len"`)
+	let tmp_len2=$tmp_len-2
+	apfind_msg_len=$(echo ${apfind_msg_len:$tmp_len2:2} )
+	echo "apfind_set_param Hex apfind_msg_len = $apfind_msg_len"
+	params_cmd_str=${params_cmd_str/_LL2_/$apfind_msg_len}
+
+	echo "apfind_set_params $params_cmd_str"
+	./wpa_cli -i $WLAN_INTERFACE VENDOR $VENDOR_ID $SUBCMD_ID $params_cmd_str
+	echo "end apfind_set_params"
+}
+
+##########################################
+# Below are test code                    #
+# Please unmask them as your need        #
+##########################################
+
+# test code
+# 1. set scan parameter
+#apfind_set_params 65500 110 2412 2417 2422 2427 2432 2437 2442 2447 2452 2457 5180
+#apfind_set_params 10000 110 2412 2442 5180 2462
+
+# test code
+# 2. set AP mac address to monitor
+#    10 items at maximum
+#apfind_set_mac 0 D8:C7:C8:2B:5F:00
+#apfind_set_mac 1 bc:ae:c5:c4:41:01
+#apfind_set_mac 2 D8:C7:C8:2B:5F:02
+#apfind_set_mac 3 bc:ae:c5:c4:41:03
+#apfind_set_mac 4 D8:C7:C8:2B:5F:04
+#apfind_set_mac 5 bc:ae:c5:c4:41:05
+#apfind_set_mac 6 D8:C7:C8:2B:5F:06
+#apfind_set_mac 7 bc:ae:c5:c4:41:07
+#apfind_set_mac 8 D8:C7:C8:2B:5F:80
+#apfind_set_mac 9 bc:ae:c5:c4:41:28
+
+# test code
+# 3. set AP SSID to monitor
+#    10 items at maximum
+#apfind_set_ssid 0 lin2G
+#apfind_set_ssid 1 lin5G
+#apfind_set_ssid 1 123456789abcdef
+#apfind_set_ssid 3 12345678901234567890123456789012
+#apfind_set_ssid 4 1234567890123456789012345678901*
+#apfind_set_ssid 5 1234567890123456789012345678901
+#apfind_set_ssid 7 N22222*
+#apfind_set_ssid 8 EBUWi*
+#apfind_set_ssid 9 12345678901234567890123456789012
+
+# test code
+# 4. set enable paramater base on your use scenario
+#    mode:
+#       0: disabled
+#       1: enable for SSID match
+#       2: enable for MAC address match
+#       3: enable for SSID or MAC address match
+#       5: enable for SSID deferred match
+#       6: enable for MAC address deferred match
+#       7: enable for SSID or MAC address deferred match
+#apfind_enable 0
+#apfind_enable 1
+#apfind_enable 2
+#apfind_enable 3
+#apfind_enable 5
+#apfind_enable 6
+#apfind_enable 7
+
+

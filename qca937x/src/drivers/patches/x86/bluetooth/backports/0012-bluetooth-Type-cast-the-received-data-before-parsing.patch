@@ -1,0 +1,32 @@
+From 53d6270fe974582d8980d7ce4aa3186d55dac589 Mon Sep 17 00:00:00 2001
+From: Anantha Krishnan <ananthk@codeaurora.org>
+Date: Thu, 4 Sep 2014 15:58:44 +0530
+Subject: [PATCH 12/25] bluetooth: Type cast the received data before parsing
+
+On x86 platforms we observe that the data received from socket
+buffer needs to be type casted to unsigned char in order to
+parse the bluetooth sleep packets sent by the bluetooth
+controller to APPS processor
+
+Change-Id: If398a3b1ccf7972555fa1a53e6c117874e7b1301
+Signed-off-by: Anantha Krishnan <ananthk@codeaurora.org>
+---
+ drivers/bluetooth/hci_ibs.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/bluetooth/hci_ibs.c b/drivers/bluetooth/hci_ibs.c
+index 55d1b95..0d73218 100644
+--- a/drivers/bluetooth/hci_ibs.c
++++ b/drivers/bluetooth/hci_ibs.c
+@@ -807,7 +807,7 @@ static int ibs_recv(struct hci_uart *hu, void *data, int count)
+ 		}
+ 
+ 		/* HCI_IBS_W4_PACKET_TYPE */
+-		switch (*ptr) {
++		switch ((unsigned char) *ptr) {
+ 		case HCI_EVENT_PKT:
+ 			BT_DBG("Event packet");
+ 			ibs->rx_state = HCI_IBS_W4_EVENT_HDR;
+-- 
+1.7.9.5
+

@@ -1,0 +1,5896 @@
+diff -Naur android-l-clean/vendor/qcom/proprietary/bt/hci_qcomm_init/Android.mk android-l-uart-ibs/vendor/qcom/proprietary/bt/hci_qcomm_init/Android.mk
+--- android-l-clean/vendor/qcom/proprietary/bt/hci_qcomm_init/Android.mk	1970-01-01 08:00:00.000000000 +0800
++++ android-l-uart-ibs/vendor/qcom/proprietary/bt/hci_qcomm_init/Android.mk	2015-06-29 11:09:46.000000000 +0800
+@@ -0,0 +1,32 @@
++LOCAL_PATH:= $(call my-dir)
++
++#If you want to use the legacy way(by using NV) of set the BT address
++#You can set the value to 0
++BT_QSOC_GET_ITEMS_FROM_PERSIST = 1
++
++ifeq ($(BT_QSOC_GET_ITEMS_FROM_PERSIST),1)
++include $(CLEAR_VARS)
++
++LOCAL_C_INCLUDES:= $(LOCAL_PATH)
++
++LOCAL_SRC_FILES:=  bt_nv.cpp
++LOCAL_C_INCLUDES += ../../common/inc
++
++LOCAL_MODULE:= libbtnv
++LOCAL_MODULE_TAGS := optional
++LOCAL_MODULE_OWNER := qcom
++LOCAL_PROPRIETARY_MODULE := true
++
++include $(BUILD_SHARED_LIBRARY)
++
++endif # BT_QSOC_GET_ITEMS_FROM_PERSIST
++
++TEMP_LOCAL_PATH := $(LOCAL_PATH)
++
++ifeq ($(BOARD_HAS_QCA_BT_ROME_USB),true)
++    include $(TEMP_LOCAL_PATH)/rome_usb/Android.mk
++endif
++ifeq ($(WCNSS_FILTER_USES_SIBS),true)
++    include $(TEMP_LOCAL_PATH)/wcnss_filter/Android.mk
++endif
++
+diff -Naur android-l-clean/vendor/qcom/proprietary/bt/hci_qcomm_init/armasm.h android-l-uart-ibs/vendor/qcom/proprietary/bt/hci_qcomm_init/armasm.h
+--- android-l-clean/vendor/qcom/proprietary/bt/hci_qcomm_init/armasm.h	1970-01-01 08:00:00.000000000 +0800
++++ android-l-uart-ibs/vendor/qcom/proprietary/bt/hci_qcomm_init/armasm.h	2015-06-23 11:34:40.000000000 +0800
+@@ -0,0 +1,283 @@
++#ifndef ARMASM_H
++#define ARMASM_H
++/*=============================================================================
++
++                        ARM Assembly Language Definitions
++
++GENERAL DESCRIPTION
++  This file contains assembly language macros for use with the ARM assembler.
++
++
++-----------------------------------------------------------------------------
++Copyright (c) 1998 - 2001 Qualcomm Technologies, Inc.
++All Rights Reserved. Qualcomm Technologies Proprietary and Confidential.
++-----------------------------------------------------------------------------
++=============================================================================*/
++
++
++/*=============================================================================
++
++                            EDIT HISTORY FOR FILE
++
++$Header: //linux/pkgs/proprietary/oncrpc/main/source/inc/armasm.h#3 $
++
++when       who     what, where, why
++--------   ---     ----------------------------------------------------------
++09/13/05   ck      Copied from 6100 branch
++07/12/02   jct     Removed conditional inclusion of customer.h and target.h
++05/17/01   kar     Bigger SVC stack available to support REX from MSM archive
++01/25/01   day     Merged from MSM5105_COMMON.00.00.05.
++                     Added support for Interworking
++                     Added define for system stack size
++04/02/99    sk     Increased Abort stack size.
++04/02/99    ms     Reduced stack sizes.
++02/03/99    ms     Renamed blx to blatox since blx is a keyword in Assembler
++                   of ARM SDK 2.5
++01/18/99    ms     Moved ARM_TRAP_FRAME related declarations to boot_trap.h.
++                   Moved context frame related macros to rexarm.s.
++                   Incorporated exception frame related macros directly into
++                   boot_abort_handler in bootsys.s.
++12/10/98   jkl     Included r12 in the context frame.
++11/23/98   jkl     Clean up code. Changed save_context_from_task macro.
++10/27/98   jkl     Revised for new context
++09/13/98   hcg     Changed exception/trap frame names
++07/10/98   jct     Revised for coding standard, removed unused code
++01/01/98   bwj     Created
++=============================================================================*/
++
++#include "target.h"
++#include "customer.h"
++
++/*  CPSR Control Masks         */
++#define PSR_Thumb_Mask       0x20
++#define PSR_Fiq_Mask         0x40
++#define PSR_Irq_Mask         0x80
++#define PSR_Mode_Mask        0x1f
++
++/*  Processor mode definitions */
++#define PSR_User             0x10
++#define PSR_Fiq              0x11
++#define PSR_Irq              0x12
++#define PSR_Supervisor       0x13
++#define PSR_Abort            0x17
++#define PSR_Undef            0x1b
++#define PSR_System           0x1f
++#define PSR_Thumb            0x20
++
++/*===========================================================================
++**  GENERAL PURPOSE ASSEMBLY MACROS.
++**=========================================================================*/
++
++#if defined(_ARM_ASM_)
++
++        GBLS    current_node_name
++        GBLS    current_node_type
++        GBLA    current_node_aregcount
++        GBLA    current_node_vregcount
++
++/*===========================================================================
++
++Name: pusha, popa
++
++Description: Readable names for push and pop.
++
++MODE: Any
++STATE: ARM
++
++Registers modified: sp
++
++=============================================================================*/
++
++        MACRO
++        pusha   $stack, $reg
++        str     $reg, [$stack, #-4]!
++        MEND
++
++        MACRO
++        popa    $stack, $reg
++        ldr     $reg, [$stack], #4
++        MEND
++
++/*===========================================================================
++
++Name: Entry_Node, Entry_Node_End
++
++Description: Defines an empty function prolog and epilog of a piece of assembly code.
++             These macros take care of the following:
++               - Exporting the entry point label
++               - Creating a stack frame
++               - Software stack checking
++
++Defined Labels:
++   "node_name" - The main thumb mode entry point of the function.
++   "node_name"_end - A label marking the begining of the function epilog.
++
++Arguments:
++  Leaf_Node
++  Node_Name - The function name of the function to be defined.
++  Leaf_Node_End
++  None
++
++MODE: Any
++STATE: ARM
++
++Registers modified: None
++
++=============================================================================*/
++
++        MACRO
++        ENTRY_NODE $node_name
++current_node_name       SETS    "$node_name"
++        EXPORT  $node_name
++        ALIGN
++        ROUT
++$node_name
++        MEND
++                                        ;  The end of an entry node.
++        MACRO
++        ENTRY_NODE_END
++$current_node_name._exit
++current_node_name       SETS    ""
++        MEND
++
++/*===========================================================================
++
++  Name: Leaf_Node, Leaf_Node_End
++
++  Description: Defines the function prolog and epilog of a function that makes
++               no function calls. These macros take care of the following:
++                 - Exporting the entry point label
++                 - Creating 16 and 32 bit entry points.
++                 - Creating a stack frame
++                 - Software stack checking
++
++  Defined Labels:
++     "node_name" - The main thumb mode entry point of the function.
++     "node_name"_32 - The ARM state entry point to the function.
++     "node_name"_end - A label marking the begining of the function epilog.
++
++  Arguments:
++    Leaf_Node
++     Node_Name - The function name of the function to be defined.
++    Leaf_Node_End
++     None
++
++  MODE: Any
++  STATE: ARM and Thumb state entry points. Code runs in ARM state.
++
++  Registers modified: None
++
++=============================================================================*/
++        MACRO
++        LEAF_NODE $node_name
++current_node_type       SETS    "Leaf"
++        CODE16
++        ENTRY_NODE $node_name
++        bx      pc
++        ALIGN
++        CODE32
++#ifndef __APCS_INTERWORK
++        orr     lr, lr, #0x01
++#endif
++        EXPORT  $node_name._32
++$node_name._32
++        MEND
++
++        MACRO
++        LEAF_NODE_END $node_name
++        ASSERT  "$current_node_type" = "Leaf"
++        ENTRY_NODE_END $node_name
++        bx     lr
++current_node_type       SETS    ""
++        MEND
++
++
++/*===========================================================================
++
++  Name: Leaf_Node_End, Leaf_Node_End_16
++
++  Description: Defines the function prolog and epilog of a Thumb mode only function that makes
++               no function calls. These macros take care of the following:
++                 - Exporting the entry point label
++                 - Creating a 16 bit entry point.
++                 - Creating a stack frame
++                 - Software stack checking
++
++  Defined Labels:
++     "node_name" - The main thumb mode entry point of the function.
++     "node_name"_end - A label marking the begining of the function epilog.
++
++  Arguments:
++    Leaf_Node_16
++     Node_Name - The function name of the function to be defined.
++    Leaf_Node_End_16
++     None
++
++  MODE: Any
++  STATE: Thumb
++
++  Registers modified: None
++
++=============================================================================*/
++
++        MACRO
++        LEAF_NODE_16 $node_name
++current_node_type       SETS    "Leaf16"
++        CODE16
++        ENTRY_NODE $node_name
++        MEND
++
++        MACRO
++        LEAF_NODE_END_16 $node_name
++        ASSERT  "$current_node_type" = "Leaf16"
++        ENTRY_NODE_END $node_name
++        bx     lr
++current_node_type       SETS    ""
++        MEND
++
++
++        MACRO
++        ALTERNATE_ENTRY_16 $node_name
++        ASSERT  "$current_node_type" = "Leaf16"
++        EXPORT $node_name
++$node_name
++        MEND
++
++
++/*===========================================================================
++
++  Name: blatox
++
++  Description: Calls a function from ARM state without having to know whether that
++     that function is ARM or Thumb state code.
++
++  Arguments:
++    destreg - The register that contains the address of the function to be called.
++
++  Registers modified: lr
++
++  MODE: Any
++  STATE: ARM. Can call either ARM or Thumb state functions.
++
++=============================================================================*/
++
++        MACRO
++        blatox     $destreg
++        ROUT
++
++        tst     $destreg, #0x01         /* Test for thumb mode call.  */
++
++        ldrne   lr, =%1
++        ldreq   lr, =%2
++        bx      $destreg
++1
++        CODE16
++        bx      pc
++        ALIGN
++        CODE32
++2
++        MEND
++
++#endif   /* ARM_ASM  */
++
++#endif   /* ARMASM_H */
+diff -Naur android-l-clean/vendor/qcom/proprietary/bt/hci_qcomm_init/bt_nv.cpp android-l-uart-ibs/vendor/qcom/proprietary/bt/hci_qcomm_init/bt_nv.cpp
+--- android-l-clean/vendor/qcom/proprietary/bt/hci_qcomm_init/bt_nv.cpp	1970-01-01 08:00:00.000000000 +0800
++++ android-l-uart-ibs/vendor/qcom/proprietary/bt/hci_qcomm_init/bt_nv.cpp	2015-06-23 11:34:40.000000000 +0800
+@@ -0,0 +1,464 @@
++/*============================================================================
++  Copyright (c) 2010 - 2012 Qualcomm Technologies, Inc.  All Rights Reserved.
++  Qualcomm Technologies Proprietary and Confidential.
++
++  FILE:         bt_nv.cpp
++
++  OVERVIEW:     This file implements functions to read and write the NV items into
++                the /persistent file system.
++                Through this code you can read and write the following format data.
++                *** data format ***
++                nvID    WriteProtect    Size    Data
++                X       X(1 or 0)       X       X X X X X X
++
++*==============================================================================
++                        EDIT HISTORY FOR MODULE
++
++  This section contains comments describing changes made to the module.
++  Notice that changes are listed in reverse chronological order. Please
++  use ISO format for dates.
++
++when        who  what, where, why
++----------  ---  -----------------------------------------------------------
++2010-02-15   ss  Intial version
++2011-09-28  rrr  Moved the implementation to CPP, for having BD address being
++                 programmed twice if previous BD address was random generated.
++2012-02-16  rrr  Read/Write access to NV config file (i.e. /persist/bt_nv.bin)
++                 is limited to "bluetooth" user only. And making bt_nv.bin as
++                 hidden.
++2012-02-22  rrr  Moved/modified macros to header file for reference across
++                 source files.
++============================================================================*/
++
++
++/*----------------------------------------------------------------------------
++ * Include Files
++ * -------------------------------------------------------------------------*/
++/* Necessary includes */
++#include <stdio.h>
++#include <string.h>
++#include <errno.h>
++#include "comdef.h"
++#include "bt_nv.h"
++#include <unistd.h>
++#include <sys/types.h>
++#include <sys/stat.h>
++#include <fcntl.h>
++#include <pwd.h>
++#include <grp.h>
++
++/*----------------------------------------------------------------------------
++ * Preprocessor Definitions and Constants
++  * -------------------------------------------------------------------------*/
++#define NV_REF_CLOCK_SIZE     1
++#define NV_REF_CLOCK_T_SIZE   1
++#define NV_CMD_HDR_SIZE       3
++
++#define SIZE_OF_BYTE          sizeof(char)
++#define HC_VS_MAX_CMD_EVENT   260
++#define NVM_PAYLOAD_MAXLENGTH 260
++#define MAX_PAYLOAD_SIZE      NV_BD_ADDR_SIZE
++#ifdef BTNV_DEBUG
++#define BTNV_INFO(args...)    fprintf(stdout, ## args);
++#define BTNV_ERR(args...)     fprintf(stderr, ## args);
++#define BTNV_OS_ERR           fprintf(stderr, "err =%d msg = %s\n", errno, strerror(errno))
++#else
++#define BTNV_INFO(args...)
++#define BTNV_ERR(args...)
++#define BTNV_OS_ERR
++#endif
++
++typedef enum {
++  NV_WRITE_ONCE_ENABLE = 1,
++  NV_WRITE_ONCE_DISABLE = 0
++}nv_persist_write_type;
++
++typedef struct {
++  nv_persist_items_enum_type item;     /* Item to access */
++  nv_persist_write_type writeprotect;
++  uint8 nSize;
++  unsigned char pCmdBuffer[MAX_PAYLOAD_SIZE];    /* Pointer to read or write data */
++} nv_persist_params;
++
++typedef struct _nv_items_tag {
++  nv_persist_items_enum_type type;
++  uint8 size;
++  nv_persist_write_type multi_time_wr;
++}nv_items;
++
++nv_items nvItems[3] =
++{
++  {NV_BD_ADDR_I,                 NV_BD_ADDR_SIZE,     NV_WRITE_ONCE_ENABLE},
++  {NV_BT_SOC_REFCLOCK_TYPE_I,    NV_REF_CLOCK_SIZE,   NV_WRITE_ONCE_DISABLE},
++  {NV_BT_SOC_CLK_SHARING_TYPE_I, NV_REF_CLOCK_T_SIZE, NV_WRITE_ONCE_DISABLE},
++};
++/*==============================================================
++FUNCTION:  bt_nv_init
++==============================================================*/
++/**
++* Intialize the required variables and check the path exists mentioned for writing the binary.
++* TODO: Need to add verification of binary?
++*
++*
++* @return  int - negative number on failure.
++*
++*/
++int bt_nv_init()
++{
++  return 0;
++}
++
++/*==============================================================
++FUNCTION:  bt_nv_deinit
++==============================================================*/
++/**
++* DeIntialize the required variables.
++*
++*
++*
++* @return  int - negative number on failure.
++*
++*/
++int bt_nv_deinit()
++{
++  return 0;
++}
++
++/*==============================================================
++FUNCTION:  bt_nv_write
++==============================================================*/
++/**
++* Write the nparams number of items from nv_params structure to the persist NV file
++* (PERSISTENCE_PATH/BT_NV_FILE_NAME)
++*
++*
++* @return  int - negative number on failure.
++*
++*/
++int bt_nv_write
++(
++  nv_persist_params *params,
++  uint8 nparams
++)
++{
++  int nFd;
++  struct passwd *pwd;
++  struct group  *grp;
++  unsigned char cmd[HC_VS_MAX_CMD_EVENT];
++  int nwrite = 0, i = 0,j = 0;
++  char filename[NAME_MAX];
++
++  snprintf(filename, NAME_MAX, "%s/%s",PERSISTENCE_PATH,BT_NV_FILE_NAME );
++  BTNV_INFO("BT-NV-WRITE: Opening file '%s' for writing\n", filename);
++
++  /* R/W access to user only for the file created below */
++  umask(066);
++
++  /* Open the firmware file*/
++  nFd = open(filename, O_CREAT | O_RDWR, 0666);
++  if(nFd < 0)
++  {
++     BTNV_ERR("BT-NV-WRITE: Failed to Open/create a '%s' file\n",filename);
++     BTNV_OS_ERR;
++     return -1;
++  }
++
++  /* Retrieve user id corresponding to "bluetooth" user */
++  pwd = getpwnam("bluetooth");
++  if (!pwd)
++  {
++      BTNV_ERR("BT-NV-WRITE: user not found in /etc/passwd\n");
++      BTNV_OS_ERR;
++      nwrite = -1;
++      goto out;
++  }
++
++  /* Retrieve group id corresponding to "bluetooth" user */
++  grp = getgrnam("bluetooth");
++  if (!grp)
++  {
++      BTNV_ERR("BT-NV-WRITE: group not found in /etc/group\n");
++      BTNV_OS_ERR;
++      nwrite = -1;
++      goto out;
++  }
++
++  /* Set user and group ownership as "bluetooth"
++   * for firmware file created/opened above
++   */
++  if (fchown(nFd, pwd->pw_uid, grp->gr_gid) < 0)
++  {
++      BTNV_ERR("BT-NV-WRITE: fchown failed \n");
++      BTNV_OS_ERR;
++      nwrite = -1;
++      goto out;
++  }
++
++  for(i = 0; i < nparams; i++)
++  {
++    if((void*)(&params[i]) == NULL)
++    {
++      BTNV_ERR("BT-NV-WRITE: params[%d]) is NULL \n", i);
++      BTNV_OS_ERR;
++      nwrite = -1;
++      goto out;
++    }
++    else
++    {
++      BTNV_INFO("BT-NV-WRITE: params[%d] is valid\n",i);
++    }
++    cmd[0] = (uint8)params[i].item;
++    cmd[1] = (uint8)params[i].writeprotect;
++    cmd[2] = (uint8)params[i].nSize;
++
++    BTNV_INFO("BT-NV-WRITE:****** params[i].writeprotect_0ld = %d new  = %d\n",
++                    (uint8)params[i].writeprotect,(uint8)cmd[1]);
++
++    memcpy(&cmd[NV_CMD_HDR_SIZE], params[i].pCmdBuffer, params[i].nSize);
++
++    if((nwrite = write(nFd, cmd, (NV_CMD_HDR_SIZE+params[i].nSize))) <= 0)
++    {
++      BTNV_ERR("BT-NV-WRITE: Failed to write to binary file\n");
++      BTNV_OS_ERR;
++      nwrite = -1;
++      goto out;
++    }
++    else
++    {
++      BTNV_INFO("BT-NV-WRITE: Written %d data",nwrite);
++      for(j = 0; j < NV_CMD_HDR_SIZE + params[i].nSize;j++)
++        BTNV_INFO("%02x  ",cmd[j]);
++      BTNV_INFO("\n");
++    }
++  }
++out:
++  close(nFd);
++  BTNV_INFO("BT-NV-WRITE: closed file pointer\n");
++  return nwrite;
++}
++/*==============================================================
++FUNCTION:  bt_nv_read
++==============================================================*/
++/**
++* Read the item  from (PERSISTENCE_PATH/BT_NV_FILE_NAME) as
++* mentioned in the  nv_params and return the value through
++* the argument pointer.
++*
++* @return  int - negative number on failure.
++*
++*/
++int bt_nv_read
++(
++ nv_persist_params *params_read
++)
++{
++  int nFd;
++  int nRead = 0;
++  unsigned char payload[NVM_PAYLOAD_MAXLENGTH];
++  unsigned char header[NV_CMD_HDR_SIZE];
++  int nNvItem = 0, i = 0;
++  char filename[NAME_MAX];
++
++  snprintf(filename, NAME_MAX, "%s/%s",PERSISTENCE_PATH,BT_NV_FILE_NAME);
++  BTNV_INFO("BT-NV-READ: Opening file '%s' for reading\n",filename);
++
++  /* Open the firmware file */
++  nFd = open(filename, O_RDONLY);
++  if(nFd < 0)
++  {
++    BTNV_ERR("BT-NV-READ: Open of firmware file failed\n");
++    BTNV_OS_ERR;
++    return -1;
++  }
++
++  nNvItem = 0;
++  while((nRead = read(nFd, header, NV_CMD_HDR_SIZE)) &&
++         (nRead == 0 || nRead == NV_CMD_HDR_SIZE))
++  {
++    /*Third byte gives the length*/
++    params_read[nNvItem].item = (nv_persist_items_enum_type)header[0];
++    params_read[nNvItem].writeprotect = (nv_persist_write_type)header[1];
++    params_read[nNvItem].nSize = header[2];
++
++    BTNV_INFO("BT-NV-READ: Header = %02x %02x %02x\n",params_read[nNvItem].item,
++                  params_read[nNvItem].writeprotect,
++                  params_read[nNvItem].nSize);
++
++    if(read(nFd, payload, params_read[nNvItem].nSize) ==
++            params_read[nNvItem].nSize)
++    {
++      BTNV_INFO("BT-NV-READ: NV item %02x value:",params_read[nNvItem].item);
++      for(i=0; i < params_read[nNvItem].nSize;i++)
++      {
++        params_read[nNvItem].pCmdBuffer[i] = payload[i];
++        BTNV_INFO("%02x  ",params_read[nNvItem].pCmdBuffer[i]);
++      }
++      BTNV_INFO("\n");
++    }
++    else
++    {
++      BTNV_ERR("BT-NV-READ: fread failed !!! \n");
++    }
++    nNvItem++;
++  }
++
++  BTNV_INFO("BT-NV-READ: Total number of item Read = %d\n",nNvItem);
++  close(nFd);
++  return nNvItem;
++}
++
++/*==============================================================
++FUNCTION:  bt_nv_cmd
++==============================================================*/
++/**
++*  This function is to do the read and write the NV item.
++*
++*  @see  nv_persist_func_enum_type -> For Read or Write (nv_persist_func_enum_type)
++*    nv_persist_items_enum_type  -> NV ID number (refer the nv_persist_items_enum_type enum)
++*    nv_persist_item_type    -> Structure which contains the variables to read or write.
++*    bIsRandom -> Used only in case of BD address NV item being written.
++*      bIsRandom = 1 implies that BD address programmed is random generated
++*      bIsRandom = 0 (default) implies it to be user programmed
++*
++*  @return  Returns the nagative value on failure.
++*
++*  @sideeffects Undetermined.
++*/
++int bt_nv_cmd(nv_persist_func_enum_type nvReadWriteFunc,  nv_persist_items_enum_type nvitem,
++                nv_persist_item_type *my_nv_item, int bIsRandom)
++{
++  nv_persist_params params_temp[NV_BT_ITEM_MAX];
++  nv_persist_stat_enum_type status = NV_SUCCESS;
++  int item = -1, check = -1;
++  int i =0,numitems =0;
++
++  if((numitems = bt_nv_read(params_temp)) == -1)
++  {
++    if(nvReadWriteFunc == NV_READ_F)
++    {
++      BTNV_ERR("BT-NV-CMD: Read from NV persist failed\n");
++      BTNV_OS_ERR;
++      return NV_FAILURE;
++    }
++    numitems = 0;
++  }
++
++  BTNV_INFO("BT-NV-CMD: numitems = %d\n",numitems);
++
++  if(nvitem <= NV_BT_ITEM_MIN || nvitem >= NV_BT_ITEM_MAX)
++  {
++    BTNV_ERR("BT-NV-CMD: Invalid NV item %d\n",nvitem);
++    BTNV_OS_ERR;
++    return NV_FAILURE;
++  }
++
++  for(i = 0; i <numitems;i++)
++  {
++    if( nvitem == params_temp[i].item)
++    {
++      item = i;
++      BTNV_INFO("BT-NV-CMD: Found NV item '%d' at '%d'\n",nvitem,item);
++      break;
++    }
++  }
++
++  switch(nvReadWriteFunc)
++  {
++    case NV_READ_F: //read from file
++      BTNV_INFO("BT-NV-CMD: Read Command Execution\n");
++      if(item == -1)
++      {
++        BTNV_ERR("BT-NV-CMD: NV item %d not found\n",nvitem);
++        BTNV_OS_ERR;
++        return NV_FAILURE;
++      }
++      if(nvitem == NV_BD_ADDR_I)
++      {
++        memcpy((*my_nv_item).bd_addr, params_temp[item].pCmdBuffer, NV_BD_ADDR_SIZE );
++        BTNV_INFO("BT-NV-CMD: NV_READ_F: BD Addr: %02x %02x %02x %02x %02x %02x\n",
++            params_temp[item].pCmdBuffer[0],params_temp[item].pCmdBuffer[1],
++            params_temp[item].pCmdBuffer[2],params_temp[item].pCmdBuffer[3],
++            params_temp[item].pCmdBuffer[4],params_temp[item].pCmdBuffer[5]);
++      }
++      else if(nvitem == NV_BT_SOC_REFCLOCK_TYPE_I)
++      {
++        (*my_nv_item).bt_soc_refclock_type = params_temp[item].pCmdBuffer[0];
++        BTNV_INFO("BT-NV-CMD: NV_READ_F: REFCLOCK_TYPE: %02x (0 -> 32MHz, 1-> 19P2MHz)\n",
++                params_temp[item].pCmdBuffer[0]);
++      }
++      else if(nvitem == NV_BT_SOC_CLK_SHARING_TYPE_I)
++      {
++        (*my_nv_item).bt_soc_clk_sharing_type = params_temp[item].pCmdBuffer[0];
++        BTNV_INFO("BT-NV-CMD: NV_READ_F: CLOCK_SHARING_TYPE: %02x (0 -> Disabled, 1-> Enabled)\n",
++              params_temp[item].pCmdBuffer[0]);
++      }
++      break;
++
++    case NV_WRITE_F: //write to file
++      BTNV_INFO("BT-NV-CMD: Write Command Execution\n");
++      if((item != -1) && params_temp[item].writeprotect)
++      {
++        BTNV_INFO("BT-NV-CMD: NV item %d can be written only once\n",params_temp[item].item);
++        status = NV_READONLY;
++      }
++      else
++      {
++        if(item == -1)
++        {
++          BTNV_INFO("BT-NV-CMD: NV item %d not found\n",nvitem);
++          item = numitems;
++          numitems++;
++        }
++        params_temp[item].item = (nv_persist_items_enum_type)nvitem;
++        params_temp[item].writeprotect = nvItems[nvitem - 1].multi_time_wr;
++        params_temp[item].nSize = (uint8)nvItems[nvitem -1].size;
++        if(nvitem == NV_BD_ADDR_I)
++        {
++            /* Overridden. Since in case of BD address it can be either
++               generated or user defined.
++               If random generated then BD address to be persistent across target
++               reboots but can be reprogrammed once by the user.
++               In case of user defined its persistent across target reboots and
++               can't be reprogrammed again by the user. */
++            params_temp[item].writeprotect = (bIsRandom) ? NV_WRITE_ONCE_DISABLE:
++                                                       nvItems[nvitem - 1].multi_time_wr;
++            params_temp[item].pCmdBuffer[0] = my_nv_item->bd_addr[0];
++            params_temp[item].pCmdBuffer[1] = my_nv_item->bd_addr[1];
++            params_temp[item].pCmdBuffer[2] = my_nv_item->bd_addr[2];
++            params_temp[item].pCmdBuffer[3] = my_nv_item->bd_addr[3];
++            params_temp[item].pCmdBuffer[4] = my_nv_item->bd_addr[4];
++            params_temp[item].pCmdBuffer[5] = my_nv_item->bd_addr[5];
++            BTNV_INFO("BT-NV-CMD: NV_WRITE_F: BD Addr: %02x %02x %02x %02x %02x %02x\n",
++                  params_temp[item].pCmdBuffer[0],params_temp[item].pCmdBuffer[1],
++                  params_temp[item].pCmdBuffer[2],params_temp[item].pCmdBuffer[3],
++                  params_temp[item].pCmdBuffer[4],params_temp[item].pCmdBuffer[5]);
++        }
++        else if(nvitem == NV_BT_SOC_REFCLOCK_TYPE_I)
++        {
++          params_temp[item].pCmdBuffer[0] = (*my_nv_item).bt_soc_refclock_type;
++          BTNV_INFO("BT-NV-CMD: NV_WRITE_F: REFCLOCK_TYPE: %02x (0 -> 32MHz, 1-> 19P2MHz)\n",
++                   params_temp[item].pCmdBuffer[0]);
++        }
++        else if(nvitem == NV_BT_SOC_CLK_SHARING_TYPE_I){
++          params_temp[item].pCmdBuffer[0] = (*my_nv_item).bt_soc_clk_sharing_type;
++          BTNV_INFO("BT-NV-CMD: NV_WRITE_F: CLK_SHARING_TYPE: %02x (0 ->Disable, 1->Enable )\n",
++                  params_temp[item].pCmdBuffer[0]);
++        }
++      }
++
++      BTNV_INFO("BT-NV-CMD:  bt_nv_write numitems: %d.... item = %d\n",numitems,item);
++      if(bt_nv_write(params_temp, numitems) == -1)
++      {
++        BTNV_ERR("BT-NV-CMD: Write failed\n");
++        BTNV_OS_ERR;
++        return NV_FAILURE;
++      }
++      break;
++
++    default:
++        status = NV_BADCMD;
++        BTNV_INFO("BT-NV-CMD: Oops default cmd option\n");
++        break;
++  }
++  return status;
++}
+diff -Naur android-l-clean/vendor/qcom/proprietary/bt/hci_qcomm_init/bt_nv.h android-l-uart-ibs/vendor/qcom/proprietary/bt/hci_qcomm_init/bt_nv.h
+--- android-l-clean/vendor/qcom/proprietary/bt/hci_qcomm_init/bt_nv.h	1970-01-01 08:00:00.000000000 +0800
++++ android-l-uart-ibs/vendor/qcom/proprietary/bt/hci_qcomm_init/bt_nv.h	2015-06-23 11:34:40.000000000 +0800
+@@ -0,0 +1,109 @@
++#ifndef BT_NV_H
++#define BT_NV_H
++/*============================================================================
++  Copyright (c) 2011-2012 Qualcomm Technologies, Inc.  All Rights Reserved.
++  Qualcomm Technologies Proprietary and Confidential.
++
++  FILE: bt_nv.h
++
++  OVERVIEW: Public declarations for the NV parser module.
++
++*==============================================================================
++                        EDIT HISTORY FOR MODULE
++
++  This section contains comments describing changes made to the module.
++  Notice that changes are listed in reverse chronological order. Please
++  use ISO format for dates.
++
++when        who  what, where, why
++----------  ---  -----------------------------------------------------------
++2010-02-15   ss  Intial version
++2011-09-28  rrr  Moved the implementation to CPP, for having BD address being
++                 programmed twice if previous BD address was random generated.
++2012-02-22  rrr  Added macro related to persistent file path.
++============================================================================*/
++#ifdef __cplusplus
++extern "C" {
++#endif
++
++#include <linux/limits.h>
++
++/* To Enable the logging define the BTNV_DEBUG */
++//#define BTNV_DEBUG
++
++#define TRUE 1
++#define FALSE 0
++#define NV_BD_ADDR_SIZE 6
++#define PERSISTENCE_PATH "/persist"
++#define BT_NV_FILE_NAME ".bt_nv.bin"
++
++/* BTS Master Clock Reference Value */
++typedef long int nv_ps_bt_soc_refclock_enum_type;
++#define NV_PS_BT_SOC_REFCLOCK_32MHZ ((nv_ps_bt_soc_refclock_enum_type)0)
++#define NV_PS_BT_SOC_REFCLOCK_19P2MHZ ((nv_ps_bt_soc_refclock_enum_type)1)
++
++/* Provides Information of BTS clk sharing */
++typedef long int nv_ps_bt_soc_clock_sharing_enum_type;
++#define  NV_PS_BT_SOC_CLOCK_SHARING_DISABLED ((nv_ps_bt_soc_clock_sharing_enum_type)0)
++#define  NV_PS_BT_SOC_CLOCK_SHARING_ENABLED ((nv_ps_bt_soc_clock_sharing_enum_type)1)
++
++
++typedef union{
++  /* Provides the BT Address */
++  unsigned char bd_addr[NV_BD_ADDR_SIZE];
++  /* Provides the BTS Master Reference Clock */
++  nv_ps_bt_soc_refclock_enum_type bt_soc_refclock_type;
++  /* Provides Information of BTS Clk sharing  */
++  nv_ps_bt_soc_clock_sharing_enum_type bt_soc_clk_sharing_type;
++} nv_persist_item_type;
++
++typedef enum {
++  NV_BT_ITEM_MIN,
++  NV_BD_ADDR_I,
++  NV_BT_SOC_REFCLOCK_TYPE_I,
++  NV_BT_SOC_CLK_SHARING_TYPE_I,
++  NV_BT_ITEM_MAX
++} nv_persist_items_enum_type;
++
++
++/*  Command codes when command is issued to the NV task.                   */
++typedef enum {
++  NV_READ_F,          /* Read item */
++  NV_WRITE_F          /* Write item */
++} nv_persist_func_enum_type;
++
++/*  Returned status codes for requested operation.                         */
++typedef enum {
++  NV_SUCCESS=0,          /* Request completed okay */
++  NV_FAILURE,          /* Command failed, reason other than NVM was full */
++  NV_BADCMD,        /* Unrecognizable command field */
++  NV_READONLY,      /* Parameter is write-protected and thus read only */
++} nv_persist_stat_enum_type;
++
++
++/*==============================================================
++FUNCTION:  bt_nv_cmd
++==============================================================*/
++/**
++  This function is to do the read and write the NV item.
++
++  @see  nv_persist_func_enum_type -> For Read or Write (nv_persist_func_enum_type)
++    nv_persist_items_enum_type  -> NV ID number (refer the nv_persist_items_enum_type enum)
++    nv_persist_item_type    -> Structure which contains the variables to read or write.
++    bIsRandom -> Used only in case of BD address NV item being written.
++      bIsRandom = 1 implies that BD address programmed is random generated
++      bIsRandom = 0 (default) implies it to be user programmed
++
++  @return  Returns the nagative value on failure.
++
++  @sideeffects Undetermined.
++*/
++int bt_nv_cmd(nv_persist_func_enum_type nvReadWriteFunc,  nv_persist_items_enum_type nvitem,
++                nv_persist_item_type *my_nv_item, int bIsRandom = 0);
++
++
++#ifdef __cplusplus
++}
++#endif
++
++#endif
+diff -Naur android-l-clean/vendor/qcom/proprietary/bt/hci_qcomm_init/comdef.h android-l-uart-ibs/vendor/qcom/proprietary/bt/hci_qcomm_init/comdef.h
+--- android-l-clean/vendor/qcom/proprietary/bt/hci_qcomm_init/comdef.h	1970-01-01 08:00:00.000000000 +0800
++++ android-l-uart-ibs/vendor/qcom/proprietary/bt/hci_qcomm_init/comdef.h	2015-06-23 11:34:40.000000000 +0800
+@@ -0,0 +1,1288 @@
++#ifndef COMDEF_H
++#define COMDEF_H
++/*===========================================================================
++
++                   S T A N D A R D    D E C L A R A T I O N S
++
++DESCRIPTION
++  This header file contains general types and macros that are of use
++  to all modules.  The values or definitions are dependent on the specified
++  target.  T_WINNT specifies Windows NT based targets, otherwise the
++  default is for ARM targets.
++
++       T_WINNT  Software is hosted on an NT platforn, triggers macro and
++                type definitions, unlike definition above which triggers
++                actual OS calls
++
++DEFINED TYPES
++
++       Name      Definition
++       -------   --------------------------------------------------------
++       byte      8  bit unsigned value
++       word      16 bit unsigned value
++       dword     32 bit unsigned value
++
++       uint1     byte
++       uint2     word
++       uint4     dword
++
++       uint8     8  bit unsigned value
++       uint16    16 bit unsigned value
++       uint32    32 bit unsigned value
++       uint64    64 bit unsigned value
++
++       int8      8  bit signed value
++       int16     16 bit signed value
++       int32     32 bit signed value
++       int 64    64 bit signed value
++
++       sint31    32 bit signed value
++       sint15    16 bit signed value
++       sint7     8  bit signed value
++
++       int1      8  bit signed value
++       int2      16 bit signed value
++       int4      32 bit signed value
++
++       boolean   8 bit boolean value
++
++DEFINED CONSTANTS
++
++       Name      Definition
++       -------   --------------------------------------------------------
++       TRUE      Asserted boolean condition (Logical 1)
++       FALSE     Deasserted boolean condition (Logical 0)
++
++       ON        Asserted condition
++       OFF       Deasserted condition
++
++       NULL      Pointer to nothing
++
++       PACKED    Used to indicate structures which should use packed
++                 alignment
++
++       INLINE    Used to inline functions for compilers which support this
++
++  -----------------------------------------------------------------------------
++  Copyright (c) 1990, 1992-1994, 1997-2007 Qualcomm Technologies, Inc.
++  All Rights Reserved. Qualcomm Technologies Proprietary and Confidential.
++  -----------------------------------------------------------------------------
++===========================================================================*/
++
++
++/*===========================================================================
++
++                      EDIT HISTORY FOR FILE
++
++This section contains comments describing changes made to this file.
++Notice that changes are listed in reverse chronological order.
++
++$Header: //linux/pkgs/proprietary/oncrpc/main/source/inc/comdef.h#4 $
++
++when       who     what, where, why
++--------   ---     ----------------------------------------------------------
++01/09/06   bfc     Added Pthe OST_ALIGN macro.
++09/22/06    th     Added FIQLOCK_SAV/FIQFREE_SAV macros for Windows Mobile
++05/10/06   taw     Added FIQLOCK_SAV/FIQFREE_SAV macros.
++01/25/06   sam     Added MSM_INTLOCK/MSM_INTFREE macros.
++07/13/05   adm     Merged in changes related to supporting BootLoader compilation
++                   for L4 builds
++07/06/05   ptm     Merge to 6550 for L4.
++06/30/05   adm     Merging in 6800's later changes and made some fixes.
++06/29/05   adm     Merged in 6800 l4 related changes
++02/28/04   jcw     Removed TASKLOCK/TASKFREE definition to INTLOCK/INTFREE for L4.
++02/14/04   hcg     Add TASKLOCK/TASKFREE definition to INTLOCK/INTFREE for L4.
++08/25/04   jac     suppress lint error 413 for FPOS macro
++11/19/03    gr     Added multiple definition protection for the ARR_SIZE
++                   macro.
++10/18/03    gr     Moved TASKLOCK/TASKFREE into this file from rex.h. DMSS
++                   expects to pick these up just by including comdef.h.
++10/17/03    gr     Made inclusion of target.h unconditional (TG is now
++                   deprecated).
++10/16/03    gr     Defined LOCAL away unconditionally. DMSS doesn't build with
++                   LOCAL set to static.
++01/07/04   ajn     Re-integrated 11/14/03 change
++11/20/03   ak      ARR_SIZE conflict with BREW files fixed
++11/14/03   ajn     Removed #include "rex.h" to avoid circular include issue.
++                   Instead, prototypes for rex_int_lock()/rex_int_free()
++                   have been explicitly included for INTLOCK/INTFREE macros.
++06/11/01    gr     Added MOD_BY_POWER_OF_TWO macro.
++04/12/01    sq     Added inpdw and outpdw macros
++           vas     Added solaris support
++04/06/01    gr     Removed the definitions of abs and labs.
++01/25/01   day     Merged from MSM5105_COMMON.00.00.05.
++             Added include for stdlib.h within WINNT ifdef
++       Added support for ARM_ASM
++       Added support SWIG preprocessor.
++09/09/99   tac     Merged in a bunch of panther changes.
++08/11/99   jct     Corrected conditional compilation around labs to check for
++                   labs instead of abs
++06/30/99   jct     Added PC_EMULATOR capability for INTLOCK and INTLOCKSAV
++06/15/99   jct     Cleanup to make work in Windows NT environment.  Addition
++                   of int(n) types where n is 8,16,32,64 and addition of
++                   unit64.  Removal of OS comments and defines as this is replaced
++                   by T_WINNT.  Conditional inclusion of MAX, MIN, labs, abs,
++                   NULL definitions.  Removal of volatile from packed definition
++                   stdlib.h included for Win32 based targets since this replaces several
++                   of the define here.  Changed out uts calls to be comet calls.
++                   Added a defines for Windows NT targets to define away symbols
++                   no longer supported
++04/09/99    ms     Lint cleanup.
++04/01/99    ms     Lint cleanup.
++02/17/99    ms     Parenthesized abs and labs.
++                   Defined __packed to volatile to exploit lint.
++12/16/98   jct     Removed 80186 support
++12/01/98    ms     Removed definition of bsp_io_base.
++11/20/98    ms     Typecast to volatile pointers in inp,outp,inpw and outpw.
++10/10/98   jct     Honing of OS and T_ definitions, added T_WINNT as a target
++                   which triggers something different then which OS since
++                   we may be running REX on an NT platform, but strictly
++                   speaking, the application software is using REX, not NT
++                   as the OS.  Changed ROM for WINNT/ARM targets to be nothing
++                   instead of const
++09/09/98   jct     Updates to merge ARM support with 186 support, added some
++                   new type aliases, added some segmented architecture macros,
++                   updated comments, removed unused code, updated declaration
++                   of inp/outp to have cdecl
++08/01/98   jct     Updates to support ARM processor
++03/25/96   jah     Moved SET_VECT to 80186.h
++02/06/96   fkm     Put ()s around Macros to Make Lint Happy
++01/12/95   jah     Updated dependency in MACRO INTLOCK_SAV / INTFREE_SAV.
++12/20/94   jah     Corrected typo in ARR_SIZE() macro comments
++03/11/94   jah     Added #ifdef _lint of NULL as 0 for near/far lint problem.
++06/11/93   jah     Changed FPOS() to cast the pointer to 'near' to avoid the
++                   compiler complaints about lost segments.
++01/28/93   twp     Added ARR_SIZE macro to return number of array elements.
++07/17/92   jah     Changed int1 from 'char' to 'signed char'
++06/10/92   jah     Added WORD_LO/HI, INC_SAT
++05/19/92   jah     Added header comments for macros & made them lint-friendly
++05/04/92   jah     Added define for ROM
++03/02/92   jah     Added in/outp prototypes, INT* Macro comments w/lint
++02/20/92   arh     Added LOCAL macro and ifdef/endif around file
++
++===========================================================================*/
++
++
++/*===========================================================================
++
++                            Data Declarations
++
++===========================================================================*/
++
++#ifdef __cplusplus
++extern "C" {
++#endif
++
++#include "target.h"
++#include "armasm.h"
++
++#if defined FEATURE_L4  && !defined FEATURE_L4_KERNEL && \
++    !defined BUILD_BOOT_CHAIN && !defined BUILD_BOOT_CHAIN_OEMSBL
++  #ifndef _ARM_ASM_
++    #ifdef FEATURE_QUARTZ_135
++      #include <l4/cust/msm_syscall.h>
++    #else /* FEATURE_QUARTZ_135 */
++     #include <msm/msm_syscall.h>
++    #endif /* FEATURE_QUARTZ_135 */
++  #endif /* _ARM_ASM_ */
++#endif /* FEATURE_L4 && !FEATURE_L4_KERNEL &&
++          !FEATURE_L4_KERNEL && !BUILD_BOOT_CHAIN_OEMSBL */
++
++/* For NT apps we want to use the Win32 definitions and/or those
++** supplied by the Win32 compiler for things like NULL, MAX, MIN
++** abs, labs, etc.
++*/
++#ifdef T_WINNT
++   #ifndef WIN32
++      #define WIN32
++   #endif
++   #include <stdlib.h>
++#endif
++
++/* ------------------------------------------------------------------------
++** Constants
++** ------------------------------------------------------------------------ */
++
++#ifdef TRUE
++#undef TRUE
++#endif
++
++#ifdef FALSE
++#undef FALSE
++#endif
++
++#define TRUE   1   /* Boolean true value. */
++#define FALSE  0   /* Boolean false value. */
++
++#define  ON   1    /* On value. */
++#define  OFF  0    /* Off value. */
++
++#ifdef _lint
++  #define NULL 0
++#endif
++
++#ifndef NULL
++  #define NULL  0
++#endif
++
++/* -----------------------------------------------------------------------
++** Standard Types
++** ----------------------------------------------------------------------- */
++
++/* The following definitions are the same accross platforms.  This first
++** group are the sanctioned types.
++*/
++#ifndef _ARM_ASM_
++typedef  unsigned char      boolean;     /* Boolean value type. */
++
++typedef  unsigned long int  uint32;      /* Unsigned 32 bit value */
++typedef  unsigned short     uint16;      /* Unsigned 16 bit value */
++typedef  unsigned char      uint8;       /* Unsigned 8  bit value */
++
++typedef  signed long int    int32;       /* Signed 32 bit value */
++typedef  signed short       int16;       /* Signed 16 bit value */
++typedef  signed char        int8;        /* Signed 8  bit value */
++
++/* This group are the deprecated types.  Their use should be
++** discontinued and new code should use the types above
++*/
++typedef  unsigned char     byte;         /* Unsigned 8  bit value type. */
++typedef  unsigned short    word;         /* Unsinged 16 bit value type. */
++typedef  unsigned long     dword;        /* Unsigned 32 bit value type. */
++
++typedef  unsigned char     uint1;        /* Unsigned 8  bit value type. */
++typedef  unsigned short    uint2;        /* Unsigned 16 bit value type. */
++typedef  unsigned long     uint4;        /* Unsigned 32 bit value type. */
++
++typedef  signed char       int1;         /* Signed 8  bit value type. */
++typedef  signed short      int2;         /* Signed 16 bit value type. */
++typedef  long int          int4;         /* Signed 32 bit value type. */
++
++typedef  signed long       sint31;       /* Signed 32 bit value */
++typedef  signed short      sint15;       /* Signed 16 bit value */
++typedef  signed char       sint7;        /* Signed 8  bit value */
++
++#ifdef FEATURE_WINCE
++  #define WCE_MSG  RETAILMSG
++  #define WCE_MSG6 RETAILMSG
++  #define WCE_MSGT RETAILMSG
++  #define WCE_MSG_SDBG RETAILMSG
++#endif
++/************************** The PACK() macro *****************************
++  This block sets up the semantics for PACK() macro based upon
++  upon the target compiler. PACK() is necessary to ensure portability of C
++  variable/struct/union packing across many platforms.  For example, ARM
++  compilers require the following:
++    typedef __packed struct { ... } foo_t;
++
++  But GCC requires this to achieve the same effect:
++    typedef struct __attribute((__packed__)) struct { ... } foo_t;
++
++  And, of course, Microsoft VC++ requires an alignment #pragma prologue and
++  epilogue. To satisfy all three, the following form is recommended:
++
++    #ifdef _WIN32
++		#pragma pack(push,1) // Save previous, and turn on 1 byte alignment
++    #endif
++
++    typedef PACK(struct)
++    {
++      ...
++    } such_and_such_t;
++
++    typedef PACK(struct)
++    {
++      ...
++    } this_and_that_t;
++
++    typedef PACK(struct)
++    {
++      PACK(struct)
++      {
++        ...
++      } hdr;
++      PACK(union)
++      {
++        such_and_such_t sas;
++        this_and_that_t tat;
++      } payload;
++    } cmd_t;
++
++*********************** BEGIN PACK() Definition ***************************/
++#if defined __GNUC__
++  #define PACK(x)       x __attribute__((__packed__))
++#elif defined __arm
++  #define PACK(x)       __packed x
++#else
++  #error No PACK() macro defined for this compiler
++#endif
++/********************** END PACK() Definition *****************************/
++/* ---------------------------------------------------------------------
++** Compiler Keyword Macros
++** --------------------------------------------------------------------- */
++#if (! defined T_WINNT) && (! defined TARGET_OS_SOLARIS)
++#ifndef SWIG  /* The SWIG preprocessor gets confused by these */
++  /* Non WinNT Targets
++  */
++  typedef  signed long long   int64;       /* Signed 64 bit value */
++  typedef  unsigned long long uint64;      /* Unsigned 64 bit value */
++
++#if defined(__ARMCC_VERSION) 
++  #define PACKED __packed
++  #define PACKED_POST
++  #define ALIGN(__value) __align(__value)
++  #define POST_ALIGN(__value)
++  #define INLINE __inline
++  #define inline __inline
++#else  /* __GNUC__ */
++  #define PACKED 
++  #ifndef FEATURE_WINCE
++    #define ALIGN(__value) __attribute__((__aligned__(__value)))
++    #define POST_ALIGN(__value)
++    #define PACKED_POST    __attribute__((__packed__))
++  #else /* FEATURE_WINCE */
++    #ifdef WINCE_TODO
++      /*----------------------------------------------------------------------
++        Should we be using something closer to the T_WINNT case below?
++      ----------------------------------------------------------------------*/
++    #endif /* WINCE_TODO */
++    #define ALIGN(__value)
++    #define POST_ALIGN(__value)
++    #define PACKED_POST
++    #define INLINE 
++  #endif /* FEATURE_WINCE */
++    
++
++  #ifndef INLINE
++    #define INLINE inline
++  #endif
++#endif /* defined (__GNUC__) */
++
++  #define CDECL
++#endif /* SWIG */
++  #define far
++  #define near
++  #define _far
++  #define _near
++//  #define _cdecl
++  #define cdecl
++  #define _pascal
++  #define _interrupt
++
++#else /* T_WINNT || TARGET_OS_SOLARIS */
++
++  /* WINNT or SOLARIS based targets
++  */
++#if (defined __GNUC__) || (defined TARGET_OS_SOLARIS)
++  typedef long long           int64;
++  typedef unsigned long long  uint64;
++#else
++  typedef  __int64            int64;       /* Signed 64 bit value */
++  typedef  unsigned __int64   uint64;      /* Unsigned 64 bit value */
++#endif
++  #define PACKED
++  #define PACKED_POST
++  #define ALIGN(__value)
++  #define POST_ALIGN(__value)
++  #ifndef INLINE
++
++  /* INLINE is defined to __inline because WINNT targets work fine with it
++   * and defining it to nothing does not work because the inline function
++   * definition is then multiply defined.  Solaris may need a different value.
++   */
++  #define INLINE __inline
++  #endif
++  #ifndef CDECL
++     #define CDECL __cdecl
++  #endif
++  #define _pascal
++  #define _far
++  #define far
++  #define near
++  #define _near
++  #define cdecl
++  #define _cdecl
++  #define _interrupt
++  #define __packed
++  #define _fmemcpy memcpy
++
++#endif /* T_WINNT */
++#endif // #ifndef _ARM_ASM_
++
++/* ----------------------------------------------------------------------
++** Lint does not understand __packed, so we define it away here.  In the
++** past we did this:
++**   This helps us catch non-packed pointers accessing packed structures,
++**   for example, (although lint thinks it is catching non-volatile pointers
++**   accessing volatile structures).
++**   This does assume that volatile is not being used with __packed anywhere
++**   because that would make Lint see volatile volatile (grrr).
++** but found it to be more trouble than it was worth as it would emit bogus
++** errors
++** ---------------------------------------------------------------------- */
++#ifdef _lint
++  #define __packed
++#endif
++
++/* ----------------------------------------------------------------------
++**                          STANDARD MACROS
++** ---------------------------------------------------------------------- */
++
++#ifndef SWIG /* these confuse the SWIG preprocessor and aren't needed for it */
++
++
++/*===========================================================================
++
++MACRO MEM_B
++MACRO MEM_W
++
++DESCRIPTION
++  Take an address and dereference it as a byte/word, allowing access to an
++  arbitrary memory byte/word.
++
++PARAMETERS
++  x     address to be dereferenced
++
++DEPENDENCIES
++  None
++
++RETURN VALUE
++  MEM_B byte at the given address
++  MEM_W word at the given address
++
++SIDE EFFECTS
++  None
++
++===========================================================================*/
++
++#define  MEM_B( x )  ( *( (byte *) (x) ) )
++#define  MEM_W( x )  ( *( (word *) (x) ) )
++
++
++
++/*===========================================================================
++
++MACRO MAX
++MACRO MIN
++
++DESCRIPTION
++  Evaluate the maximum/minimum of 2 specified arguments.
++
++PARAMETERS
++  x     parameter to compare to 'y'
++  y     parameter to compare to 'x'
++
++DEPENDENCIES
++  'x' and 'y' are referenced multiple times, and should remain the same
++  value each time they are evaluated.
++
++RETURN VALUE
++  MAX   greater of 'x' and 'y'
++  MIN   lesser of 'x' and 'y'
++
++SIDE EFFECTS
++  None
++
++===========================================================================*/
++#ifndef MAX
++   #define  MAX( x, y ) ( ((x) > (y)) ? (x) : (y) )
++#endif
++
++#ifndef MIN
++   #define  MIN( x, y ) ( ((x) < (y)) ? (x) : (y) )
++#endif
++
++
++
++/*===========================================================================
++
++MACRO FPOS
++
++DESCRIPTION
++  This macro computes the offset, in bytes, of a specified field
++  of a specified structure or union type.
++
++PARAMETERS
++  type          type of the structure or union
++  field         field in the structure or union to get the offset of
++
++DEPENDENCIES
++  None
++
++RETURN VALUE
++  The byte offset of the 'field' in the structure or union of type 'type'.
++
++SIDE EFFECTS
++  The lint error "Warning 545: Suspicious use of &" is suppressed within
++  this macro.  This is due to the desire to have lint not complain when
++  'field' is an array.
++
++===========================================================================*/
++
++#define FPOS( type, field ) \
++    /*lint -e545 */ ( (dword) &(( type *) 0)-> field ) /*lint +e545 */
++
++
++
++/*===========================================================================
++
++MACRO FSIZ
++
++DESCRIPTION
++  This macro computes the size, in bytes, of a specified field
++  of a specified structure or union type.
++
++PARAMETERS
++  type          type of the structure or union
++  field         field in the structure or union to get the size of
++
++DEPENDENCIES
++  None
++
++RETURN VALUE
++  size in bytes of the 'field' in a structure or union of type 'type'
++
++SIDE EFFECTS
++  None
++
++===========================================================================*/
++
++#define FSIZ( type, field ) sizeof( ((type *) 0)->field )
++
++
++
++/*===========================================================================
++
++MACRO FLIPW
++
++DESCRIPTION
++  Takes a 2 byte array, with the most significant byte first, followed
++  by the least significant byte, and converts the quantity into a word
++  with Intel byte order (LSB first)
++
++PARAMETERS
++  ray   array of 2 bytes to be converted to a word
++
++DEPENDENCIES
++  None
++
++RETURN VALUE
++  word in Intel byte order comprised of the 2 bytes of ray.
++
++SIDE EFFECTS
++  None
++
++===========================================================================*/
++
++#define  FLIPW( ray ) ( (((word) (ray)[0]) * 256) + (ray)[1] )
++
++
++
++/*===========================================================================
++
++MACRO FLOPW
++
++DESCRIPTION
++  Reverses bytes of word value and writes them to a 2 byte array.
++  Effectively the reverse of the FLIPW macro.
++
++PARAMETERS
++  ray   array to receive the 2 bytes from 'val'
++  val   word to break into 2 bytes and put into 'ray'
++
++DEPENDENCIES
++  None
++
++RETURN VALUE
++  None
++
++SIDE EFFECTS
++  None
++
++===========================================================================*/
++#define  FLOPW( ray, val ) \
++  (ray)[0] = ((val) / 256); \
++  (ray)[1] = ((val) & 0xFF)
++
++
++
++/*===========================================================================
++
++MACRO B_PTR
++MACRO W_PTR
++
++DESCRIPTION
++  Casts the address of a specified variable as a pointer to byte/word,
++  allowing byte/word-wise access, e.g.
++  W_PTR ( xyz )[ 2 ] = 0x1234;  -or-    B_PTR ( xyz )[ 2 ] = 0xFF;
++
++PARAMETERS
++  var   the datum to get a word pointer to
++
++DEPENDENCIES
++  None
++
++RETURN VALUE
++  Word pointer to var
++
++SIDE EFFECTS
++  None
++
++===========================================================================*/
++
++#define  B_PTR( var )  ( (byte *) (void *) &(var) )
++#define  W_PTR( var )  ( (word *) (void *) &(var) )
++#define  D_PTR( var )  ( (dword *) (void *) &(var) )
++
++
++/*===========================================================================
++
++MACRO WORD_LO
++MACRO WORD_HI
++
++DESCRIPTION
++  Take a word and extract the least-significant or most-significant byte.
++
++PARAMETERS
++  xxx   word to extract the Low/High from
++
++DEPENDENCIES
++  None
++
++RETURN VALUE
++  WORD_LO       Least significant byte of xxx.
++  WORD_HI       Most significant byte of xxx.
++
++SIDE EFFECTS
++  None
++
++===========================================================================*/
++
++#define  WORD_LO(xxx)  ((byte) ((word)(xxx) & 255))
++#define  WORD_HI(xxx) \
++  /*lint -e572 */  ((byte) ((word)(xxx) >> 8))  /*lint +e572 */
++
++
++/*===========================================================================
++
++MACRO RND8
++
++DESCRIPTION
++  RND8 rounds a number up to the nearest multiple of 8.
++
++PARAMETERS
++  x     Number to be rounded up
++
++DEPENDENCIES
++  None
++
++RETURN VALUE
++  x rounded up to the nearest multiple of 8.
++
++SIDE EFFECTS
++  None
++
++===========================================================================*/
++
++#define RND8( x )       ((((x) + 7) / 8 ) * 8 )
++
++/* -----------------------------------------------------------------------
++** Temporary inclusion of rex.h because there is code in AMSS that expects
++** to pick up Rex definitions by just including comdef.h.
++** ----------------------------------------------------------------------- */
++//#include "rex.h"
++
++/*===========================================================================
++
++MACRO INTLOCK / INTFREE
++
++DESCRIPTION
++  INTLOCK Saves current interrupt state on stack then informs the kernel
++  not to process interrupts in this thread. One interrupt may still occur, 
++  but it will not be processed until either INTFREE is called or a context 
++  switch to another thread which has interrupts enabled is made.
++
++  INTFREE Restores previous interrupt state from stack. Used in conjunction
++  with INTLOCK.
++
++  INTLOCK/INTFREE may be nested, in which case inner INTLOCK/INTFREE
++  pairs will have no effect.
++
++PARAMETERS
++  None
++
++DEPENDENCIES
++  None
++
++RETURN VALUE
++  None
++
++SIDE EFFECTS
++  INTLOCK stops interrupt processing.
++  INTFREE restores the interrupt mask saved previously.
++
++===========================================================================*/
++#if defined PC_EMULATOR_H && !defined T_REXNT
++
++   #define PC_EMULATOR_INTLOCK
++   #include PC_EMULATOR_H
++   #undef PC_EMULATOR_INTLOCK
++
++#elif defined T_WINNT || defined FEATURE_ANDROID
++
++   #define INTLOCK()
++   #define INTFREE()
++
++#elif defined FEATURE_WINCE_OAL
++  #define INTLOCK()  INTERRUPTS_OFF()
++  #define INTFREE()  INTERRUPTS_ON()
++#elif !defined _ARM_ASM_ && (!defined FEATURE_L4 || defined FEATURE_L4_KERNEL)
++
++  #ifdef __cplusplus
++    extern "C" {
++  #endif
++      extern dword rex_int_lock( void );
++      extern dword rex_int_free( void );
++#ifdef FEATURE_WINCE
++      extern int rex_ints_are_locked( void );
++#endif
++
++  #ifdef __cplusplus
++    }
++  #endif
++
++  #define  INTLOCK( )  { dword sav = rex_int_lock();
++  #define  INTFREE( )  if(!sav) (void)rex_int_free();}
++
++#endif
++
++
++/*===========================================================================
++
++MACRO MSM_INTLOCK / MSM_INTFREE
++
++DESCRIPTION
++  MSM_INTLOCK Saves current interrupt state on stack then locks interrupts. 
++  No interrupts will be taken until either MSM_INTFREE is called or a context 
++  switch to another thread which has interrupts enabled is made. This
++  macro is slower than INTLOCK and should only be used when interrupt 
++  locking is needed to ensure timing. To simply prevent context switching, 
++  use the INTLOCK/INTFREE macros above.
++
++  MSM_INTFREE Restores previous interrupt state from stack. Used in conjunction
++  with MSM_INTLOCK.
++
++  MSM_INTLOCK/MSM_INTFREE may be nested, in which case inner 
++  MSM_INTLOCK/MSM_INTFREE pairs will have no effect. It may also be nested
++  inside or outside of INTLOCK/INTFREE.
++
++PARAMETERS
++  None
++
++DEPENDENCIES
++  None
++
++RETURN VALUE
++  None
++
++SIDE EFFECTS
++  MSM_INTLOCK prevents any interrupts from occurring until MSM_INTFREE is
++    called or a context switch to a thread with interrupts enabled is made.
++  MSM_INTFREE restores the interrupt mask saved previously.
++
++===========================================================================*/
++#ifndef _ARM_ASM
++#if defined FEATURE_L4
++  #ifdef __cplusplus
++    extern "C" {
++  #endif
++      extern dword rex_msm_int_lock( void );
++      extern void rex_msm_int_free( dword set );
++  #ifdef __cplusplus
++    }
++  #endif
++
++  #define MSM_INTLOCK()  { dword sav = rex_msm_int_lock();
++  #define MSM_INTFREE()  rex_msm_int_free( sav ); }
++
++#else
++
++  #define MSM_INTLOCK() INTLOCK()
++  #define MSM_INTFREE() INTFREE()
++
++#endif
++#endif
++
++/*===========================================================================
++
++MACRO FIQLOCK / FIQFREE
++
++DESCRIPTION
++  FIQLOCK Saves current FIQ state on stack then disables FIQ interrupts.
++  Used in conjunction with FIQFREE.
++
++  FIQFREE Restores previous FIQ interrupt state from stack.  Used in 
++  conjunction with FIQLOCK.
++
++PARAMETERS
++  None
++
++DEPENDENCIES
++  This is currently only available in L4 based builds.
++
++RETURN VALUE
++  None
++
++SIDE EFFECTS
++  FIQLOCK turns off FIQ interrupts.
++  FIQFREE restores the FIQ interrupt mask saved previously.
++
++===========================================================================*/
++#if defined FEATURE_L4 && !defined _ARM_ASM_
++
++  #ifdef __cplusplus
++    extern "C" {
++  #endif
++      extern dword rex_fiq_op( dword lock );
++  #ifdef __cplusplus
++    }
++  #endif
++
++  #define  FIQLOCK()  { dword sav = rex_fiq_op(1);
++  #define  FIQFREE()  if(!(sav & PSR_Fiq_Mask)) (void)rex_fiq_op(0);}
++    
++#else
++
++  #define FIQLOCK()
++  #define FIQFREE()
++
++#endif
++
++/*===========================================================================
++
++MACRO INTLOCK_SAV / INTFREE_SAV
++
++DESCRIPTION
++  INTLOCK_SAV Saves current interrupt state in specified variable sav_var
++  then disables interrupts.  Used in conjunction with INTFREE_SAV.
++
++  INTFREE_SAV Restores previous interrupt state from specified variable
++  sav_var.  Used in conjunction with INTLOCK_SAV.
++
++PARAMETERS
++  sav_var       Current flags register, including interrupt status
++
++DEPENDENCIES
++  None.
++
++RETURN VALUE
++  None
++
++SIDE EFFECTS
++  INTLOCK_SAV turn off interrupts
++  INTFREE_SAV restore the interrupt mask saved previously
++
++===========================================================================*/
++
++
++#ifdef _lint    /* get lint to 'know' the parameter is accessed */
++
++  #define  INTLOCK_SAV(sav_var)   (sav_var = 1)
++  #define  INTFREE_SAV(sav_var)   (sav_var = sav_var + 1)
++
++#else
++
++   #if defined PC_EMULATOR_H && !defined T_REXNT
++
++      #define PC_EMULATOR_INTLOCKSAV
++      #include PC_EMULATOR_H
++      #undef  PC_EMULATOR_INTLOCKSAV
++
++   #elif defined T_WINNT
++
++     #define  INTLOCK_SAV( sav_var )
++     #define  INTFREE_SAV( sav_var )
++
++#elif !defined _ARM_ASM_ && (!defined FEATURE_L4 || defined FEATURE_L4_KERNEL)
++
++     #define  INTLOCK_SAV( sav_var )  sav_var = rex_int_lock()
++     #define  INTFREE_SAV( sav_var )  if(!sav_var) rex_int_free()
++
++   #endif
++
++#endif /* END if _lint */
++
++/*===========================================================================
++
++MACRO FIQLOCK_SAV / FIQFREE_SAV
++
++DESCRIPTION
++  FIQLOCK Saves current FIQ state in specified variable sav_var 
++  then disables FIQ interrupts.  Used in conjunction with FIQFREE_SAV.
++
++  FIQFREE_SAV Restores previous FIQ interrupt state from specified variable
++  sav_var.  Used in conjunction with FIQLOCK_SAV.
++
++PARAMETERS
++  sav_var       Current flags register, including interrupt status
++
++DEPENDENCIES
++  This is currently only available in L4 based builds.
++
++RETURN VALUE
++  None
++
++SIDE EFFECTS
++  FIQLOCK_SAV turns off FIQ interrupts.
++  FIQFREE_SAV restores the FIQ interrupt mask saved previously.
++
++===========================================================================*/
++#ifdef _lint    /* get lint to 'know' the parameter is accessed */
++
++  #define  FIQLOCK_SAV(sav_var)   (sav_var = 1)
++  #define  FIQFREE_SAV(sav_var)   (sav_var = sav_var + 1)
++
++#else
++
++  #if defined FEATURE_L4 && !defined _ARM_ASM_
++  
++    #ifdef __cplusplus
++      extern "C" {
++    #endif
++        extern dword rex_fiq_op( dword lock );
++    #ifdef __cplusplus
++      }
++    #endif
++  
++    #define  FIQLOCK_SAV(sav_var)  (sav_var = rex_fiq_op(1))
++    #define  FIQFREE_SAV(sav_var)  if(!(sav_var & PSR_Fiq_Mask)) \
++                                      (void)rex_fiq_op(0)
++
++  #elif defined FEATURE_WINCE
++
++    #define  FIQLOCK_SAV(sav_var)  (sav_var = FIQLockSave())
++    #define  FIQFREE_SAV(sav_var)  if(!(sav_var & 0x40)) (void)FIQLockRestore()
++
++  #else
++  
++    #define FIQLOCK_SAV()
++    #define FIQFREE_SAV()
++  
++  #endif
++  
++#endif
++
++
++/*===========================================================================
++MACRO TASKLOCK/TASKFREE/TASKLOCK_SAV/TASKFREE_SAV
++
++DESCRIPTION
++  TASKLOCK prevents context switching from the point at which it is invoked
++  until a matching TASKFREE is invoked.  While task locked, the current task
++  is guaranteed to not be replaced by a different task, even if the other
++  task has a higher priority.  However, TASKLOCK does not block interrupts
++  from occurring.  An ISR will pre-empt the task, but even if the ISR causes
++  a higher priority task to become ready, control will still resume at the
++  interrupted task.
++
++  Note that a rex-wait() while a TASKLOCK is in effect will not work as
++  normal, as the calling task will not be suspended.
++
++  Also, TASKLOCK/TASKFREE have no effect if called from within an ISR.
++
++  TASKFREE re-enables context switching.
++
++  TASKLOCK_SAV and TASKFREE_SAV are similar to TASKLOCK and TASKFREE
++  respectively, except that the TASKFREE_SAV that matches a TASKLOCK_SAV
++  does not have to be at the same static scope within a function. This
++  makes it easier, for instance, to enable task scheduling and return from
++  the middle of a function.
++
++===========================================================================*/
++#ifdef T_WINNT
++#ifdef __cplusplus
++   extern "C" {
++#endif
++   unsigned char rexnt_is_rex_thread( void );
++#ifdef __cplusplus
++   }
++#endif
++   /* tasks must not be locked by non-REX threads */
++#define TASKLOCK( ) {\
++   unsigned char REXNT_IS_REX_THREAD=rexnt_is_rex_thread();\
++   if ( REXNT_IS_REX_THREAD ) rex_task_lock( ); {
++
++#define TASKFREE( ) \
++   } if ( REXNT_IS_REX_THREAD ) rex_task_free( ); }
++
++#else
++
++#define TASKLOCK( ) { rex_task_lock( );
++
++#define TASKFREE( ) rex_task_free( ); }
++
++#define TASKLOCK_SAV( ) rex_task_lock( )
++
++#define TASKFREE_SAV( ) rex_task_free( )
++
++#endif /* T_WINNT */
++
++/*===========================================================================
++
++MACRO UPCASE
++
++DESCRIPTION
++  Convert a character to uppercase, the character does not have to
++  be printable or a letter.
++
++PARAMETERS
++  c             Character to be converted
++
++DEPENDENCIES
++  'c' is referenced multiple times, and should remain the same value
++  each time it is evaluated.
++
++RETURN VALUE
++  Uppercase equivalent of the character parameter
++
++SIDE EFFECTS
++  None
++
++===========================================================================*/
++
++#define  UPCASE( c ) ( ((c) >= 'a' && (c) <= 'z') ? ((c) - 0x20) : (c) )
++
++
++/*===========================================================================
++
++MACRO DECCHK
++MACRO HEXCHK
++
++DESCRIPTION
++  These character attribute macros are similar to the standard 'C' macros
++  (isdec and ishex), but do not rely on the character attributes table used
++  by Microsoft 'C'.
++
++PARAMETERS
++  c             Character to be examined
++
++DEPENDENCIES
++  None
++
++RETURN VALUE
++  DECCHK        True if the character is a decimal digit, else False
++  HEXCHK        True if the chacters is a hexidecimal digit, else False
++
++SIDE EFFECTS
++  None
++
++===========================================================================*/
++
++#define  DECCHK( c ) ((c) >= '0' && (c) <= '9')
++
++#define  HEXCHK( c ) ( ((c) >= '0' && (c) <= '9') ||\
++                       ((c) >= 'A' && (c) <= 'F') ||\
++                       ((c) >= 'a' && (c) <= 'f') )
++
++
++/*===========================================================================
++
++MACRO INC_SAT
++
++DESCRIPTION
++  Increment a value, but saturate it at its maximum positive value, do not
++  let it wrap back to 0 (unsigned) or negative (signed).
++
++PARAMETERS
++  val           value to be incremented with saturation
++
++DEPENDENCIES
++  None
++
++RETURN VALUE
++  val
++
++SIDE EFFECTS
++  val is updated to the new value
++
++===========================================================================*/
++
++#define  INC_SAT( val )  (val = ((val)+1 > (val)) ? (val)+1 : (val))
++
++
++/*===========================================================================
++
++MACRO ARR_SIZE
++
++DESCRIPTION
++  Return the number of elements in an array.
++
++PARAMETERS
++  a             array name
++
++DEPENDENCIES
++  None
++
++RETURN VALUE
++  Number of elements in array a
++
++SIDE EFFECTS
++  None.
++
++===========================================================================*/
++#if !defined(ARR_SIZE)
++#define  ARR_SIZE( a )  ( sizeof( (a) ) / sizeof( (a[0]) ) )
++#endif
++/*===========================================================================
++                     MACRO MOD_BY_POWER_OF_TWO
++
++     Will calculate x % y, where x is a non-negative integer and
++     y is a power of 2 from 2^0..2^32.
++
++     Will work for 2^0, 2^1, 2^2, 2^3, 2^4, ... 2^32
++      ie.            1,   2,   4,   8,  16, ... 4294967296
++===========================================================================*/
++
++#define MOD_BY_POWER_OF_TWO( val, mod_by ) \
++           ( (dword)(val) & (dword)((mod_by)-1) )
++
++/* -------------------------------------------------------------------------
++**                       Debug Declarations
++** ------------------------------------------------------------------------- */
++
++/* Define 'SHOW_STAT' in order to view static's as globals
++** (e.g. cl /DSHOW_STAT foo.c) If 'SHOW_STAT' is not defined,
++** it gets defined as 'static'
++*/
++#ifdef LOCAL
++   #undef LOCAL
++#endif
++
++/* Permanently turn on SHOW_STAT since this has always been the case anyway
++*/
++#define SHOW_STAT
++
++#ifdef SHOW_STAT
++  #define LOCAL
++#else
++  #define LOCAL static
++#endif
++
++/* Provide a new macro that will hopefully be used correctly to conditionally
++** turn static on/off
++*/
++#ifdef GLOBALIZE_STATIC
++   #define STATIC
++#else
++   #define STATIC static
++#endif
++
++
++/*===========================================================================
++
++                      FUNCTION DECLARATIONS
++
++===========================================================================*/
++
++
++
++/*===========================================================================
++
++FUNCTION inp, outp, inpw, outpw, inpdw, outpdw
++
++DESCRIPTION
++  IN/OUT port macros for byte and word ports, typically inlined by compilers
++  which support these routines
++
++PARAMETERS
++  inp(   xx_addr )
++  inpw(  xx_addr )
++  inpdw( xx_addr )
++  outp(   xx_addr, xx_byte_val  )
++  outpw(  xx_addr, xx_word_val  )
++  outpdw( xx_addr, xx_dword_val )
++      xx_addr      - Address of port to read or write (may be memory mapped)
++      xx_byte_val  - 8 bit value to write
++      xx_word_val  - 16 bit value to write
++      xx_dword_val - 32 bit value to write
++
++DEPENDENCIES
++  None
++
++RETURN VALUE
++  inp/inpw/inpdw: the byte, word or dword read from the given address
++  outp/outpw/outpdw: the byte, word or dword written to the given address
++
++SIDE EFFECTS
++  None.
++
++===========================================================================*/
++
++#ifdef PC_EMULATOR_H
++
++  /* For PC emulation, include a header which defines inp/outp/inpw/outpw
++  ** with the semantics above
++  */
++  #define PC_EMULATOR_IO
++  #include PC_EMULATOR_H
++  #undef  PC_EMULATOR_IO
++
++#else
++
++  /* ARM based targets use memory mapped i/o, so the inp/outp calls are
++  ** macroized to access memory directly
++  */
++
++  #define inp(port)         (*((volatile byte *) (port)))
++  #define inpw(port)        (*((volatile word *) (port)))
++  #define inpdw(port)       (*((volatile dword *)(port)))
++
++  #define outp(port, val)   (*((volatile byte *) (port)) = ((byte) (val)))
++  #define outpw(port, val)  (*((volatile word *) (port)) = ((word) (val)))
++  #define outpdw(port, val) (*((volatile dword *) (port)) = ((dword) (val)))
++
++#endif
++
++
++/*===========================================================================
++
++FUNCTION enable, disable
++
++DESCRIPTION
++  Interrupt enable and disable routines.  Enable should cause the CPU to
++  allow interrupts and disable should cause the CPU to disallow
++  interrupts
++
++PARAMETERS
++  None
++
++DEPENDENCIES
++  None
++
++RETURN VALUE
++  None
++
++SIDE EFFECTS
++  None.
++
++===========================================================================*/
++
++#ifndef T_WINNT
++
++  #if !defined _ARM_ASM_
++    /* ARM has no such definition, so we provide one here to enable/disable
++    ** interrupts
++    */
++    #define _disable() (void)rex_int_lock()
++    #define _enable()  (void)rex_int_free()
++
++  #endif
++#endif
++
++#endif /* SWIG */
++
++#ifdef __cplusplus
++}
++#endif
++
++#endif  /* COMDEF_H */
+diff -Naur android-l-clean/vendor/qcom/proprietary/bt/hci_qcomm_init/customer.h android-l-uart-ibs/vendor/qcom/proprietary/bt/hci_qcomm_init/customer.h
+--- android-l-clean/vendor/qcom/proprietary/bt/hci_qcomm_init/customer.h	1970-01-01 08:00:00.000000000 +0800
++++ android-l-uart-ibs/vendor/qcom/proprietary/bt/hci_qcomm_init/customer.h	2015-06-23 11:34:40.000000000 +0800
+@@ -0,0 +1,11 @@
++/******************************************************************************
++ ----------------------------------------------------------------------------
++ Copyright (c) 2007 Qualcomm Technologies, Inc.
++ All Rights Reserved. Qualcomm Technologies Proprietary and Confidential.
++ ----------------------------------------------------------------------------
++*******************************************************************************/
++
++#ifndef CUSTOMER_H
++#define CUSTOMER_H
++
++#endif /* CUSTOMER_H */
+diff -Naur android-l-clean/vendor/qcom/proprietary/bt/hci_qcomm_init/target.h android-l-uart-ibs/vendor/qcom/proprietary/bt/hci_qcomm_init/target.h
+--- android-l-clean/vendor/qcom/proprietary/bt/hci_qcomm_init/target.h	1970-01-01 08:00:00.000000000 +0800
++++ android-l-uart-ibs/vendor/qcom/proprietary/bt/hci_qcomm_init/target.h	2015-06-23 11:34:40.000000000 +0800
+@@ -0,0 +1,83 @@
++#ifndef TARGET_H
++#define TARGET_H
++/*===========================================================================
++
++      T A R G E T   C O N F I G U R A T I O N   H E A D E R   F I L E
++
++DESCRIPTION
++  All the declarations and definitions necessary for general configuration
++  of the DMSS software for a given target environment.
++
++-----------------------------------------------------------------------------
++Copyright (c) 1998-2002 Qualcomm Technologies, Inc.
++All Rights Reserved. Qualcomm Technologies Proprietary and Confidential.
++-----------------------------------------------------------------------------
++===========================================================================*/
++
++/*===========================================================================
++                      EDIT HISTORY FOR FILE
++
++This section contains comments describing changes made to this file.
++Notice that changes are listed in reverse chronological order.
++
++$Header: //linux/pkgs/proprietary/oncrpc/main/source/inc/target.h#3 $
++
++when       who     what, where, why
++--------   ---     ----------------------------------------------------------
++07/12/02   jct     The appropriate target file is now included via customer.h
++                   in cust*.h.  TG is now fixed to be T_G and all other T_xxx
++                   vars that could be assigned to T_G are deleted.  The use of
++                   TG is deprecated. 
++10/06/00   dsb     The appropriate target file is now included automatically
++                   a make macro. Removed check on T_ACP, T_SMS, and T_SMS_UI.
++                   Cannot remove check on T_AUTH as many files still use this 
++                   instead of FEATURE_AUTH as they should.
++                   Eventually, we want to eliminate T==T_xxx codes, but many
++                   upper layer files still use them, so I have left them in.
++                   When the rest of the DMSS stops using them, they should be
++                   removed here.
++08/13/99   jkl     Included T_Q2
++01/15/99   hrk     Integrating from COMMON_ARM.03.01.00 VU from MSM3000 subsystem.
++                   Re-introduced #defines for all targets. Removal of support for
++                   these targets will be done in the next phase.
++12/16/98   jct     Created for MSM3000+ support
++
++===========================================================================*/
++
++#define T_PC    1       /* PC test software, 80386/80486, running MSDOS  */
++#define T_P     2       /* Portable Phone hardware                       */
++#define T_M     3       /* Mobile Phone hardware                         */
++#define T_REX   4       /* REX test software, 80386/80486, REX and MSDOS */
++#define T_S     5       /* Stretch-portable hardware                     */
++#define T_B2    6       /* Beta II mobile hardware                       */
++#define T_I1    7       /* ISS1 WLL hardware                             */
++#define T_DM    8       /* Diagnostic Monitor                            */
++#define T_G     9       /* Gemini Portable hardware                      */
++#define T_I2    10      /* ISS2 WLL hardware                             */
++#define T_C1    11      /* CSS1 WLL hardware                             */
++#define T_SP    12      /* Service Programming Tool                      */
++#define T_T     13      /* TGP (Third Generation Portable)               */
++#define T_MD    14      /* 1900 MHz Module (Charon)                      */
++#define T_Q     15      /* Q phones (Q-1900, Q-800)                      */
++#define T_O     16      /* Odie (5GP)                                    */
++#define T_Q2    17      /* Q phones (Q-1900, Q-800)                      */             
++
++/* This is deprecated - force to always be T_G
++*/
++#define TG T_G
++
++/* Backward compatibile migration, needs to be eliminated completely
++*/
++#undef T_AUTH
++#ifdef FEATURE_AUTH
++   #define T_AUTH
++#endif
++
++/* All featurization starts from customer.h which includes the appropriate
++**    cust*.h and targ*.h
++*/
++#ifdef CUST_H
++   #include "customer.h"
++#endif
++
++#endif /* TARGET_H */
+diff -Naur android-l-clean/vendor/qcom/proprietary/bt/hci_qcomm_init/wcnss_filter/Android.mk android-l-uart-ibs/vendor/qcom/proprietary/bt/hci_qcomm_init/wcnss_filter/Android.mk
+--- android-l-clean/vendor/qcom/proprietary/bt/hci_qcomm_init/wcnss_filter/Android.mk	1970-01-01 08:00:00.000000000 +0800
++++ android-l-uart-ibs/vendor/qcom/proprietary/bt/hci_qcomm_init/wcnss_filter/Android.mk	2015-06-29 10:49:16.000000000 +0800
+@@ -0,0 +1,59 @@
++LOCAL_PATH:= $(call my-dir)
++include $(CLEAR_VARS)
++
++# Logging Features. Enable only one at any time
++#LOCAL_CFLAGS += -DFEATURE_DATA_LOG_SYSLOG
++LOCAL_CFLAGS += -DFEATURE_DATA_LOG_ADB
++#LOCAL_CFLAGS += -DFEATURE_DATA_LOG_QXDM
++
++ifeq ($(WCNSS_FILTER_USES_SIBS),true)
++LOCAL_CFLAGS += -DWCNSS_IBS_ENABLED
++endif #WCNSS_FILTER_USES_SIBS
++
++# Additional Logging
++# Uncomment for VERBOSE level messages
++#LOCAL_CFLAGS += -DLOG_NDEBUG=0
++
++# Additional Logging
++# Uncomment for DEBUG level messages
++#LOCAL_CFLAGS += -DLOG_NDDEBUG=0
++
++# Additional Logging
++# Uncomment for INFO level messages
++#LOCAL_CFLAGS += -DLOG_NIDEBUG=0
++
++# Ignore HCI_RESET in filter code
++# so that HCI_RESET happens only once
++# regardless of the client
++#LOCAL_CFLAGS += -DIGNORE_HCI_RESET
++
++# MIMIC cmd TOUT at filter
++# used to check the behavior of the system
++# by mimicing the cmd tout at host
++# this is only for debug purpose
++# DON'T ENABLE IT FOR NORMAL BT OPERATIONS
++#LOCAL_CFLAGS += -DDEBUG_MIMIC_CMD_TOUT
++
++LOCAL_SRC_FILES:= \
++           src/main.c \
++
++#          src/bt_qxdmlog.c
++
++#LOCAL_CFLAGS += -Werror -Wall -Wextra
++
++ifeq ($(WCNSS_FILTER_USES_SIBS),true)
++LOCAL_SRC_FILES += src/wcnss_ibs.c
++endif
++
++LOCAL_C_INCLUDES += $(LOCAL_PATH)/inc
++LOCAL_C_INCLUDES += $(TARGET_OUT_HEADERS)/common/inc
++LOCAL_C_INCLUDES += $(TARGET_OUT_HEADERS)/diag/include
++
++#LOCAL_SHARED_LIBRARIES := libutils libcutils liblog libdiag
++LOCAL_SHARED_LIBRARIES := libutils libcutils liblog
++LOCAL_MODULE:= wcnss_filter
++
++#LOCAL_MODULE_TAGS := optional
++LOCAL_MODULE_TAGS := eng
++
++include $(BUILD_EXECUTABLE)
+diff -Naur android-l-clean/vendor/qcom/proprietary/bt/hci_qcomm_init/wcnss_filter/inc/wcnss_ibs.h android-l-uart-ibs/vendor/qcom/proprietary/bt/hci_qcomm_init/wcnss_filter/inc/wcnss_ibs.h
+--- android-l-clean/vendor/qcom/proprietary/bt/hci_qcomm_init/wcnss_filter/inc/wcnss_ibs.h	1970-01-01 08:00:00.000000000 +0800
++++ android-l-uart-ibs/vendor/qcom/proprietary/bt/hci_qcomm_init/wcnss_filter/inc/wcnss_ibs.h	2015-06-29 10:49:16.000000000 +0800
+@@ -0,0 +1,36 @@
++/*==========================================================================
++Description
++  Wcnss_ibs has the constants for SIBS (Software In-band sleep) protocol
++
++# Copyright (c) 2013 by Qualcomm Technologies, Inc.  All Rights Reserved.
++# Qualcomm Technologies Proprietary and Confidential.
++
++===========================================================================*/
++
++#ifndef _WCNSS_IBS_H_
++#define _WCNSS_IBS_H_
++
++/* HCI_IBS protocol messages */
++#define IBS_WAKE_ACK        0xFC
++#define IBS_WAKE_IND        0xFD
++#define IBS_SLEEP_IND       0xFE
++
++#ifdef __cplusplus
++extern "C"
++{
++#endif
++extern pthread_mutex_t signal_mutex;
++int wcnss_wake_assert(void);
++void wcnss_ibs_cleanup();
++void wcnss_ibs_init(int fd);
++void wcnss_tx_done(uint8_t tx_done);
++void wcnss_device_can_sleep(void);
++void report_soc_failure(void);
++void wcnss_stop_idle_timeout_timer(void);
++void wcnss_vote_off_clk(void);
++
++#ifdef __cplusplus
++}
++#endif
++
++#endif /* _WCNSS_IBS_H_ */
+diff -Naur android-l-clean/vendor/qcom/proprietary/bt/hci_qcomm_init/wcnss_filter/src/main.c android-l-uart-ibs/vendor/qcom/proprietary/bt/hci_qcomm_init/wcnss_filter/src/main.c
+--- android-l-clean/vendor/qcom/proprietary/bt/hci_qcomm_init/wcnss_filter/src/main.c	1970-01-01 08:00:00.000000000 +0800
++++ android-l-uart-ibs/vendor/qcom/proprietary/bt/hci_qcomm_init/wcnss_filter/src/main.c	2015-06-29 10:49:16.000000000 +0800
+@@ -0,0 +1,1071 @@
++/*==========================================================================
++Description
++  Wcnss_filter provides mux/demux of Bluetooth and ANT data sent over the same
++  UART channel
++
++# Copyright (c) 2013-2014 by Qualcomm Technologies, Inc.  All Rights Reserved.
++# Qualcomm Technologies Proprietary and Confidential.
++
++===========================================================================*/
++
++/*
++ * wcnss_filter code has three processing threads,
++
++ * Main/Transport_read_thread: This thread would open the UART channel and select
++ * for the data/events coming over UART port. Whenever there is a data available
++ * from the controller, this thread would read the protocol byte and route the data
++ * to available client handles (either Bluetooth or ANT client sockets)
++
++ * Bluetooth client thread: This thread create server socket (UNIX domain socket)
++ * for Bluetooth client and wait for the incoming connection from Bluetooth stack.
++ * Upon valid client connection, the thread would start selecting on Bluetooth
++ * client socket,so that commands/data coming from Bluetooth stack/Host would be
++ * read and passed to UART transport. These threads have the logic of closing of
++ * their ends as part of client closure and start waiting for the connection for
++ * next client connection
++
++ * ANT client thread: This thread create server socket (UNIX domain socket) for ANT
++ * client and wait for the incoming connection from ANT stack. Upon valid client
++ * connection, the thread would start selecting on ANT client socket, so that
++ * commands/data coming from ANT stack/Host would be read and passed to UART
++ * transport.  These threads have the logic of closing of their ends as part of
++ * client closure and start waiting for the connection for next client connection.
++
++ * Writes to UART port is guarded with a mutex so that writes from different
++ * clients would be synchronized as required.
++**/
++
++#include <cutils/log.h>
++#include <sys/socket.h>
++#include <cutils/sockets.h>
++#include <pthread.h>
++#include <sys/select.h>
++#include <sys/types.h>
++#include <sys/stat.h>
++#include <stdlib.h>
++#include <termios.h>
++#include <fcntl.h>
++#include <sys/un.h>
++#include <cutils/properties.h>
++#include "wcnss_ibs.h"
++#ifdef LOG_BT_ENABLE
++#include "bt_qxdmlog.h"
++#endif
++#include "private/android_filesystem_config.h"
++
++#define LOG_TAG "WCNSS_FILTER"
++
++#define BT_SOCK "bt_sock"
++#define ANT_SOCK "ant_sock"
++//#define BT_HS_UART_DEVICE "/dev/ttyHS0"
++#define BT_HS_UART_DEVICE "/dev/ttyUSB0"
++#define PROC_PANIC_PATH     "/proc/sysrq-trigger"
++#define UART_IPC_LOG_PATH     "/sys/module/msm_serial_hs/parameters/debug_mask"
++
++#define BT_SSR_TRIGGERED 0xee
++
++#define BT_CMD_PACKET_TYPE 0x01
++#define BT_ACL_PACKET_TYPE 0x02
++#define BT_SCO_PACKET_TYPE 0x03
++#define BT_EVT_PACKET_TYPE 0x04
++#define ANT_CTL_PACKET_TYPE 0x0c
++#define ANT_DATA_PACKET_TYPE 0x0e
++
++#define MAX_BT_HDR_SIZE 4
++
++#define BT_ACL_HDR_SIZE 4
++#define BT_SCO_HDR_SIZE 3
++#define BT_EVT_HDR_SIZE 2
++#define BT_CMD_HDR_SIZE 3
++
++#define BT_ACL_HDR_LEN_OFFSET 2
++#define BT_SCO_HDR_LEN_OFFSET 2
++#define BT_EVT_HDR_LEN_OFFSET 1
++#define BT_CMD_HDR_LEN_OFFSET 2
++
++#define ANT_CMD_HDR_SIZE 2
++#define ANT_HDR_OFFSET_LEN 1
++
++#ifndef BLUETOOTH_UID
++#define BLUETOOTH_UID 1002
++#endif
++#ifndef SYSTEM_UID
++#define SYSTEM_UID 1000
++#endif
++
++#ifndef ROOT_UID
++#define ROOT_UID 0
++#endif
++
++#ifndef AID_USER
++#define AID_USER 100000
++#endif
++
++#ifndef AID_APP
++#define AID_APP 10000
++#endif
++
++#define HOST_TO_SOC 0
++#define SOC_TO_HOST 1
++
++pthread_mutex_t signal_mutex;
++
++int remote_bt_fd;
++int remote_ant_fd;
++int fd_transport;
++int fd_sysrq = -1;
++int fd_ipclog =-1;
++static pthread_t bt_mon_thread;
++static pthread_t ant_mon_thread;
++int copy_bt_data_to_channel(int src_fd, int dest_fd, unsigned char protocol_byte,int dir);
++int copy_ant_host_data_to_soc(int src_fd, int dest_fd, unsigned char protocol_byte);
++static void handle_cleanup();
++extern int bt_ssr_level ();
++
++unsigned char reset_cmpl[] = {0x04, 0x0e, 0x04, 0x01,0x03, 0x0c, 0x00};
++
++static int extract_uid(int uuid)
++{
++    int userid;
++    int appid;
++
++    appid = userid =  uuid % AID_USER;
++    if (userid > BLUETOOTH_UID)
++    {
++        appid = userid % AID_APP;
++    }
++    ALOGD("%s appid = %d",__func__,appid);
++    return appid;
++}
++
++static int establish_remote_socket(char *name)
++{
++    int fd = -1;
++    struct sockaddr_un client_address;
++    socklen_t clen;
++    int sock_id, ret;
++    struct ucred creds;
++    int c_uid;
++    ALOGV("%s(%s) Entry  ", __func__, name);
++
++    sock_id = socket(AF_LOCAL, SOCK_STREAM, 0);
++    if (sock_id < 0) {
++        ALOGE("%s: server Socket creation failure", __func__);
++        return fd;
++    }
++
++    ALOGV("convert name to android abstract name:%s %d", name, sock_id);
++    if (socket_local_server_bind(sock_id,
++        name, ANDROID_SOCKET_NAMESPACE_ABSTRACT) >= 0) {
++        if (listen(sock_id, 5) == 0) {
++            ALOGV("listen to local socket:%s, fd:%d", name, sock_id);
++        } else {
++            ALOGE("listen to local socket:failed");
++            close(sock_id);
++            return fd;
++        }
++    } else {
++        close(sock_id);
++        ALOGE("%s: server bind failed for socket : %s", __func__, name);
++        return fd;
++    }
++
++    clen = sizeof(client_address);
++    ALOGV("%s: before accept_server_socket", name);
++    fd = accept(sock_id, (struct sockaddr *)&client_address, &clen);
++    if (fd > 0) {
++        ALOGV("%s accepted fd:%d for server fd:%d", name, fd, sock_id);
++        close(sock_id);
++
++        memset(&creds, 0, sizeof(creds));
++        socklen_t szCreds = sizeof(creds);
++        ret = getsockopt(fd, SOL_SOCKET, SO_PEERCRED, &creds, &szCreds);
++        if (ret < 0) {
++            ALOGE("%s: error getting remote socket creds: %d\n", __func__, ret);
++            close(fd);
++            return -1;
++        }
++        c_uid = creds.uid;
++        if (c_uid > BLUETOOTH_UID)
++            c_uid = extract_uid(creds.uid);
++        if (c_uid != BLUETOOTH_UID && c_uid != SYSTEM_UID
++                && c_uid != ROOT_UID) {
++            ALOGE("%s: client doesn't have required credentials", __func__);
++            ALOGE("<%s req> client uid: %d", name, creds.uid);
++            close(fd);
++            return -1;
++        }
++
++        ALOGV("%s: Remote socket credentials: %d\n", __func__, creds.uid);
++        return fd;
++    } else {
++        ALOGE("BTC accept failed fd:%d sock d:%d error %s", fd, sock_id, strerror(errno));
++        close(sock_id);
++        return fd;
++    }
++
++    close(sock_id);
++    return fd;
++}
++
++void dump_buf(unsigned char* buf, int len) {
++    int i;
++    for (i=0; i<len; i++)
++        ALOGV("%x", buf[i]);
++}
++
++#ifdef DEBUG_MIMIC_CMD_TOUT
++/* This mimics the CMD TOUT by dropping the
++ * "set Local name" command at filter
++ * user can repro the cmd tout by setting the name
++ * couple of times from UI
++ */
++int command_is_change_lname(unsigned char* buf, int len) {
++    int val =1, i;
++    unsigned char lname[] = {0x01, 0x13, 0x0c};
++    ALOGE("%s:", __func__);
++    for (i=0; i<3; i++) {
++       if(buf[i] != lname[i]) val = 0;
++    }
++    return val;
++}
++#endif //DEBUG_MIMIC_CMD_TOUT
++
++#ifdef IGNORE_HCI_RESET
++/**
++  * this is to ignore HCI_RESET coming from stack.
++  * as performing HCI_RESET when ANT is on is not recomended.
++  * HCI_RESET only executed once from libbt-vendor as part of
++  * chip and NVM initialization
++  */
++int command_is_reset(unsigned char* buf, int len) {
++    int val = 1, i;
++    unsigned char reset[] = {0x01, 0x03, 0x0c, 0x00};
++    ALOGE("%s:", __func__);
++    for (i=0; i<len; i++) {
++       if(buf[i] != reset[i]) val = 0;
++    }
++    return val;
++}
++#endif//IGNORE_HCI_RESET
++
++int handle_command_writes(int fd) {
++    ALOGV("%s: ", __func__);
++    unsigned char first_byte;
++    int retval;
++    int ssrlevel;
++
++    retval = read (fd, &first_byte, 1);
++    if (retval < 0) {
++        ALOGE("%s:read returns err: %d\n", __func__,retval);
++        return -1;
++    }
++
++    if (retval == 0) {
++        ALOGE("%s: This indicates the close of other end", __func__);
++        return -99;
++    }
++
++    ALOGV("%s: Protocol_byte: %x", __func__, first_byte);
++    switch(first_byte) {
++        case ANT_CTL_PACKET_TYPE:
++        case ANT_DATA_PACKET_TYPE:
++            ALOGV("%s: Ant data", __func__);
++            retval = copy_ant_host_data_to_soc(fd, fd_transport, first_byte);
++            ALOGV("%s: copy_ant_data_to_channel returns %d", __func__, retval);
++            break;
++        case BT_EVT_PACKET_TYPE:
++        case BT_ACL_PACKET_TYPE:
++        case BT_CMD_PACKET_TYPE:
++            ALOGV("%s: BT data", __func__);
++            retval = copy_bt_data_to_channel(fd, fd_transport, first_byte,HOST_TO_SOC);
++            break;
++        case BT_SSR_TRIGGERED:
++            ALOGV("It is SSR triggered from command tout");
++#ifdef LOG_BT_ENABLE
++            dump_uart_ipc_logs();
++            ssrlevel = bt_ssr_level();
++            if (ssrlevel == 1 || ssrlevel == 2) {
++                bt_kernel_panic();
++            }
++#endif
++            break;
++        default:
++            ALOGE("%s: Unexpected data format!!",__func__);
++            retval = -1;
++    }
++
++    ALOGV("%s: retval %d", __func__, 0);
++    return 0;
++}
++
++static int bt_thread() {
++    fd_set client_fds;
++    int retval, n;
++
++    ALOGV("%s: Entry ", __func__);
++    do {
++        remote_bt_fd = establish_remote_socket(BT_SOCK);
++
++        if (remote_bt_fd < 0) {
++            ALOGE("%s: invalid remote socket", __func__);
++            return -1;
++        }
++
++        FD_ZERO(&client_fds);
++        FD_SET(remote_bt_fd, &client_fds);
++
++        do {
++            ALOGV("%s: Back in BT select loop", __func__);
++            n = select(remote_bt_fd+1, &client_fds, NULL, NULL, NULL);
++            if(n < 0){
++                ALOGE("Select: failed: %s", strerror(errno));
++                break;
++            }
++            ALOGV("%s: select came out\n", __func__);
++            if (FD_ISSET(remote_bt_fd, &client_fds)) {
++                retval = handle_command_writes(remote_bt_fd);
++                ALOGV("%s: handle_command_writes . %d", __func__, retval);
++#ifdef WCNSS_IBS_ENABLED
++                ALOGV("%s: tx complete",__FUNCTION__);
++                wcnss_tx_done(true);
++#endif
++               if(retval < 0) {
++                   if (retval == -99) {
++                       ALOGV("%s:End of wait loop", __func__);
++                   }
++                   ALOGV("%s: handle_command_writes returns: %d: ", __func__, retval);
++                   if(fd_ipclog !=-1) {
++                       /* Set UART IPC log mask to 3 for warning level */
++                       char ipc_level ='3';
++                       ALOGI("%s: write: %s to %c", __func__, UART_IPC_LOG_PATH, ipc_level);
++                       if(write(fd_ipclog, &ipc_level, 1) < 0)
++                           ALOGE("%s: Failed to write: %s, errno: %d",__func__, strerror(errno), errno);
++                   }
++                   handle_cleanup();
++                   break;
++                }
++            }
++        } while(1);
++
++        ALOGV("%s: Bluetooth turned off", __func__);
++        close(remote_bt_fd);
++        remote_bt_fd = 0;
++    } while(1);
++
++    pthread_exit(NULL);
++    return 0;
++}
++
++static int ant_thread() {
++    fd_set client_fds;
++    int retval, n;
++
++    ALOGV("%s: Entry ", __func__);
++    do {
++        remote_ant_fd = establish_remote_socket(ANT_SOCK);
++        if (remote_ant_fd < 0) {
++            ALOGE("%s: invalid remote socket", __func__);
++            return -1;
++        }
++
++        FD_ZERO(&client_fds);
++        FD_SET(remote_ant_fd, &client_fds);
++        do {
++            ALOGV("%s: Back in ANT select loop", __func__);
++            n = select(remote_ant_fd+1, &client_fds, &client_fds, NULL, NULL);
++            if(n < 0){
++                ALOGE("Select: failed: %s", strerror(errno));
++                break;
++            }
++            ALOGV("%s: select cameout out: (%s)\n", __func__, strerror(errno));
++            if (FD_ISSET(remote_ant_fd, &client_fds)) {
++                retval = handle_command_writes(remote_ant_fd);
++                if(retval < 0) {
++                   if (retval == -99) {
++                       ALOGV("%s:End of wait loop", __func__);
++                   }
++                   ALOGV("%s: handle_command_writes returns: %d: ", __func__, retval);
++                   handle_cleanup();
++                   break;
++                }
++            }
++            ALOGV("%s: moving back to Select loop", __func__);
++#ifdef WCNSS_IBS_ENABLED
++            ALOGV("%s: tx complete",__FUNCTION__);
++            wcnss_tx_done(true);
++#endif
++
++        } while(1);
++
++        ALOGV("%s: ANT turned off", __func__);
++        close(remote_ant_fd);
++        remote_ant_fd = 0;
++    } while(1);
++
++    pthread_exit(NULL);
++    return 0;
++}
++
++static int init_transport() {
++    struct termios   term;
++    uint32_t baud = B3000000;
++    uint8_t stop_bits = 0;
++
++    ALOGV("%s: Entry ", __func__);
++
++    if ((fd_transport = open(BT_HS_UART_DEVICE, O_RDWR)) == -1)
++    {
++        ALOGE("%s: Unable to open %s: %d (%s)", __func__, BT_HS_UART_DEVICE,
++           fd_transport, strerror(errno));
++        return -1;
++    }
++
++    if (tcflush(fd_transport, TCIOFLUSH) < 0)
++    {
++        ALOGE("issue while tcflush %s", BT_HS_UART_DEVICE);
++        close(fd_transport);
++        return -1;
++    }
++
++    if (tcgetattr(fd_transport, &term) < 0)
++    {
++        ALOGE("issue while tcgetattr %s", BT_HS_UART_DEVICE);
++        close(fd_transport);
++        return -1;
++    }
++
++    cfmakeraw(&term);
++    /* Set RTS/CTS HW Flow Control*/
++    term.c_cflag |= (CRTSCTS | stop_bits);
++
++    if (tcsetattr(fd_transport, TCSANOW, &term) < 0)
++    {
++       ALOGE("issue while tcsetattr %s", BT_HS_UART_DEVICE);
++       close(fd_transport);
++       return -1;
++    }
++
++    if (tcflush(fd_transport, TCIOFLUSH) < 0)
++    {
++        ALOGE("after enabling flags issue while tcflush %s", BT_HS_UART_DEVICE);
++        close(fd_transport);
++        return -1;
++    }
++
++    if (tcsetattr(fd_transport, TCSANOW, &term) < 0)
++    {
++       ALOGE("issue while tcsetattr %s", BT_HS_UART_DEVICE);
++       close(fd_transport);
++       return -1;
++    }
++
++    if (tcflush(fd_transport, TCIOFLUSH) < 0)
++    {
++        ALOGE("after enabling flags issue while tcflush %s", BT_HS_UART_DEVICE);
++        close(fd_transport);
++        return -1;
++    }
++
++    /* set input/output baudrate */
++    cfsetospeed(&term, baud);
++    cfsetispeed(&term, baud);
++    tcsetattr(fd_transport, TCSANOW, &term);
++#ifdef WCNSS_IBS_ENABLED
++    wcnss_ibs_init(fd_transport);
++#endif
++    ALOGV("%s returns fd: %d", __func__, fd_transport);
++    return fd_transport;
++}
++
++bool isIBSByte(unsigned char byte) {
++    ALOGV("%s>", __func__);
++    if (byte == IBS_WAKE_ACK || byte == IBS_WAKE_IND || byte == IBS_SLEEP_IND) {
++        return true;
++    }
++    return false;
++}
++
++int do_read(int fd, unsigned char* buf, size_t len) {
++   int bytes_left, bytes_read, read_offset;
++
++   bytes_left = len;
++   read_offset = 0;
++
++   do {
++       bytes_read = read(fd, buf+read_offset, bytes_left);
++       if (bytes_left < 0) {
++           ALOGE("%s: Read error: %d", __func__, bytes_left);
++           return -1;
++       }
++
++       if (bytes_read < bytes_left) {
++           ALOGV("Still there are %d bytes to read", bytes_left-bytes_read);
++           bytes_left = bytes_left-bytes_read;
++           read_offset = read_offset+bytes_read;
++       } else {
++           ALOGV("%s: done with read",__func__);
++           break;
++       }
++   }while(1);
++   return len;
++}
++
++int copy_bt_data_to_channel(int src_fd, int dest_fd, unsigned char protocol_byte,int direction) {
++    unsigned char len;
++    unsigned short acl_len;
++    unsigned char* buf;
++    unsigned char hdr[MAX_BT_HDR_SIZE];
++    bool no_valid_client = false;
++    int retval, i;
++
++    ALOGV("%s: Entry.. proto byte : %d\n", __func__, protocol_byte);
++    if (dest_fd == 0) {
++        ALOGE("%s: No valid BT client connection", __func__);
++        /*Discard the packet and keep the read loop alive*/
++        no_valid_client = true;
++    }
++
++    switch(protocol_byte) {
++       case BT_ACL_PACKET_TYPE:
++           retval = do_read(src_fd, hdr, BT_ACL_HDR_SIZE);
++           if (retval < 0) {
++               ALOGE("%s:error in reading hdr: %d",__func__, retval);
++               return -1;
++           }
++
++           /*ACL data len in two bytes in length*/
++           acl_len = *((unsigned short*)&hdr[BT_ACL_HDR_LEN_OFFSET]);
++           ALOGV("acl_len: %d\n", acl_len);
++           buf = (unsigned char*)calloc(acl_len+BT_ACL_HDR_SIZE+1, sizeof(char));
++           if (buf == NULL) {
++               ALOGE("%s:alloc error", __func__);
++               return -2;
++           }
++           buf[0] = protocol_byte;
++           memcpy(buf+1, hdr, BT_ACL_HDR_SIZE);
++
++           retval = do_read(src_fd, buf+1+BT_ACL_HDR_SIZE, acl_len);
++           if (retval < 0) {
++               ALOGE("%s:error in reading buf: %d", __func__, retval);
++               retval = -1;
++               free(buf);
++               return retval;
++           }
++           acl_len = acl_len+BT_ACL_HDR_SIZE+1;
++           break;
++
++       case BT_SCO_PACKET_TYPE:
++       case BT_CMD_PACKET_TYPE:
++           retval = do_read(src_fd, hdr, BT_SCO_HDR_SIZE);
++           if (retval < 0) {
++               ALOGE("%s:error in reading hdr: %d",__func__, retval);
++               return -1;
++           }
++
++           len = hdr[BT_SCO_HDR_LEN_OFFSET];
++           ALOGV("len: %d\n", len);
++           buf = (unsigned char*)calloc(len+BT_SCO_HDR_SIZE+1, sizeof(char));
++           if (buf == NULL) {
++               ALOGE("%s:alloc error", __func__);
++               return -2;
++           }
++
++           buf[0] = protocol_byte;
++           memcpy(buf+1, hdr, BT_SCO_HDR_SIZE);
++           retval = do_read(src_fd, buf+BT_SCO_HDR_SIZE+1, len);
++           if (retval < 0) {
++               ALOGE("%s:error in reading buf: %d", __func__, retval);
++               retval = -1;
++               free(buf);
++               return retval;
++           }
++           acl_len = len+BT_SCO_HDR_SIZE+1;
++           break;
++
++       case BT_EVT_PACKET_TYPE:
++           retval = do_read(src_fd, hdr, BT_EVT_HDR_SIZE);
++           if (retval < 0) {
++               ALOGE("%s:error in reading hdr: %d", __func__, retval);
++               return -1;
++           }
++#ifdef WCNSS_IBS_ENABLED
++            if(hdr[0] == 0x13)
++            {
++                ALOGV("completed packet event: device can sleep\n");
++//                wcnss_device_can_sleep();
++            }
++#endif
++           len = hdr[BT_EVT_HDR_LEN_OFFSET];
++           ALOGV("len: %d\n", len);
++           buf = (unsigned char*)calloc(len+BT_EVT_HDR_SIZE+1, sizeof(char));
++           if (buf == NULL) {
++               ALOGE("%s:alloc error" ,__func__);
++               return -2;
++           }
++
++           buf[0] = protocol_byte;
++           memcpy(buf+1, hdr, BT_EVT_HDR_SIZE);
++           retval = do_read(src_fd, buf+BT_EVT_HDR_SIZE+1, len);
++           if (retval < 0) {
++               ALOGE("%s:error in reading buf: %d", __func__, retval);
++               retval = -1;
++               free(buf);
++               return retval;
++           }
++           acl_len = len+BT_EVT_HDR_SIZE+1;
++           break;
++       default:
++          ALOGE("%s: packet type error", __func__);
++          return -3;
++     }
++     if (no_valid_client || remote_bt_fd == 0) {
++          /*Discard the packet and keep the read loop alive*/
++          ALOGE("BT is turned off in b/w, keep back in loop");
++          free(buf);
++          return 0;
++     }
++#ifdef DEBUG_MIMIC_CMD_TOUT
++     if ( command_is_change_lname(buf, acl_len) ) {
++         ALOGE("Drop the change local name cmd");
++         free(buf);
++         return 0;
++     }
++#endif //DEBUG_MIMIC_CMD_TOUT
++#ifdef IGNORE_HCI_RESET
++      if (acl_len == 4 && command_is_reset(buf, acl_len))
++      {
++         ALOGV("It is an HCI_RESET Command ");
++         //Dont write it controller rather mimmc success event
++         retval = write (src_fd, reset_cmpl, 7);
++         if (retval < 0) {
++              ALOGE("%s: error while writing hci_reset_cmp", __func__);
++         }
++         free(buf);
++         return retval;
++      }
++#endif//IGNORE_HCI_RESET
++#ifdef WCNSS_IBS_ENABLED
++     if(direction == HOST_TO_SOC)
++     {
++         ALOGV("%s: Assert BT SOC",__FUNCTION__);
++         retval = wcnss_wake_assert();
++         if(retval == -1)
++          {
++            ALOGE("%s:Failed to assert SoC",__func__);
++            free(buf);
++            return 0;
++          }
++     }
++#endif
++
++#ifdef LOG_BT_ENABLE
++     if((buf[0] == LOG_BT_EVT_PACKET_TYPE && buf[1] == LOG_BT_EVT_VENDOR_SPECIFIC &&
++        buf[3] == LOG_BT_CONTROLLER_LOG) || is_snoop_log_enabled()) {
++        send_btlog_pkt(buf, acl_len, direction);
++     }
++//#endif
++     if (buf[0] == LOG_BT_EVT_PACKET_TYPE && buf[1] == LOG_BT_EVT_VENDOR_SPECIFIC && buf[3] == LOG_BT_CONTROLLER_LOG)
++     {
++        // Log event from controller. Should not be sent to the stack. Free it here.
++        free(buf);
++        return 0;
++     }
++#endif
++     pthread_mutex_lock(&signal_mutex);
++     retval = write(dest_fd, buf, acl_len);
++     pthread_mutex_unlock(&signal_mutex);
++     if (retval < 0) {
++         ALOGE("%s:error in writing buf: %d: %s", __func__, retval, strerror(errno));
++         if (errno == EPIPE) {
++             ALOGV("%s: BT has closed of the other end", __func__);
++             /*return 0, so that read loop continues*/
++             retval = 0;
++         } else {
++             retval = -1;
++         }
++         free(buf);
++         return retval;
++     }
++
++     ALOGV("Direction(%d): bytes sent*", direction);
++     for (i =0; i<acl_len; i++) {
++         ALOGV("%x-", buf[i]);
++     }
++    ALOGV("*done");
++
++    ALOGV("%s: copied bt data/cmd (of len %d) succesfully\n", __func__, acl_len);
++
++    free(buf);
++    return retval;
++}
++
++
++int copy_ant_host_data_to_soc(int src_fd, int dest_fd, unsigned char protocol_byte) {
++    unsigned char hdr[ANT_CMD_HDR_SIZE];
++    int len;
++    unsigned char *ant_pl;
++    int i, retval;
++    bool no_valid_client = false;
++
++    ALOGV("%s: entry", __func__);
++    if (dest_fd == 0) {
++        ALOGE("%s: No valid ANT client connection", __func__);
++        /*Discard the packet and keep the read loop alive*/
++        no_valid_client = true;
++    }
++
++    /*Read protocol byte*/
++    retval = do_read(src_fd, &(hdr[ANT_HDR_OFFSET_LEN]), ANT_HDR_OFFSET_LEN);
++    if (retval < 0) {
++        ALOGE("%s: read length returns err: %d\n", __func__,retval);
++        return -1;
++    }
++    len =  hdr[ANT_HDR_OFFSET_LEN];
++    hdr[0] = protocol_byte;
++    ALOGV("%s: size of the data is: %d\n", __func__, len);
++    ant_pl = (unsigned char*)malloc(len+ANT_CMD_HDR_SIZE);
++    if (ant_pl == NULL) {
++        ALOGE("Malloc error\n");
++        return -1;
++    }
++
++    retval = do_read(src_fd, ant_pl+ANT_CMD_HDR_SIZE, (int)len);
++    if (retval < 0) {
++        ALOGE("read returns err: %d\n", retval);
++        retval = -1;
++        free(ant_pl);
++        return retval;
++    }
++
++    memcpy(ant_pl, hdr, ANT_CMD_HDR_SIZE);
++#ifdef WCNSS_IBS_ENABLED
++    ALOGV("%s: Assert BT SOC for ANT DATA",__FUNCTION__);
++    wcnss_wake_assert();
++#endif
++    pthread_mutex_lock(&signal_mutex);
++    retval = write(dest_fd, ant_pl, len+ANT_CMD_HDR_SIZE);
++    pthread_mutex_unlock(&signal_mutex);
++    if (retval < 0) {
++        ALOGE("write returns err: file_desc: %d %d(%s)\n", dest_fd, retval,strerror(errno));
++        retval = -1;
++        free(ant_pl);
++        return retval;
++    }
++
++    ALOGV("ANT host bytes sent*");
++    for (i =0; i<retval; i++) {
++         ALOGV("%x-", ant_pl[i]);
++    }
++
++    free(ant_pl);
++    return retval;
++}
++
++int copy_ant_data_to_channel(int src_fd, int dest_fd, unsigned char protocol_byte)
++{
++    unsigned char len;
++    unsigned char* ant_pl;
++    int retval = 0,i;
++
++    ALOGV("%s: Entry ", __func__);
++
++    int ret = read (src_fd, &len, 1);
++    if (ret < 0) {
++        ALOGE("%s: read length returns err: %d\n", __func__,ret);
++        return -1;
++    }
++
++    ALOGV("%s: size of the data is: %d\n", __func__, len);
++    ant_pl = (unsigned char*)malloc(len+1);
++
++    if (ant_pl == NULL) {
++        ALOGE("Malloc error\n");
++        return -1;
++    }
++
++    ret = do_read(src_fd, ant_pl+1, (int)len);
++    if (ret < 0) {
++        ALOGE("read returns err: %d\n", ret);
++        retval = -1;
++        free(ant_pl);
++        return retval;
++    }
++
++    if (remote_ant_fd == 0) {
++        /*Discard the packet and keep the read loop alive*/
++        free(ant_pl);
++        return 0;
++    }
++
++    if (ret < len)
++        ALOGV("%s: expected %d bytes, recieved only %d", __func__, len, ret);
++
++    ant_pl[0] = len;
++    pthread_mutex_lock(&signal_mutex);
++    ret = write(dest_fd, ant_pl, ret+1);
++    pthread_mutex_unlock(&signal_mutex);
++
++    if (ret < 0) {
++        ALOGE("write returns err: file_desc: %d %d(%s)\n", dest_fd, ret,strerror(errno));
++        if (errno == EPIPE) {
++            ALOGV("%s: ANT has closed of the other end", __func__);
++             /*return 0, so that read loop continues*/
++             retval = 0;
++        } else {
++             retval = -1;
++        }
++        free(ant_pl);
++        return retval;
++    }
++
++    ALOGV("ANT event bytes sent*");
++    for (i =0; i<ret; i++) {
++         ALOGV("%x-", ant_pl[i]);
++    }
++    ALOGV("*done");
++
++    ALOGV("%s: copied ant data(of len %d) succesfully\n", __func__,len);
++
++    free(ant_pl);
++    ALOGV("%s: retval: %d\n", __func__,retval);
++    return retval;
++}
++
++int handle_soc_events(int fd_transport) {
++    unsigned char first_byte;
++    int retval;
++    ALOGV("%s: Entry ", __func__);
++
++    retval = read (fd_transport, &first_byte, 1);
++    if (retval < 0) {
++        ALOGE("%s:read returns err: %d\n", __func__,retval);
++        return -1;
++    }
++
++    ALOGV("%s: protocol_byte: %x", __func__, first_byte);
++    if (isIBSByte(first_byte)) {
++        ALOGV("%s: sleep byte", __func__);
++#ifdef WCNSS_IBS_ENABLED
++        ibs_recv_ibs_cmd(&first_byte);
++#endif
++        return 0;
++    }
++
++    switch(first_byte) {
++        case ANT_CTL_PACKET_TYPE:
++        case ANT_DATA_PACKET_TYPE:
++            ALOGV("%s: Ant data", __func__);
++            retval = copy_ant_data_to_channel(fd_transport, remote_ant_fd, first_byte);
++            ALOGV("%s: copy_ant_data_to_channel returns %d", __func__, retval);
++            break;
++        case BT_EVT_PACKET_TYPE:
++        case BT_ACL_PACKET_TYPE:
++            ALOGV("%s: BT data", __func__);
++            retval = copy_bt_data_to_channel(fd_transport, remote_bt_fd, first_byte,SOC_TO_HOST);
++            break;
++        default:
++            ALOGE("%s: Unexpected data format!!:%x - Ignore the Packet ",__func__,first_byte);
++            //retval = -1;
++            tcflush(fd_transport, TCIFLUSH);
++            retval = 0 ;
++    }
++
++    ALOGV("%s: Exit %d", __func__, retval);
++    return retval;
++}
++
++static int start_reader_thread() {
++    fd_set input;
++    int n = 0, retval;
++    ALOGV("%s: Entry ", __func__);
++
++    if ((fd_transport = init_transport()) == -1)
++    {
++        ALOGE("unable to initialize transport %s", BT_HS_UART_DEVICE);
++        return -1;
++    }
++
++    /*Indicate that, server is ready to accept*/
++    property_set("wc_transport.hci_filter_status", "1");
++
++    FD_ZERO(&input);
++    FD_SET(fd_transport, &input);
++
++    do {
++        ALOGV("%s: Selecting on transport for events", __func__);
++        n = select (fd_transport+1, &input, NULL, NULL, NULL);
++
++        if(n < 0){
++            ALOGE("Select failed: %s", strerror(errno));
++            retval = -1;
++            break;
++        }
++
++        ALOGV("%s: Select comes out\n", __func__);
++
++        if (FD_ISSET(fd_transport, &input))        {
++             retval = handle_soc_events(fd_transport);
++             if(retval < 0) {
++                 ALOGE("%s: handle_soc_events returns: %d: ", __func__, retval);
++                 retval = -1;
++                 break;
++            }
++        }
++    } while(1);
++
++    close(fd_transport);
++    fd_transport = 0;
++    ALOGV("%s: Exit %d", __func__, retval);
++    return retval;
++}
++
++int cleanup_thread(pthread_t thread) {
++    int status = 0;
++    ALOGV("%s: Entry", __func__);
++
++    if((status = pthread_kill(thread, SIGUSR1)) != 0) {
++        ALOGE("Error cancelling thread %d, error = %d (%s)",
++        (int)thread, status, strerror(status));
++    }
++
++    if((status = pthread_join(thread, NULL)) != 0) {
++        ALOGE("Error joining thread %d, error = %d (%s)",
++      (int)thread, status, strerror(status));
++    }
++#ifdef WCNSS_IBS_ENABLED
++    wcnss_ibs_cleanup();
++#endif
++    ALOGV("%s: End", __func__);
++    return status;
++}
++
++int main() {
++    ALOGV("%s: Entry", __func__);
++    signal(SIGPIPE, SIG_IGN);
++
++    ALOGV("%s: open: %s", __func__, PROC_PANIC_PATH);
++    fd_sysrq = open(PROC_PANIC_PATH, O_RDWR);
++    if(fd_sysrq < 0) {
++        ALOGE("%s: open (%s) fail - %s (%d)", __func__,
++            PROC_PANIC_PATH, strerror(errno), errno);
++        return -1;
++    }
++
++    if(fd_ipclog == -1) {
++        ALOGI("%s: open: %s", __func__, UART_IPC_LOG_PATH);
++        fd_ipclog = open (UART_IPC_LOG_PATH, O_RDWR);
++    }
++    if(fd_ipclog < 0) {
++        ALOGE("%s: open (%s) fail - %s (%d)", __func__,
++            UART_IPC_LOG_PATH, strerror(errno), errno);
++    } else {
++        /* Set UART IPC log mask to 4 for debug level */
++        char ipc_level ='4';
++        ALOGI("%s: write: %s to %c", __func__, UART_IPC_LOG_PATH, ipc_level);
++        if(write(fd_ipclog, &ipc_level, 1) < 0)
++            ALOGE("%s: Failed to write: %s, errno: %d",__func__, strerror(errno), errno);
++    }
++
++    /* Drop privilieges to bluetooth user */
++    ALOGV("%s: setgid: %d", __func__, AID_BLUETOOTH);
++    if (setgid(AID_BLUETOOTH) != 0) {
++        ALOGE("%s: setgid (%d) fail - %s (%d)", __func__,
++            AID_BLUETOOTH, strerror(errno), errno);
++        return -1;
++    }
++
++    ALOGV("%s: setuid: %d", __func__, AID_BLUETOOTH);
++    if (setuid(AID_BLUETOOTH ) != 0) {
++        ALOGE("%s: setuid (%d) fail - %s (%d)", __func__,
++            AID_BLUETOOTH, strerror(errno), errno);
++        return -1;
++    }
++
++    pthread_mutex_init(&signal_mutex, NULL);
++    if (pthread_create(&bt_mon_thread, NULL, (void *)bt_thread, NULL) != 0) {
++        perror("pthread_create for bt_monitor");
++        pthread_mutex_destroy(&signal_mutex);
++        return -1;
++    }
++
++    if (pthread_create(&ant_mon_thread, NULL, (void *)ant_thread, NULL) != 0) {
++        perror("pthread_create for ant_monitor");
++        cleanup_thread(bt_mon_thread);
++        pthread_mutex_destroy(&signal_mutex);
++        return -1;
++    }
++
++#ifdef LOG_BT_ENABLE
++    diag_init();
++#endif
++    /*Main thread monitors on UART data/events*/
++    int ret = start_reader_thread();
++
++    if (ret < 0) {
++        ALOGE("%s: start_reader_thread returns: %d", __func__, ret);
++    }
++
++    cleanup_thread(ant_mon_thread);
++    cleanup_thread(bt_mon_thread);
++    pthread_mutex_destroy(&signal_mutex);
++
++#ifdef LOG_BT_ENABLE
++    diag_deinit();
++#endif
++    ALOGV("%s: Exit: %d", __func__, ret);
++    return ret;
++}
++
++static void handle_cleanup()
++{
++    char ref_count[PROPERTY_VALUE_MAX];
++    char cleanup[PROPERTY_VALUE_MAX];
++    int ref_val,clean;
++
++    ALOGE("wcnss_filter client is terminated");
++    property_get("wc_transport.clean_up", cleanup, "0");
++    clean = atoi(cleanup);
++    ALOGE("clean Value =  %d",clean);
++    property_get("wc_transport.ref_count", ref_count, "0");
++    ref_val = atoi(ref_count);
++    if(clean == 0) {
++      if(ref_val > 0)
++      {
++         ref_val--;
++         snprintf(ref_count, 3, "%d", ref_val);
++         property_set("wc_transport.ref_count", ref_count);
++      }
++    }
++    else {
++      if(ref_val == 1) {
++        ALOGE("VOTOFF Clk before shutdown");
++#ifdef WCNSS_IBS_ENABLED
++        wcnss_vote_off_clk();
++#endif
++      }
++    }
++}
++
++static void cleanup_and_suicide()
++{
++    //Set REF count 1, so that next trial to reset the BT succeeds
++    property_set("wc_transport.ref_count", "1");
++    property_set("wc_transport.hci_filter_status", "0");
++    property_set("wc_transport.soc_initialized", "0");
++    ALOGE("Done with this Life!!!");
++    exit(0);
++}
++
++
++void report_soc_failure(void)
++{
++   char eve_buf[] = {0x04,0x10,0x01,0x0f};
++   int ret_val;
++   ALOGD("%s",__func__);
++   ret_val = write(remote_bt_fd,eve_buf,4);
++   if(ret_val < 0)
++    ALOGE("%s: Failed to report",__func__);
++
++   cleanup_and_suicide();
++}
+diff -Naur android-l-clean/vendor/qcom/proprietary/bt/hci_qcomm_init/wcnss_filter/src/wcnss_ibs.c android-l-uart-ibs/vendor/qcom/proprietary/bt/hci_qcomm_init/wcnss_filter/src/wcnss_ibs.c
+--- android-l-clean/vendor/qcom/proprietary/bt/hci_qcomm_init/wcnss_filter/src/wcnss_ibs.c	1970-01-01 08:00:00.000000000 +0800
++++ android-l-uart-ibs/vendor/qcom/proprietary/bt/hci_qcomm_init/wcnss_filter/src/wcnss_ibs.c	2015-06-29 10:49:16.000000000 +0800
+@@ -0,0 +1,666 @@
++/*==========================================================================
++Description
++  Wcnss_ibs has the state-machine and logic to process sleep bytes to excercise
++  SIBS (Software In-band sleep) protocol
++
++# Copyright (c) 2013-2014  by Qualcomm Technologies, Inc.  All Rights Reserved.
++# Qualcomm Technologies Proprietary and Confidential.
++
++===========================================================================*/
++#include <pthread.h>
++#include <stdlib.h>
++#include <signal.h>
++#include <sys/time.h>
++#include <cutils/log.h>
++#include <cutils/properties.h>
++#include <fcntl.h>
++#include "wcnss_ibs.h"
++
++/******************************************************************************
++**  Constants & Macros
++******************************************************************************/
++#define DEFAULT_LPM_IDLE_TIMEOUT 1000
++#define true 1
++#define false 0
++/********************IBS MACROS and State-Machine ****************************/
++#define TX_IDLE_DELAY           10
++#define UART_VOTEOFF_DELAY      100
++#define CLOCK_OFF               0
++#define CLOCK_ON                1
++#define LOG_TAG "WCNSS_FILTER"
++#define NUM_WACK_RETRANSMIT     128
++#define USERIAL_OP_CLK_ON 0x5441
++#define USERIAL_OP_CLK_OFF 0x5442
++
++/* HCI_IBS transmit side sleep protocol states */
++typedef enum {
++    IBS_TX_ASLEEP = 0,
++    IBS_TX_WAKING,
++    IBS_TX_AWAKE,
++}tx_ibs_states;
++
++/* HCI_IBS receive side sleep protocol states */
++typedef enum {
++    IBS_RX_ASLEEP = 0,
++    IBS_RX_AWAKE,
++}rx_ibs_states;
++
++typedef enum {
++    IBS_TX_VOTE_CLOCK_ON = 0,
++    IBS_TX_VOTE_CLOCK_OFF,
++    IBS_RX_VOTE_CLOCK_ON,
++    IBS_RX_VOTE_CLOCK_OFF,
++} ibs_clock_state_vote;
++
++typedef struct{
++
++    pthread_mutex_t wack_lock;
++    pthread_mutex_t hci_ibs_lock;
++    uint8_t tx_ibs_state;
++    uint8_t tx_vote;
++    uint8_t rx_ibs_state;
++    uint8_t rx_vote;
++
++    uint8_t timer_created;
++    timer_t timer_id;
++    uint32_t timeout_ms;
++    uint8_t CLK_STATE;
++}IBS_STATE_MACHINE;
++IBS_STATE_MACHINE ibs_state_machine;
++
++typedef struct{
++    uint8_t timer_created;
++    timer_t timer_id;
++    uint32_t timeout_ms;
++    uint8_t clk_vote;
++}IBS_VOTE_OFF_TIMER;
++IBS_VOTE_OFF_TIMER ibs_voteoff_struct;
++
++
++static volatile unsigned char wack_recvd = 0;
++pthread_cond_t wack_cond = PTHREAD_COND_INITIALIZER;
++
++void ibs_start_wack_timer(void);
++void ibs_stop_wack_timer(void);
++/********************IBS MACROS and State-Machine ****************************/
++
++/********************Low power mode state ************************************/
++/* LPM WAKE state */
++enum {
++    WCNSS_IBS_WAKE_DEASSERTED = 0,              /* initial state */
++    WCNSS_IBS_WAKE_W4_TX_DONE,
++    WCNSS_IBS_WAKE_W4_TIMEOUT,
++    WCNSS_IBS_WAKE_ASSERTED
++};
++/* low power mode control block */
++typedef struct
++{
++    //uint8_t state;                          /* Low power mode state */
++    uint8_t wake_state;                     /* LPM WAKE state */
++    uint8_t no_tx_data;
++    uint8_t timer_created;
++    timer_t timer_id;
++    uint32_t timeout_ms;
++}bt_lpm;
++static bt_lpm wcnss_bt_lpm;
++/********************Low power mode state ************************************/
++static void ibs_wake_retrans_timeout(void);
++static void ibs_wack_timer_start(void);
++static void ibs_wack_timer_stop(void);
++static void ibs_voteOff_timer_start(void);
++
++int tty_fd=-1;
++static int num_try;
++static void do_write(uint8_t ibs_data)
++{
++    int ret;
++    pthread_mutex_lock(&signal_mutex);
++    ret = write(tty_fd,&ibs_data,1);
++    if(ret < 0)
++    {
++        ALOGE("%s: Failed to write",__FUNCTION__);
++    }
++    pthread_mutex_unlock(&signal_mutex);
++}
++
++static void ibs_wake_retrans_timeout(void)
++{
++    uint8_t ibs_data;
++    ALOGV("%s: Retransmit wake ind and restart timer",__FUNCTION__);
++    if(num_try == NUM_WACK_RETRANSMIT)
++    {
++        ALOGD("%s: Failed to get wake ack from the SOC ",__FUNCTION__);
++        wack_recvd = false;
++        pthread_cond_signal(&wack_cond);
++        ibs_msm_serial_clock_vote(IBS_TX_VOTE_CLOCK_OFF,&ibs_state_machine);
++        return;
++    }
++    ibs_wack_timer_start();
++    ibs_data = IBS_WAKE_IND;
++    ALOGV("%s: Writing HCI_IBS_WAKE_IND",__FUNCTION__);
++    if(tty_fd > 0)
++        write(tty_fd,&ibs_data,1);
++    else
++    {
++        ALOGE("%s: Invalid FD",__FUNCTION__);
++        return;
++    }
++    num_try++;
++}
++
++static void ibs_wack_timer_stop()
++{
++    int status;
++    struct itimerspec ts;
++    ALOGV("%s",__FUNCTION__);
++    num_try = 0;
++    if(ibs_state_machine.timer_created == true)
++    {
++        ts.it_value.tv_sec = 0;
++        ts.it_value.tv_nsec = 0;
++        ts.it_interval.tv_sec = 0;
++        ts.it_interval.tv_nsec = 0;
++        status = timer_settime(ibs_state_machine.timer_id, 0, &ts, 0);
++        if(status == -1)
++            ALOGE("%s:Failed to stop set wack timer",__FUNCTION__);
++        else if(status == 0)
++            ALOGV("%s: Wack timer Stopped",__FUNCTION__);
++     }
++}
++
++void ibs_msm_serial_clock_vote(uint8_t vote, IBS_STATE_MACHINE * ibs_state)
++{
++    uint8_t new_vote;
++    uint8_t old_vote = (ibs_state->tx_vote | ibs_state->rx_vote);
++    ALOGV("%s", __FUNCTION__);
++
++    switch (vote)
++    {
++    case IBS_TX_VOTE_CLOCK_ON:
++        ibs_state->tx_vote = 1;
++        new_vote = 1;
++        break;
++    case IBS_RX_VOTE_CLOCK_ON:
++        ibs_state->rx_vote = 1;
++        new_vote = 1;
++        break;
++    case IBS_TX_VOTE_CLOCK_OFF:
++        ibs_state->tx_vote = 0;
++        new_vote = ibs_state->rx_vote | ibs_state->tx_vote;
++        break;
++    case IBS_RX_VOTE_CLOCK_OFF:
++        ibs_state->rx_vote = 0;
++        new_vote = ibs_state->rx_vote | ibs_state->tx_vote;
++        break;
++    default:
++        ALOGE("ibs_msm_serial_clock_vote: Wrong vote requested!\n");
++        return;
++    }
++    ALOGV("new_vote: (%d) ## old-vote: (%d)", new_vote, old_vote);
++
++    if (new_vote != old_vote) {
++        if (new_vote)
++        {
++            /*vote UART CLK ON using UART driver's ioctl() */
++            ALOGI("%s: vote UART CLK ON using UART driver's ioctl()",
++                __FUNCTION__);
++            ioctl(tty_fd,USERIAL_OP_CLK_ON);
++            ibs_state->CLK_STATE = CLOCK_ON;
++        }
++        else
++        {
++            /*vote UART CLK OFF using UART driver's ioctl() */
++            ALOGI("%s: vote UART CLK OFF using UART driver's ioctl()",
++                __FUNCTION__);
++            ioctl(tty_fd,USERIAL_OP_CLK_OFF);
++            //ibs_voteOff_timer_start();
++        }
++    }
++}
++
++static void ibs_wack_timer_start()
++{
++    int status;
++    struct itimerspec ts;
++    struct sigevent se;
++
++    ALOGV("%s",__FUNCTION__);
++    if(ibs_state_machine.timer_created == false)
++    {
++        se.sigev_notify_function = ibs_wake_retrans_timeout;
++        se.sigev_notify = SIGEV_THREAD;
++        se.sigev_value.sival_ptr = &ibs_state_machine.timer_id;
++        se.sigev_notify_attributes = NULL;
++
++        status = timer_create(CLOCK_MONOTONIC, &se, &ibs_state_machine.timer_id);
++        if (status == 0)
++        {
++            ALOGV("%s: WACK timer created",__FUNCTION__);
++            ibs_state_machine.timer_created = true;
++        }
++    }
++    if(ibs_state_machine.timer_created == true)
++    {
++        if(!ibs_state_machine.timeout_ms)
++        ibs_state_machine.timeout_ms = TX_IDLE_DELAY;
++        ts.it_value.tv_sec = ibs_state_machine.timeout_ms/1000;
++        ts.it_value.tv_nsec = 1000000*(ibs_state_machine.timeout_ms%1000);
++        ts.it_interval.tv_sec = 0;
++        ts.it_interval.tv_nsec = 0;
++
++        status = timer_settime(ibs_state_machine.timer_id, 0, &ts, 0);
++        if (status == -1)
++            ALOGE("%s:Failed to set wack timer",__FUNCTION__);
++    }
++}
++static void ibs_serial_clk_voteoff_timeout()
++{
++    ALOGI("%s: uart serival vote off",__FUNCTION__);
++    ibs_state_machine.CLK_STATE = CLOCK_OFF;
++    ioctl(tty_fd,USERIAL_OP_CLK_OFF);
++}
++
++static void ibs_voteOff_timer_stop()
++{
++    int status;
++    struct itimerspec ts;
++    ALOGV("%s",__FUNCTION__);
++
++    if(ibs_voteoff_struct.timer_created == true)
++    {
++        ts.it_value.tv_sec = 0;
++        ts.it_value.tv_nsec = 0;
++        ts.it_interval.tv_sec = 0;
++        ts.it_interval.tv_nsec = 0;
++        status = timer_settime(ibs_voteoff_struct.timer_id, 0, &ts, 0);
++        if(status == -1)
++            ALOGE("%s:Failed to stop set wack timer",__FUNCTION__);
++        else if(status == 0)
++            ALOGV("%s: Wack timer Stopped",__FUNCTION__);
++     }
++}
++static void ibs_voteOff_timer_start()
++{
++    int status;
++    struct itimerspec ts;
++    struct sigevent se;
++    ALOGV("%s",__FUNCTION__);
++    if(ibs_voteoff_struct.timer_created == false)
++    {
++    se.sigev_notify_function = ibs_serial_clk_voteoff_timeout;
++        se.sigev_notify = SIGEV_THREAD;
++        se.sigev_value.sival_ptr = &ibs_voteoff_struct.timer_id;
++        se.sigev_notify_attributes = NULL;
++
++        status = timer_create(CLOCK_MONOTONIC, &se, &ibs_voteoff_struct.timer_id);
++        if (status == 0)
++        {
++            ALOGV("%s: WACK timer created",__FUNCTION__);
++            ibs_voteoff_struct.timer_created = true;
++        }
++    }
++    if(ibs_voteoff_struct.timer_created == true)
++    {
++        ibs_voteoff_struct.timeout_ms = UART_VOTEOFF_DELAY;
++        ts.it_value.tv_sec = ibs_voteoff_struct.timeout_ms/1000;
++        ts.it_value.tv_nsec = 1000000*(ibs_voteoff_struct.timeout_ms%1000);
++        ts.it_interval.tv_sec = 0;
++        ts.it_interval.tv_nsec = 0;
++
++        status = timer_settime(ibs_voteoff_struct.timer_id, 0, &ts, 0);
++        if (status == -1)
++            ALOGE("%s:Failed to set wack timer",__FUNCTION__);
++    }
++}
++
++
++static int ibs_bt_device_wakeup()
++{
++    uint8_t ibs_data;
++    int status = 0;
++    ALOGV("%s", __FUNCTION__);
++    pthread_mutex_lock(&ibs_state_machine.hci_ibs_lock);
++    switch(ibs_state_machine.tx_ibs_state)
++    {
++    case IBS_TX_ASLEEP:
++        ALOGV("%s: TX state ASLEEP, acquire SM lock",__FUNCTION__);
++        ibs_voteOff_timer_stop();
++        ibs_state_machine.tx_ibs_state = IBS_TX_WAKING;
++        ALOGV("%s: UART TX Vote ON",__FUNCTION__);
++        ibs_msm_serial_clock_vote(IBS_TX_VOTE_CLOCK_ON,&ibs_state_machine);
++        ALOGV("%s: Acquire wake lock",__FUNCTION__);
++        pthread_mutex_lock(&ibs_state_machine.wack_lock);
++        ibs_wack_timer_start();
++        wack_recvd = false;
++        ibs_data = IBS_WAKE_IND;
++        ALOGV("%s: Writing IBS_WAKE_IND",__FUNCTION__);
++        if(tty_fd > 0)
++            do_write(ibs_data);
++        else
++        {
++            ALOGE("%s: Invalid FD",__FUNCTION__);
++            ALOGV("%s: Realease wake lock and SM lock",__FUNCTION__);
++            pthread_mutex_unlock(&ibs_state_machine.wack_lock);
++            pthread_mutex_unlock(&ibs_state_machine.hci_ibs_lock);
++            return -1;
++        }
++        while(wack_recvd == false)
++        {
++            pthread_cond_wait(&wack_cond, &ibs_state_machine.wack_lock);
++            ALOGV("%s: Get wake ack from the SOC",__FUNCTION__);
++            if(num_try == NUM_WACK_RETRANSMIT)
++            {
++             ALOGE("%s:SoC not responding,stop sending wake byte",__func__);
++             ibs_wack_timer_stop();
++             break;
++            }
++        }
++        if(wack_recvd == true)
++        {
++            ALOGV("%s: Received wack ack",__FUNCTION__);
++            ALOGV("%s: TX state transition to AWAKE",__FUNCTION__);
++            ibs_state_machine.tx_ibs_state = IBS_TX_AWAKE;
++            wack_recvd = false;
++            status = 0;
++        }
++        else
++        {
++            ALOGE("%s: Failed to wake SOC",__FUNCTION__);
++            ibs_state_machine.tx_ibs_state = IBS_TX_ASLEEP;
++            ibs_wack_timer_stop();
++            wack_recvd = false;
++            status = -1;
++        }
++        ALOGV("%s: Realease wake lock and SM lock",__FUNCTION__);
++        pthread_mutex_unlock(&ibs_state_machine.wack_lock);
++        break;
++    case IBS_TX_WAKING:
++        ALOGV("%s: SOC is WAKING UP",__FUNCTION__);
++        break;
++    case IBS_TX_AWAKE:
++        ALOGV("%s: SOC is already AWAKE",__FUNCTION__);
++        break;
++    }
++    pthread_mutex_unlock(&ibs_state_machine.hci_ibs_lock);
++    return status;
++}
++
++void ibs_recv_ibs_cmd(uint8_t *data)
++{
++    uint8_t ibs_data;
++    int status = 0;
++    ALOGV("%s",__FUNCTION__);
++    switch(*data)
++    {
++    case IBS_WAKE_IND: //0xFD
++        ALOGV("%s: Received IBS_WAKE_IND: 0xFD",__FUNCTION__);
++        ibs_voteOff_timer_stop();
++        status = pthread_mutex_trylock(&ibs_state_machine.hci_ibs_lock);
++        if(status != 0)
++        {
++            ALOGE("%s: Failed to Acquire SM lock- cannot handle WACK_IND request"
++                   "from SOC - with return value: %d",__FUNCTION__, status);
++            return;
++        }
++        switch(ibs_state_machine.rx_ibs_state)
++        {
++        case IBS_RX_ASLEEP:
++            ALOGV("%s: UART RX Vote ON",__FUNCTION__);
++            ibs_msm_serial_clock_vote(IBS_RX_VOTE_CLOCK_ON,&ibs_state_machine);
++            ibs_state_machine.rx_ibs_state = IBS_RX_AWAKE;
++            ibs_data = IBS_WAKE_ACK;
++            ALOGV("%s: Writing IBS_WAKE_ACK",__FUNCTION__);
++
++            if(tty_fd > 0)
++            {
++                ALOGV("%s: Lock to write",__FUNCTION__);
++                do_write(ibs_data);
++            }
++            else
++            {
++                ALOGE("%s: Invalid FD",__FUNCTION__);
++                ALOGV("%s: Realease SM lock",__FUNCTION__);
++                pthread_mutex_unlock(&ibs_state_machine.hci_ibs_lock);
++                return;
++            }
++            break;
++        case IBS_RX_AWAKE:
++            ibs_data = IBS_WAKE_ACK;
++            ALOGV("%s: Writing IBS_WAKE_ACK",__FUNCTION__);
++            if(tty_fd > 0 )
++                do_write(ibs_data);
++            else
++            {
++                ALOGE("%s: Invalid FD",__FUNCTION__);
++                pthread_mutex_unlock(&ibs_state_machine.hci_ibs_lock);
++                return;
++            }
++            break;
++        }
++        pthread_mutex_unlock(&ibs_state_machine.hci_ibs_lock);
++        break;
++    case IBS_SLEEP_IND: //0xFE
++        ALOGV("%s: Received IBS_SLEEP_IND: 0xFE",__FUNCTION__);
++        status = pthread_mutex_trylock(&ibs_state_machine.hci_ibs_lock);
++        if(status != 0)
++        {
++            ALOGE("%s: Failed to Acquire SM lock- Cannot handle SLEEP_IND"
++                   "from SOC -with return value: %d",__FUNCTION__, status);
++            return;
++        }
++        switch(ibs_state_machine.rx_ibs_state)
++        {
++        case IBS_RX_AWAKE:
++            ALOGV("%s: RX path is awake, Vote Off uart",__FUNCTION__);
++            ibs_state_machine.rx_ibs_state = IBS_RX_ASLEEP;
++            ALOGV("%s: UART RX Vote Off",__FUNCTION__);
++            ibs_msm_serial_clock_vote(IBS_RX_VOTE_CLOCK_OFF,&ibs_state_machine);
++            break;
++        case IBS_RX_ASLEEP:
++            ALOGV("%s: RX path is asleep",__FUNCTION__);
++            break;
++        }
++        pthread_mutex_unlock(&ibs_state_machine.hci_ibs_lock);
++        break;
++    case IBS_WAKE_ACK: ////0xFC
++        switch(ibs_state_machine.tx_ibs_state)
++        {
++        case IBS_TX_WAKING:
++            ALOGV("%s: Received IBS_WAKE_ACK: 0xFC",__FUNCTION__);
++            pthread_mutex_lock(&ibs_state_machine.wack_lock);
++            ALOGV("%s: Signal wack_cond",__FUNCTION__);
++            wack_recvd = true;
++            ibs_wack_timer_stop();
++            pthread_cond_signal(&wack_cond);
++            pthread_mutex_unlock(&ibs_state_machine.wack_lock);
++            break;
++        case IBS_TX_AWAKE:
++            ALOGV("%s: TX SM is awake already, stop wack timer if running",__FUNCTION__);
++            ibs_wack_timer_stop();
++            break;
++        default:
++            ALOGE("%s: WAKE ACK from SOC, Unexpected TX state",__FUNCTION__);
++            break;
++         }
++        break;
++    }
++}
++static void ibs_wcnss_bt_device_sleep(void)
++{
++    uint8_t ibs_data;
++    int status = 0;
++    ALOGV("%s: Acquire SM lock",__FUNCTION__);
++    pthread_mutex_lock(&ibs_state_machine.hci_ibs_lock);
++    switch(ibs_state_machine.tx_ibs_state)
++    {
++    case IBS_TX_AWAKE:
++        if(wcnss_bt_lpm.wake_state == WCNSS_IBS_WAKE_ASSERTED)
++        {
++           ALOGD("%s: Tx in progress",__FUNCTION__);
++           pthread_mutex_unlock(&ibs_state_machine.hci_ibs_lock);
++           return;
++        }
++        ALOGV("%s: TX Awake, Sending SLEEP_IND",__FUNCTION__);
++        ibs_data = IBS_SLEEP_IND;
++
++        if(tty_fd > 0)
++            do_write(ibs_data);
++        else
++        {
++            ALOGE("%s: Invalid FD",__FUNCTION__);
++            pthread_mutex_unlock(&ibs_state_machine.hci_ibs_lock);
++            return;
++        }
++        ibs_state_machine.tx_ibs_state    = IBS_TX_ASLEEP;
++        ALOGV("%s: UART TX Vote Off",__FUNCTION__);
++        ibs_msm_serial_clock_vote(IBS_TX_VOTE_CLOCK_OFF,&ibs_state_machine);
++        break;
++    case IBS_TX_ASLEEP:
++        ALOGV("%s: TX Asleep",__FUNCTION__);
++        break;
++    default:
++        ALOGE("%s: Invalid TX SM",__FUNCTION__);
++        break;
++    }
++    pthread_mutex_unlock(&ibs_state_machine.hci_ibs_lock);
++    return;
++}
++
++static void wcnss_wake_deassert(void)
++{
++    //wcnss_bt_lpm.wake_state = WCNSS_IBS_WAKE_DEASSERTED;
++    ALOGV("%s",__FUNCTION__);
++    ibs_wcnss_bt_device_sleep();
++}
++
++static void wcnss_idle_timeout(void)
++{
++    ALOGV("%s: Deassert SOC",__FUNCTION__);
++    wcnss_wake_deassert();
++}
++
++static void wcnss_start_idle_timeout_timer(void)
++{
++    int status;
++    struct itimerspec ts;
++    struct sigevent se;
++    ALOGV("%s",__FUNCTION__);
++    if (wcnss_bt_lpm.timer_created == false)
++    {
++        se.sigev_notify = SIGEV_THREAD;
++        se.sigev_value.sival_ptr = &wcnss_bt_lpm.timer_id;
++        se.sigev_notify_function = wcnss_idle_timeout;
++        se.sigev_notify_attributes = NULL;
++
++        status = timer_create(CLOCK_MONOTONIC, &se, &wcnss_bt_lpm.timer_id);
++
++        if (status == 0)
++            wcnss_bt_lpm.timer_created = true;
++    }
++
++    if (wcnss_bt_lpm.timer_created == true)
++    {
++        ts.it_value.tv_sec = wcnss_bt_lpm.timeout_ms/1000;
++        ts.it_value.tv_nsec = 1000*(wcnss_bt_lpm.timeout_ms%1000);
++        ts.it_interval.tv_sec = 0;
++        ts.it_interval.tv_nsec = 0;
++
++        status = timer_settime(wcnss_bt_lpm.timer_id, 0, &ts, 0);
++        if (status == -1)
++            ALOGE("%s: Failed to set LPM idle timeout",__FUNCTION__);
++    }
++}
++
++void wcnss_stop_idle_timeout_timer(void)
++{
++    int status;
++    struct itimerspec ts;
++    ALOGV("%s",__FUNCTION__);
++    if (wcnss_bt_lpm.timer_created == true)
++    {
++        ts.it_value.tv_sec = 0;
++        ts.it_value.tv_nsec = 0;
++        ts.it_interval.tv_sec = 0;
++        ts.it_interval.tv_nsec = 0;
++
++        status = timer_settime(wcnss_bt_lpm.timer_id, 0, &ts, 0);
++        if (status == -1)
++            ALOGE("[STOP] Failed to set LPM idle timeout");
++
++    }
++}
++
++
++void wcnss_ibs_init(int fd)
++{
++    ALOGD("%s",__FUNCTION__);
++    memset(&wcnss_bt_lpm, 0, sizeof(wcnss_bt_lpm));
++    wcnss_bt_lpm.timeout_ms = DEFAULT_LPM_IDLE_TIMEOUT;
++    tty_fd = fd;
++    ALOGD("%s: tty_fd = %d",__FUNCTION__,tty_fd);
++    ibs_state_machine.CLK_STATE = CLOCK_OFF;
++}
++
++void wcnss_tx_done(uint8_t tx_done)
++{
++    ALOGV("%s",__FUNCTION__);
++    wcnss_bt_lpm.no_tx_data = tx_done;
++    if(tx_done == true)
++    {
++       ALOGV("%s: tx_done. Start idle timeout",__FUNCTION__);
++       wcnss_bt_lpm.wake_state = WCNSS_IBS_WAKE_W4_TIMEOUT;
++       wcnss_start_idle_timeout_timer();
++    }
++}
++
++void wcnss_vote_off_clk()
++{
++    wcnss_stop_idle_timeout_timer();
++    ioctl(tty_fd,USERIAL_OP_CLK_OFF);
++}
++
++int wcnss_wake_assert(void)
++{
++    int ret = 0;
++    ALOGV("%s",__FUNCTION__);
++    wcnss_stop_idle_timeout_timer();
++    wcnss_bt_lpm.wake_state = WCNSS_IBS_WAKE_ASSERTED;
++    ret = ibs_bt_device_wakeup();
++    if(ret != -1)
++    {
++      wcnss_tx_done(false);
++    }
++    return ret;
++}
++
++void wcnss_device_can_sleep()
++{
++    if(wcnss_bt_lpm.wake_state == WCNSS_IBS_WAKE_ASSERTED)
++    {
++        if(wcnss_bt_lpm.no_tx_data == true)
++        {
++            ALOGD("%s: Start idle timeout",__FUNCTION__);
++            wcnss_bt_lpm.wake_state = WCNSS_IBS_WAKE_W4_TIMEOUT;
++            wcnss_start_idle_timeout_timer();
++        }
++        else
++        {
++            ALOGD("%s: tx not done yet",__FUNCTION__);
++            wcnss_bt_lpm.wake_state = WCNSS_IBS_WAKE_W4_TX_DONE;
++        }
++    }
++}
++
++void wcnss_ibs_cleanup()
++{
++    ALOGI("%s",__FUNCTION__);
++    if (wcnss_bt_lpm.timer_created == true)
++    {
++        timer_delete(wcnss_bt_lpm.timer_id);
++    }
++    if(ibs_state_machine.timer_created == true)
++    {
++       timer_delete(ibs_state_machine.timer_id);
++    }
++    tty_fd = -1;
++}
+diff -Naur android-l-clean/vendor/qcom/proprietary/common/inc/armasm.h android-l-uart-ibs/vendor/qcom/proprietary/common/inc/armasm.h
+--- android-l-clean/vendor/qcom/proprietary/common/inc/armasm.h	1970-01-01 08:00:00.000000000 +0800
++++ android-l-uart-ibs/vendor/qcom/proprietary/common/inc/armasm.h	2015-06-23 11:34:40.000000000 +0800
+@@ -0,0 +1,283 @@
++#ifndef ARMASM_H
++#define ARMASM_H
++/*=============================================================================
++
++                        ARM Assembly Language Definitions
++
++GENERAL DESCRIPTION
++  This file contains assembly language macros for use with the ARM assembler.
++
++
++-----------------------------------------------------------------------------
++Copyright (c) 1998 - 2001 Qualcomm Technologies, Inc.
++All Rights Reserved. Qualcomm Technologies Proprietary and Confidential.
++-----------------------------------------------------------------------------
++=============================================================================*/
++
++
++/*=============================================================================
++
++                            EDIT HISTORY FOR FILE
++
++$Header: //linux/pkgs/proprietary/oncrpc/main/source/inc/armasm.h#3 $
++
++when       who     what, where, why
++--------   ---     ----------------------------------------------------------
++09/13/05   ck      Copied from 6100 branch
++07/12/02   jct     Removed conditional inclusion of customer.h and target.h
++05/17/01   kar     Bigger SVC stack available to support REX from MSM archive
++01/25/01   day     Merged from MSM5105_COMMON.00.00.05.
++                     Added support for Interworking
++                     Added define for system stack size
++04/02/99    sk     Increased Abort stack size.
++04/02/99    ms     Reduced stack sizes.
++02/03/99    ms     Renamed blx to blatox since blx is a keyword in Assembler
++                   of ARM SDK 2.5
++01/18/99    ms     Moved ARM_TRAP_FRAME related declarations to boot_trap.h.
++                   Moved context frame related macros to rexarm.s.
++                   Incorporated exception frame related macros directly into
++                   boot_abort_handler in bootsys.s.
++12/10/98   jkl     Included r12 in the context frame.
++11/23/98   jkl     Clean up code. Changed save_context_from_task macro.
++10/27/98   jkl     Revised for new context
++09/13/98   hcg     Changed exception/trap frame names
++07/10/98   jct     Revised for coding standard, removed unused code
++01/01/98   bwj     Created
++=============================================================================*/
++
++#include "target.h"
++#include "customer.h"
++
++/*  CPSR Control Masks         */
++#define PSR_Thumb_Mask       0x20
++#define PSR_Fiq_Mask         0x40
++#define PSR_Irq_Mask         0x80
++#define PSR_Mode_Mask        0x1f
++
++/*  Processor mode definitions */
++#define PSR_User             0x10
++#define PSR_Fiq              0x11
++#define PSR_Irq              0x12
++#define PSR_Supervisor       0x13
++#define PSR_Abort            0x17
++#define PSR_Undef            0x1b
++#define PSR_System           0x1f
++#define PSR_Thumb            0x20
++
++/*===========================================================================
++**  GENERAL PURPOSE ASSEMBLY MACROS.
++**=========================================================================*/
++
++#if defined(_ARM_ASM_)
++
++        GBLS    current_node_name
++        GBLS    current_node_type
++        GBLA    current_node_aregcount
++        GBLA    current_node_vregcount
++
++/*===========================================================================
++
++Name: pusha, popa
++
++Description: Readable names for push and pop.
++
++MODE: Any
++STATE: ARM
++
++Registers modified: sp
++
++=============================================================================*/
++
++        MACRO
++        pusha   $stack, $reg
++        str     $reg, [$stack, #-4]!
++        MEND
++
++        MACRO
++        popa    $stack, $reg
++        ldr     $reg, [$stack], #4
++        MEND
++
++/*===========================================================================
++
++Name: Entry_Node, Entry_Node_End
++
++Description: Defines an empty function prolog and epilog of a piece of assembly code.
++             These macros take care of the following:
++               - Exporting the entry point label
++               - Creating a stack frame
++               - Software stack checking
++
++Defined Labels:
++   "node_name" - The main thumb mode entry point of the function.
++   "node_name"_end - A label marking the begining of the function epilog.
++
++Arguments:
++  Leaf_Node
++  Node_Name - The function name of the function to be defined.
++  Leaf_Node_End
++  None
++
++MODE: Any
++STATE: ARM
++
++Registers modified: None
++
++=============================================================================*/
++
++        MACRO
++        ENTRY_NODE $node_name
++current_node_name       SETS    "$node_name"
++        EXPORT  $node_name
++        ALIGN
++        ROUT
++$node_name
++        MEND
++                                        ;  The end of an entry node.
++        MACRO
++        ENTRY_NODE_END
++$current_node_name._exit
++current_node_name       SETS    ""
++        MEND
++
++/*===========================================================================
++
++  Name: Leaf_Node, Leaf_Node_End
++
++  Description: Defines the function prolog and epilog of a function that makes
++               no function calls. These macros take care of the following:
++                 - Exporting the entry point label
++                 - Creating 16 and 32 bit entry points.
++                 - Creating a stack frame
++                 - Software stack checking
++
++  Defined Labels:
++     "node_name" - The main thumb mode entry point of the function.
++     "node_name"_32 - The ARM state entry point to the function.
++     "node_name"_end - A label marking the begining of the function epilog.
++
++  Arguments:
++    Leaf_Node
++     Node_Name - The function name of the function to be defined.
++    Leaf_Node_End
++     None
++
++  MODE: Any
++  STATE: ARM and Thumb state entry points. Code runs in ARM state.
++
++  Registers modified: None
++
++=============================================================================*/
++        MACRO
++        LEAF_NODE $node_name
++current_node_type       SETS    "Leaf"
++        CODE16
++        ENTRY_NODE $node_name
++        bx      pc
++        ALIGN
++        CODE32
++#ifndef __APCS_INTERWORK
++        orr     lr, lr, #0x01
++#endif
++        EXPORT  $node_name._32
++$node_name._32
++        MEND
++
++        MACRO
++        LEAF_NODE_END $node_name
++        ASSERT  "$current_node_type" = "Leaf"
++        ENTRY_NODE_END $node_name
++        bx     lr
++current_node_type       SETS    ""
++        MEND
++
++
++/*===========================================================================
++
++  Name: Leaf_Node_End, Leaf_Node_End_16
++
++  Description: Defines the function prolog and epilog of a Thumb mode only function that makes
++               no function calls. These macros take care of the following:
++                 - Exporting the entry point label
++                 - Creating a 16 bit entry point.
++                 - Creating a stack frame
++                 - Software stack checking
++
++  Defined Labels:
++     "node_name" - The main thumb mode entry point of the function.
++     "node_name"_end - A label marking the begining of the function epilog.
++
++  Arguments:
++    Leaf_Node_16
++     Node_Name - The function name of the function to be defined.
++    Leaf_Node_End_16
++     None
++
++  MODE: Any
++  STATE: Thumb
++
++  Registers modified: None
++
++=============================================================================*/
++
++        MACRO
++        LEAF_NODE_16 $node_name
++current_node_type       SETS    "Leaf16"
++        CODE16
++        ENTRY_NODE $node_name
++        MEND
++
++        MACRO
++        LEAF_NODE_END_16 $node_name
++        ASSERT  "$current_node_type" = "Leaf16"
++        ENTRY_NODE_END $node_name
++        bx     lr
++current_node_type       SETS    ""
++        MEND
++
++
++        MACRO
++        ALTERNATE_ENTRY_16 $node_name
++        ASSERT  "$current_node_type" = "Leaf16"
++        EXPORT $node_name
++$node_name
++        MEND
++
++
++/*===========================================================================
++
++  Name: blatox
++
++  Description: Calls a function from ARM state without having to know whether that
++     that function is ARM or Thumb state code.
++
++  Arguments:
++    destreg - The register that contains the address of the function to be called.
++
++  Registers modified: lr
++
++  MODE: Any
++  STATE: ARM. Can call either ARM or Thumb state functions.
++
++=============================================================================*/
++
++        MACRO
++        blatox     $destreg
++        ROUT
++
++        tst     $destreg, #0x01         /* Test for thumb mode call.  */
++
++        ldrne   lr, =%1
++        ldreq   lr, =%2
++        bx      $destreg
++1
++        CODE16
++        bx      pc
++        ALIGN
++        CODE32
++2
++        MEND
++
++#endif   /* ARM_ASM  */
++
++#endif   /* ARMASM_H */
+diff -Naur android-l-clean/vendor/qcom/proprietary/common/inc/comdef.h android-l-uart-ibs/vendor/qcom/proprietary/common/inc/comdef.h
+--- android-l-clean/vendor/qcom/proprietary/common/inc/comdef.h	1970-01-01 08:00:00.000000000 +0800
++++ android-l-uart-ibs/vendor/qcom/proprietary/common/inc/comdef.h	2015-06-23 11:34:40.000000000 +0800
+@@ -0,0 +1,1288 @@
++#ifndef COMDEF_H
++#define COMDEF_H
++/*===========================================================================
++
++                   S T A N D A R D    D E C L A R A T I O N S
++
++DESCRIPTION
++  This header file contains general types and macros that are of use
++  to all modules.  The values or definitions are dependent on the specified
++  target.  T_WINNT specifies Windows NT based targets, otherwise the
++  default is for ARM targets.
++
++       T_WINNT  Software is hosted on an NT platforn, triggers macro and
++                type definitions, unlike definition above which triggers
++                actual OS calls
++
++DEFINED TYPES
++
++       Name      Definition
++       -------   --------------------------------------------------------
++       byte      8  bit unsigned value
++       word      16 bit unsigned value
++       dword     32 bit unsigned value
++
++       uint1     byte
++       uint2     word
++       uint4     dword
++
++       uint8     8  bit unsigned value
++       uint16    16 bit unsigned value
++       uint32    32 bit unsigned value
++       uint64    64 bit unsigned value
++
++       int8      8  bit signed value
++       int16     16 bit signed value
++       int32     32 bit signed value
++       int 64    64 bit signed value
++
++       sint31    32 bit signed value
++       sint15    16 bit signed value
++       sint7     8  bit signed value
++
++       int1      8  bit signed value
++       int2      16 bit signed value
++       int4      32 bit signed value
++
++       boolean   8 bit boolean value
++
++DEFINED CONSTANTS
++
++       Name      Definition
++       -------   --------------------------------------------------------
++       TRUE      Asserted boolean condition (Logical 1)
++       FALSE     Deasserted boolean condition (Logical 0)
++
++       ON        Asserted condition
++       OFF       Deasserted condition
++
++       NULL      Pointer to nothing
++
++       PACKED    Used to indicate structures which should use packed
++                 alignment
++
++       INLINE    Used to inline functions for compilers which support this
++
++  -----------------------------------------------------------------------------
++  Copyright (c) 1990, 1992-1994, 1997-2007 Qualcomm Technologies, Inc.
++  All Rights Reserved. Qualcomm Technologies Proprietary and Confidential.
++  -----------------------------------------------------------------------------
++===========================================================================*/
++
++
++/*===========================================================================
++
++                      EDIT HISTORY FOR FILE
++
++This section contains comments describing changes made to this file.
++Notice that changes are listed in reverse chronological order.
++
++$Header: //linux/pkgs/proprietary/oncrpc/main/source/inc/comdef.h#4 $
++
++when       who     what, where, why
++--------   ---     ----------------------------------------------------------
++01/09/06   bfc     Added Pthe OST_ALIGN macro.
++09/22/06    th     Added FIQLOCK_SAV/FIQFREE_SAV macros for Windows Mobile
++05/10/06   taw     Added FIQLOCK_SAV/FIQFREE_SAV macros.
++01/25/06   sam     Added MSM_INTLOCK/MSM_INTFREE macros.
++07/13/05   adm     Merged in changes related to supporting BootLoader compilation
++                   for L4 builds
++07/06/05   ptm     Merge to 6550 for L4.
++06/30/05   adm     Merging in 6800's later changes and made some fixes.
++06/29/05   adm     Merged in 6800 l4 related changes
++02/28/04   jcw     Removed TASKLOCK/TASKFREE definition to INTLOCK/INTFREE for L4.
++02/14/04   hcg     Add TASKLOCK/TASKFREE definition to INTLOCK/INTFREE for L4.
++08/25/04   jac     suppress lint error 413 for FPOS macro
++11/19/03    gr     Added multiple definition protection for the ARR_SIZE
++                   macro.
++10/18/03    gr     Moved TASKLOCK/TASKFREE into this file from rex.h. DMSS
++                   expects to pick these up just by including comdef.h.
++10/17/03    gr     Made inclusion of target.h unconditional (TG is now
++                   deprecated).
++10/16/03    gr     Defined LOCAL away unconditionally. DMSS doesn't build with
++                   LOCAL set to static.
++01/07/04   ajn     Re-integrated 11/14/03 change
++11/20/03   ak      ARR_SIZE conflict with BREW files fixed
++11/14/03   ajn     Removed #include "rex.h" to avoid circular include issue.
++                   Instead, prototypes for rex_int_lock()/rex_int_free()
++                   have been explicitly included for INTLOCK/INTFREE macros.
++06/11/01    gr     Added MOD_BY_POWER_OF_TWO macro.
++04/12/01    sq     Added inpdw and outpdw macros
++           vas     Added solaris support
++04/06/01    gr     Removed the definitions of abs and labs.
++01/25/01   day     Merged from MSM5105_COMMON.00.00.05.
++             Added include for stdlib.h within WINNT ifdef
++       Added support for ARM_ASM
++       Added support SWIG preprocessor.
++09/09/99   tac     Merged in a bunch of panther changes.
++08/11/99   jct     Corrected conditional compilation around labs to check for
++                   labs instead of abs
++06/30/99   jct     Added PC_EMULATOR capability for INTLOCK and INTLOCKSAV
++06/15/99   jct     Cleanup to make work in Windows NT environment.  Addition
++                   of int(n) types where n is 8,16,32,64 and addition of
++                   unit64.  Removal of OS comments and defines as this is replaced
++                   by T_WINNT.  Conditional inclusion of MAX, MIN, labs, abs,
++                   NULL definitions.  Removal of volatile from packed definition
++                   stdlib.h included for Win32 based targets since this replaces several
++                   of the define here.  Changed out uts calls to be comet calls.
++                   Added a defines for Windows NT targets to define away symbols
++                   no longer supported
++04/09/99    ms     Lint cleanup.
++04/01/99    ms     Lint cleanup.
++02/17/99    ms     Parenthesized abs and labs.
++                   Defined __packed to volatile to exploit lint.
++12/16/98   jct     Removed 80186 support
++12/01/98    ms     Removed definition of bsp_io_base.
++11/20/98    ms     Typecast to volatile pointers in inp,outp,inpw and outpw.
++10/10/98   jct     Honing of OS and T_ definitions, added T_WINNT as a target
++                   which triggers something different then which OS since
++                   we may be running REX on an NT platform, but strictly
++                   speaking, the application software is using REX, not NT
++                   as the OS.  Changed ROM for WINNT/ARM targets to be nothing
++                   instead of const
++09/09/98   jct     Updates to merge ARM support with 186 support, added some
++                   new type aliases, added some segmented architecture macros,
++                   updated comments, removed unused code, updated declaration
++                   of inp/outp to have cdecl
++08/01/98   jct     Updates to support ARM processor
++03/25/96   jah     Moved SET_VECT to 80186.h
++02/06/96   fkm     Put ()s around Macros to Make Lint Happy
++01/12/95   jah     Updated dependency in MACRO INTLOCK_SAV / INTFREE_SAV.
++12/20/94   jah     Corrected typo in ARR_SIZE() macro comments
++03/11/94   jah     Added #ifdef _lint of NULL as 0 for near/far lint problem.
++06/11/93   jah     Changed FPOS() to cast the pointer to 'near' to avoid the
++                   compiler complaints about lost segments.
++01/28/93   twp     Added ARR_SIZE macro to return number of array elements.
++07/17/92   jah     Changed int1 from 'char' to 'signed char'
++06/10/92   jah     Added WORD_LO/HI, INC_SAT
++05/19/92   jah     Added header comments for macros & made them lint-friendly
++05/04/92   jah     Added define for ROM
++03/02/92   jah     Added in/outp prototypes, INT* Macro comments w/lint
++02/20/92   arh     Added LOCAL macro and ifdef/endif around file
++
++===========================================================================*/
++
++
++/*===========================================================================
++
++                            Data Declarations
++
++===========================================================================*/
++
++#ifdef __cplusplus
++extern "C" {
++#endif
++
++#include "target.h"
++#include "armasm.h"
++
++#if defined FEATURE_L4  && !defined FEATURE_L4_KERNEL && \
++    !defined BUILD_BOOT_CHAIN && !defined BUILD_BOOT_CHAIN_OEMSBL
++  #ifndef _ARM_ASM_
++    #ifdef FEATURE_QUARTZ_135
++      #include <l4/cust/msm_syscall.h>
++    #else /* FEATURE_QUARTZ_135 */
++     #include <msm/msm_syscall.h>
++    #endif /* FEATURE_QUARTZ_135 */
++  #endif /* _ARM_ASM_ */
++#endif /* FEATURE_L4 && !FEATURE_L4_KERNEL &&
++          !FEATURE_L4_KERNEL && !BUILD_BOOT_CHAIN_OEMSBL */
++
++/* For NT apps we want to use the Win32 definitions and/or those
++** supplied by the Win32 compiler for things like NULL, MAX, MIN
++** abs, labs, etc.
++*/
++#ifdef T_WINNT
++   #ifndef WIN32
++      #define WIN32
++   #endif
++   #include <stdlib.h>
++#endif
++
++/* ------------------------------------------------------------------------
++** Constants
++** ------------------------------------------------------------------------ */
++
++#ifdef TRUE
++#undef TRUE
++#endif
++
++#ifdef FALSE
++#undef FALSE
++#endif
++
++#define TRUE   1   /* Boolean true value. */
++#define FALSE  0   /* Boolean false value. */
++
++#define  ON   1    /* On value. */
++#define  OFF  0    /* Off value. */
++
++#ifdef _lint
++  #define NULL 0
++#endif
++
++#ifndef NULL
++  #define NULL  0
++#endif
++
++/* -----------------------------------------------------------------------
++** Standard Types
++** ----------------------------------------------------------------------- */
++
++/* The following definitions are the same accross platforms.  This first
++** group are the sanctioned types.
++*/
++#ifndef _ARM_ASM_
++typedef  unsigned char      boolean;     /* Boolean value type. */
++
++typedef  unsigned long int  uint32;      /* Unsigned 32 bit value */
++typedef  unsigned short     uint16;      /* Unsigned 16 bit value */
++typedef  unsigned char      uint8;       /* Unsigned 8  bit value */
++
++typedef  signed long int    int32;       /* Signed 32 bit value */
++typedef  signed short       int16;       /* Signed 16 bit value */
++typedef  signed char        int8;        /* Signed 8  bit value */
++
++/* This group are the deprecated types.  Their use should be
++** discontinued and new code should use the types above
++*/
++typedef  unsigned char     byte;         /* Unsigned 8  bit value type. */
++typedef  unsigned short    word;         /* Unsinged 16 bit value type. */
++typedef  unsigned long     dword;        /* Unsigned 32 bit value type. */
++
++typedef  unsigned char     uint1;        /* Unsigned 8  bit value type. */
++typedef  unsigned short    uint2;        /* Unsigned 16 bit value type. */
++typedef  unsigned long     uint4;        /* Unsigned 32 bit value type. */
++
++typedef  signed char       int1;         /* Signed 8  bit value type. */
++typedef  signed short      int2;         /* Signed 16 bit value type. */
++typedef  long int          int4;         /* Signed 32 bit value type. */
++
++typedef  signed long       sint31;       /* Signed 32 bit value */
++typedef  signed short      sint15;       /* Signed 16 bit value */
++typedef  signed char       sint7;        /* Signed 8  bit value */
++
++#ifdef FEATURE_WINCE
++  #define WCE_MSG  RETAILMSG
++  #define WCE_MSG6 RETAILMSG
++  #define WCE_MSGT RETAILMSG
++  #define WCE_MSG_SDBG RETAILMSG
++#endif
++/************************** The PACK() macro *****************************
++  This block sets up the semantics for PACK() macro based upon
++  upon the target compiler. PACK() is necessary to ensure portability of C
++  variable/struct/union packing across many platforms.  For example, ARM
++  compilers require the following:
++    typedef __packed struct { ... } foo_t;
++
++  But GCC requires this to achieve the same effect:
++    typedef struct __attribute((__packed__)) struct { ... } foo_t;
++
++  And, of course, Microsoft VC++ requires an alignment #pragma prologue and
++  epilogue. To satisfy all three, the following form is recommended:
++
++    #ifdef _WIN32
++		#pragma pack(push,1) // Save previous, and turn on 1 byte alignment
++    #endif
++
++    typedef PACK(struct)
++    {
++      ...
++    } such_and_such_t;
++
++    typedef PACK(struct)
++    {
++      ...
++    } this_and_that_t;
++
++    typedef PACK(struct)
++    {
++      PACK(struct)
++      {
++        ...
++      } hdr;
++      PACK(union)
++      {
++        such_and_such_t sas;
++        this_and_that_t tat;
++      } payload;
++    } cmd_t;
++
++*********************** BEGIN PACK() Definition ***************************/
++#if defined __GNUC__
++  #define PACK(x)       x __attribute__((__packed__))
++#elif defined __arm
++  #define PACK(x)       __packed x
++#else
++  #error No PACK() macro defined for this compiler
++#endif
++/********************** END PACK() Definition *****************************/
++/* ---------------------------------------------------------------------
++** Compiler Keyword Macros
++** --------------------------------------------------------------------- */
++#if (! defined T_WINNT) && (! defined TARGET_OS_SOLARIS)
++#ifndef SWIG  /* The SWIG preprocessor gets confused by these */
++  /* Non WinNT Targets
++  */
++  typedef  signed long long   int64;       /* Signed 64 bit value */
++  typedef  unsigned long long uint64;      /* Unsigned 64 bit value */
++
++#if defined(__ARMCC_VERSION) 
++  #define PACKED __packed
++  #define PACKED_POST
++  #define ALIGN(__value) __align(__value)
++  #define POST_ALIGN(__value)
++  #define INLINE __inline
++  #define inline __inline
++#else  /* __GNUC__ */
++  #define PACKED 
++  #ifndef FEATURE_WINCE
++    #define ALIGN(__value) __attribute__((__aligned__(__value)))
++    #define POST_ALIGN(__value)
++    #define PACKED_POST    __attribute__((__packed__))
++  #else /* FEATURE_WINCE */
++    #ifdef WINCE_TODO
++      /*----------------------------------------------------------------------
++        Should we be using something closer to the T_WINNT case below?
++      ----------------------------------------------------------------------*/
++    #endif /* WINCE_TODO */
++    #define ALIGN(__value)
++    #define POST_ALIGN(__value)
++    #define PACKED_POST
++    #define INLINE 
++  #endif /* FEATURE_WINCE */
++    
++
++  #ifndef INLINE
++    #define INLINE inline
++  #endif
++#endif /* defined (__GNUC__) */
++
++  #define CDECL
++#endif /* SWIG */
++  #define far
++  #define near
++  #define _far
++  #define _near
++//  #define _cdecl
++  #define cdecl
++  #define _pascal
++  #define _interrupt
++
++#else /* T_WINNT || TARGET_OS_SOLARIS */
++
++  /* WINNT or SOLARIS based targets
++  */
++#if (defined __GNUC__) || (defined TARGET_OS_SOLARIS)
++  typedef long long           int64;
++  typedef unsigned long long  uint64;
++#else
++  typedef  __int64            int64;       /* Signed 64 bit value */
++  typedef  unsigned __int64   uint64;      /* Unsigned 64 bit value */
++#endif
++  #define PACKED
++  #define PACKED_POST
++  #define ALIGN(__value)
++  #define POST_ALIGN(__value)
++  #ifndef INLINE
++
++  /* INLINE is defined to __inline because WINNT targets work fine with it
++   * and defining it to nothing does not work because the inline function
++   * definition is then multiply defined.  Solaris may need a different value.
++   */
++  #define INLINE __inline
++  #endif
++  #ifndef CDECL
++     #define CDECL __cdecl
++  #endif
++  #define _pascal
++  #define _far
++  #define far
++  #define near
++  #define _near
++  #define cdecl
++  #define _cdecl
++  #define _interrupt
++  #define __packed
++  #define _fmemcpy memcpy
++
++#endif /* T_WINNT */
++#endif // #ifndef _ARM_ASM_
++
++/* ----------------------------------------------------------------------
++** Lint does not understand __packed, so we define it away here.  In the
++** past we did this:
++**   This helps us catch non-packed pointers accessing packed structures,
++**   for example, (although lint thinks it is catching non-volatile pointers
++**   accessing volatile structures).
++**   This does assume that volatile is not being used with __packed anywhere
++**   because that would make Lint see volatile volatile (grrr).
++** but found it to be more trouble than it was worth as it would emit bogus
++** errors
++** ---------------------------------------------------------------------- */
++#ifdef _lint
++  #define __packed
++#endif
++
++/* ----------------------------------------------------------------------
++**                          STANDARD MACROS
++** ---------------------------------------------------------------------- */
++
++#ifndef SWIG /* these confuse the SWIG preprocessor and aren't needed for it */
++
++
++/*===========================================================================
++
++MACRO MEM_B
++MACRO MEM_W
++
++DESCRIPTION
++  Take an address and dereference it as a byte/word, allowing access to an
++  arbitrary memory byte/word.
++
++PARAMETERS
++  x     address to be dereferenced
++
++DEPENDENCIES
++  None
++
++RETURN VALUE
++  MEM_B byte at the given address
++  MEM_W word at the given address
++
++SIDE EFFECTS
++  None
++
++===========================================================================*/
++
++#define  MEM_B( x )  ( *( (byte *) (x) ) )
++#define  MEM_W( x )  ( *( (word *) (x) ) )
++
++
++
++/*===========================================================================
++
++MACRO MAX
++MACRO MIN
++
++DESCRIPTION
++  Evaluate the maximum/minimum of 2 specified arguments.
++
++PARAMETERS
++  x     parameter to compare to 'y'
++  y     parameter to compare to 'x'
++
++DEPENDENCIES
++  'x' and 'y' are referenced multiple times, and should remain the same
++  value each time they are evaluated.
++
++RETURN VALUE
++  MAX   greater of 'x' and 'y'
++  MIN   lesser of 'x' and 'y'
++
++SIDE EFFECTS
++  None
++
++===========================================================================*/
++#ifndef MAX
++   #define  MAX( x, y ) ( ((x) > (y)) ? (x) : (y) )
++#endif
++
++#ifndef MIN
++   #define  MIN( x, y ) ( ((x) < (y)) ? (x) : (y) )
++#endif
++
++
++
++/*===========================================================================
++
++MACRO FPOS
++
++DESCRIPTION
++  This macro computes the offset, in bytes, of a specified field
++  of a specified structure or union type.
++
++PARAMETERS
++  type          type of the structure or union
++  field         field in the structure or union to get the offset of
++
++DEPENDENCIES
++  None
++
++RETURN VALUE
++  The byte offset of the 'field' in the structure or union of type 'type'.
++
++SIDE EFFECTS
++  The lint error "Warning 545: Suspicious use of &" is suppressed within
++  this macro.  This is due to the desire to have lint not complain when
++  'field' is an array.
++
++===========================================================================*/
++
++#define FPOS( type, field ) \
++    /*lint -e545 */ ( (dword) &(( type *) 0)-> field ) /*lint +e545 */
++
++
++
++/*===========================================================================
++
++MACRO FSIZ
++
++DESCRIPTION
++  This macro computes the size, in bytes, of a specified field
++  of a specified structure or union type.
++
++PARAMETERS
++  type          type of the structure or union
++  field         field in the structure or union to get the size of
++
++DEPENDENCIES
++  None
++
++RETURN VALUE
++  size in bytes of the 'field' in a structure or union of type 'type'
++
++SIDE EFFECTS
++  None
++
++===========================================================================*/
++
++#define FSIZ( type, field ) sizeof( ((type *) 0)->field )
++
++
++
++/*===========================================================================
++
++MACRO FLIPW
++
++DESCRIPTION
++  Takes a 2 byte array, with the most significant byte first, followed
++  by the least significant byte, and converts the quantity into a word
++  with Intel byte order (LSB first)
++
++PARAMETERS
++  ray   array of 2 bytes to be converted to a word
++
++DEPENDENCIES
++  None
++
++RETURN VALUE
++  word in Intel byte order comprised of the 2 bytes of ray.
++
++SIDE EFFECTS
++  None
++
++===========================================================================*/
++
++#define  FLIPW( ray ) ( (((word) (ray)[0]) * 256) + (ray)[1] )
++
++
++
++/*===========================================================================
++
++MACRO FLOPW
++
++DESCRIPTION
++  Reverses bytes of word value and writes them to a 2 byte array.
++  Effectively the reverse of the FLIPW macro.
++
++PARAMETERS
++  ray   array to receive the 2 bytes from 'val'
++  val   word to break into 2 bytes and put into 'ray'
++
++DEPENDENCIES
++  None
++
++RETURN VALUE
++  None
++
++SIDE EFFECTS
++  None
++
++===========================================================================*/
++#define  FLOPW( ray, val ) \
++  (ray)[0] = ((val) / 256); \
++  (ray)[1] = ((val) & 0xFF)
++
++
++
++/*===========================================================================
++
++MACRO B_PTR
++MACRO W_PTR
++
++DESCRIPTION
++  Casts the address of a specified variable as a pointer to byte/word,
++  allowing byte/word-wise access, e.g.
++  W_PTR ( xyz )[ 2 ] = 0x1234;  -or-    B_PTR ( xyz )[ 2 ] = 0xFF;
++
++PARAMETERS
++  var   the datum to get a word pointer to
++
++DEPENDENCIES
++  None
++
++RETURN VALUE
++  Word pointer to var
++
++SIDE EFFECTS
++  None
++
++===========================================================================*/
++
++#define  B_PTR( var )  ( (byte *) (void *) &(var) )
++#define  W_PTR( var )  ( (word *) (void *) &(var) )
++#define  D_PTR( var )  ( (dword *) (void *) &(var) )
++
++
++/*===========================================================================
++
++MACRO WORD_LO
++MACRO WORD_HI
++
++DESCRIPTION
++  Take a word and extract the least-significant or most-significant byte.
++
++PARAMETERS
++  xxx   word to extract the Low/High from
++
++DEPENDENCIES
++  None
++
++RETURN VALUE
++  WORD_LO       Least significant byte of xxx.
++  WORD_HI       Most significant byte of xxx.
++
++SIDE EFFECTS
++  None
++
++===========================================================================*/
++
++#define  WORD_LO(xxx)  ((byte) ((word)(xxx) & 255))
++#define  WORD_HI(xxx) \
++  /*lint -e572 */  ((byte) ((word)(xxx) >> 8))  /*lint +e572 */
++
++
++/*===========================================================================
++
++MACRO RND8
++
++DESCRIPTION
++  RND8 rounds a number up to the nearest multiple of 8.
++
++PARAMETERS
++  x     Number to be rounded up
++
++DEPENDENCIES
++  None
++
++RETURN VALUE
++  x rounded up to the nearest multiple of 8.
++
++SIDE EFFECTS
++  None
++
++===========================================================================*/
++
++#define RND8( x )       ((((x) + 7) / 8 ) * 8 )
++
++/* -----------------------------------------------------------------------
++** Temporary inclusion of rex.h because there is code in AMSS that expects
++** to pick up Rex definitions by just including comdef.h.
++** ----------------------------------------------------------------------- */
++//#include "rex.h"
++
++/*===========================================================================
++
++MACRO INTLOCK / INTFREE
++
++DESCRIPTION
++  INTLOCK Saves current interrupt state on stack then informs the kernel
++  not to process interrupts in this thread. One interrupt may still occur, 
++  but it will not be processed until either INTFREE is called or a context 
++  switch to another thread which has interrupts enabled is made.
++
++  INTFREE Restores previous interrupt state from stack. Used in conjunction
++  with INTLOCK.
++
++  INTLOCK/INTFREE may be nested, in which case inner INTLOCK/INTFREE
++  pairs will have no effect.
++
++PARAMETERS
++  None
++
++DEPENDENCIES
++  None
++
++RETURN VALUE
++  None
++
++SIDE EFFECTS
++  INTLOCK stops interrupt processing.
++  INTFREE restores the interrupt mask saved previously.
++
++===========================================================================*/
++#if defined PC_EMULATOR_H && !defined T_REXNT
++
++   #define PC_EMULATOR_INTLOCK
++   #include PC_EMULATOR_H
++   #undef PC_EMULATOR_INTLOCK
++
++#elif defined T_WINNT || defined FEATURE_ANDROID
++
++   #define INTLOCK()
++   #define INTFREE()
++
++#elif defined FEATURE_WINCE_OAL
++  #define INTLOCK()  INTERRUPTS_OFF()
++  #define INTFREE()  INTERRUPTS_ON()
++#elif !defined _ARM_ASM_ && (!defined FEATURE_L4 || defined FEATURE_L4_KERNEL)
++
++  #ifdef __cplusplus
++    extern "C" {
++  #endif
++      extern dword rex_int_lock( void );
++      extern dword rex_int_free( void );
++#ifdef FEATURE_WINCE
++      extern int rex_ints_are_locked( void );
++#endif
++
++  #ifdef __cplusplus
++    }
++  #endif
++
++  #define  INTLOCK( )  { dword sav = rex_int_lock();
++  #define  INTFREE( )  if(!sav) (void)rex_int_free();}
++
++#endif
++
++
++/*===========================================================================
++
++MACRO MSM_INTLOCK / MSM_INTFREE
++
++DESCRIPTION
++  MSM_INTLOCK Saves current interrupt state on stack then locks interrupts. 
++  No interrupts will be taken until either MSM_INTFREE is called or a context 
++  switch to another thread which has interrupts enabled is made. This
++  macro is slower than INTLOCK and should only be used when interrupt 
++  locking is needed to ensure timing. To simply prevent context switching, 
++  use the INTLOCK/INTFREE macros above.
++
++  MSM_INTFREE Restores previous interrupt state from stack. Used in conjunction
++  with MSM_INTLOCK.
++
++  MSM_INTLOCK/MSM_INTFREE may be nested, in which case inner 
++  MSM_INTLOCK/MSM_INTFREE pairs will have no effect. It may also be nested
++  inside or outside of INTLOCK/INTFREE.
++
++PARAMETERS
++  None
++
++DEPENDENCIES
++  None
++
++RETURN VALUE
++  None
++
++SIDE EFFECTS
++  MSM_INTLOCK prevents any interrupts from occurring until MSM_INTFREE is
++    called or a context switch to a thread with interrupts enabled is made.
++  MSM_INTFREE restores the interrupt mask saved previously.
++
++===========================================================================*/
++#ifndef _ARM_ASM
++#if defined FEATURE_L4
++  #ifdef __cplusplus
++    extern "C" {
++  #endif
++      extern dword rex_msm_int_lock( void );
++      extern void rex_msm_int_free( dword set );
++  #ifdef __cplusplus
++    }
++  #endif
++
++  #define MSM_INTLOCK()  { dword sav = rex_msm_int_lock();
++  #define MSM_INTFREE()  rex_msm_int_free( sav ); }
++
++#else
++
++  #define MSM_INTLOCK() INTLOCK()
++  #define MSM_INTFREE() INTFREE()
++
++#endif
++#endif
++
++/*===========================================================================
++
++MACRO FIQLOCK / FIQFREE
++
++DESCRIPTION
++  FIQLOCK Saves current FIQ state on stack then disables FIQ interrupts.
++  Used in conjunction with FIQFREE.
++
++  FIQFREE Restores previous FIQ interrupt state from stack.  Used in 
++  conjunction with FIQLOCK.
++
++PARAMETERS
++  None
++
++DEPENDENCIES
++  This is currently only available in L4 based builds.
++
++RETURN VALUE
++  None
++
++SIDE EFFECTS
++  FIQLOCK turns off FIQ interrupts.
++  FIQFREE restores the FIQ interrupt mask saved previously.
++
++===========================================================================*/
++#if defined FEATURE_L4 && !defined _ARM_ASM_
++
++  #ifdef __cplusplus
++    extern "C" {
++  #endif
++      extern dword rex_fiq_op( dword lock );
++  #ifdef __cplusplus
++    }
++  #endif
++
++  #define  FIQLOCK()  { dword sav = rex_fiq_op(1);
++  #define  FIQFREE()  if(!(sav & PSR_Fiq_Mask)) (void)rex_fiq_op(0);}
++    
++#else
++
++  #define FIQLOCK()
++  #define FIQFREE()
++
++#endif
++
++/*===========================================================================
++
++MACRO INTLOCK_SAV / INTFREE_SAV
++
++DESCRIPTION
++  INTLOCK_SAV Saves current interrupt state in specified variable sav_var
++  then disables interrupts.  Used in conjunction with INTFREE_SAV.
++
++  INTFREE_SAV Restores previous interrupt state from specified variable
++  sav_var.  Used in conjunction with INTLOCK_SAV.
++
++PARAMETERS
++  sav_var       Current flags register, including interrupt status
++
++DEPENDENCIES
++  None.
++
++RETURN VALUE
++  None
++
++SIDE EFFECTS
++  INTLOCK_SAV turn off interrupts
++  INTFREE_SAV restore the interrupt mask saved previously
++
++===========================================================================*/
++
++
++#ifdef _lint    /* get lint to 'know' the parameter is accessed */
++
++  #define  INTLOCK_SAV(sav_var)   (sav_var = 1)
++  #define  INTFREE_SAV(sav_var)   (sav_var = sav_var + 1)
++
++#else
++
++   #if defined PC_EMULATOR_H && !defined T_REXNT
++
++      #define PC_EMULATOR_INTLOCKSAV
++      #include PC_EMULATOR_H
++      #undef  PC_EMULATOR_INTLOCKSAV
++
++   #elif defined T_WINNT
++
++     #define  INTLOCK_SAV( sav_var )
++     #define  INTFREE_SAV( sav_var )
++
++#elif !defined _ARM_ASM_ && (!defined FEATURE_L4 || defined FEATURE_L4_KERNEL)
++
++     #define  INTLOCK_SAV( sav_var )  sav_var = rex_int_lock()
++     #define  INTFREE_SAV( sav_var )  if(!sav_var) rex_int_free()
++
++   #endif
++
++#endif /* END if _lint */
++
++/*===========================================================================
++
++MACRO FIQLOCK_SAV / FIQFREE_SAV
++
++DESCRIPTION
++  FIQLOCK Saves current FIQ state in specified variable sav_var 
++  then disables FIQ interrupts.  Used in conjunction with FIQFREE_SAV.
++
++  FIQFREE_SAV Restores previous FIQ interrupt state from specified variable
++  sav_var.  Used in conjunction with FIQLOCK_SAV.
++
++PARAMETERS
++  sav_var       Current flags register, including interrupt status
++
++DEPENDENCIES
++  This is currently only available in L4 based builds.
++
++RETURN VALUE
++  None
++
++SIDE EFFECTS
++  FIQLOCK_SAV turns off FIQ interrupts.
++  FIQFREE_SAV restores the FIQ interrupt mask saved previously.
++
++===========================================================================*/
++#ifdef _lint    /* get lint to 'know' the parameter is accessed */
++
++  #define  FIQLOCK_SAV(sav_var)   (sav_var = 1)
++  #define  FIQFREE_SAV(sav_var)   (sav_var = sav_var + 1)
++
++#else
++
++  #if defined FEATURE_L4 && !defined _ARM_ASM_
++  
++    #ifdef __cplusplus
++      extern "C" {
++    #endif
++        extern dword rex_fiq_op( dword lock );
++    #ifdef __cplusplus
++      }
++    #endif
++  
++    #define  FIQLOCK_SAV(sav_var)  (sav_var = rex_fiq_op(1))
++    #define  FIQFREE_SAV(sav_var)  if(!(sav_var & PSR_Fiq_Mask)) \
++                                      (void)rex_fiq_op(0)
++
++  #elif defined FEATURE_WINCE
++
++    #define  FIQLOCK_SAV(sav_var)  (sav_var = FIQLockSave())
++    #define  FIQFREE_SAV(sav_var)  if(!(sav_var & 0x40)) (void)FIQLockRestore()
++
++  #else
++  
++    #define FIQLOCK_SAV()
++    #define FIQFREE_SAV()
++  
++  #endif
++  
++#endif
++
++
++/*===========================================================================
++MACRO TASKLOCK/TASKFREE/TASKLOCK_SAV/TASKFREE_SAV
++
++DESCRIPTION
++  TASKLOCK prevents context switching from the point at which it is invoked
++  until a matching TASKFREE is invoked.  While task locked, the current task
++  is guaranteed to not be replaced by a different task, even if the other
++  task has a higher priority.  However, TASKLOCK does not block interrupts
++  from occurring.  An ISR will pre-empt the task, but even if the ISR causes
++  a higher priority task to become ready, control will still resume at the
++  interrupted task.
++
++  Note that a rex-wait() while a TASKLOCK is in effect will not work as
++  normal, as the calling task will not be suspended.
++
++  Also, TASKLOCK/TASKFREE have no effect if called from within an ISR.
++
++  TASKFREE re-enables context switching.
++
++  TASKLOCK_SAV and TASKFREE_SAV are similar to TASKLOCK and TASKFREE
++  respectively, except that the TASKFREE_SAV that matches a TASKLOCK_SAV
++  does not have to be at the same static scope within a function. This
++  makes it easier, for instance, to enable task scheduling and return from
++  the middle of a function.
++
++===========================================================================*/
++#ifdef T_WINNT
++#ifdef __cplusplus
++   extern "C" {
++#endif
++   unsigned char rexnt_is_rex_thread( void );
++#ifdef __cplusplus
++   }
++#endif
++   /* tasks must not be locked by non-REX threads */
++#define TASKLOCK( ) {\
++   unsigned char REXNT_IS_REX_THREAD=rexnt_is_rex_thread();\
++   if ( REXNT_IS_REX_THREAD ) rex_task_lock( ); {
++
++#define TASKFREE( ) \
++   } if ( REXNT_IS_REX_THREAD ) rex_task_free( ); }
++
++#else
++
++#define TASKLOCK( ) { rex_task_lock( );
++
++#define TASKFREE( ) rex_task_free( ); }
++
++#define TASKLOCK_SAV( ) rex_task_lock( )
++
++#define TASKFREE_SAV( ) rex_task_free( )
++
++#endif /* T_WINNT */
++
++/*===========================================================================
++
++MACRO UPCASE
++
++DESCRIPTION
++  Convert a character to uppercase, the character does not have to
++  be printable or a letter.
++
++PARAMETERS
++  c             Character to be converted
++
++DEPENDENCIES
++  'c' is referenced multiple times, and should remain the same value
++  each time it is evaluated.
++
++RETURN VALUE
++  Uppercase equivalent of the character parameter
++
++SIDE EFFECTS
++  None
++
++===========================================================================*/
++
++#define  UPCASE( c ) ( ((c) >= 'a' && (c) <= 'z') ? ((c) - 0x20) : (c) )
++
++
++/*===========================================================================
++
++MACRO DECCHK
++MACRO HEXCHK
++
++DESCRIPTION
++  These character attribute macros are similar to the standard 'C' macros
++  (isdec and ishex), but do not rely on the character attributes table used
++  by Microsoft 'C'.
++
++PARAMETERS
++  c             Character to be examined
++
++DEPENDENCIES
++  None
++
++RETURN VALUE
++  DECCHK        True if the character is a decimal digit, else False
++  HEXCHK        True if the chacters is a hexidecimal digit, else False
++
++SIDE EFFECTS
++  None
++
++===========================================================================*/
++
++#define  DECCHK( c ) ((c) >= '0' && (c) <= '9')
++
++#define  HEXCHK( c ) ( ((c) >= '0' && (c) <= '9') ||\
++                       ((c) >= 'A' && (c) <= 'F') ||\
++                       ((c) >= 'a' && (c) <= 'f') )
++
++
++/*===========================================================================
++
++MACRO INC_SAT
++
++DESCRIPTION
++  Increment a value, but saturate it at its maximum positive value, do not
++  let it wrap back to 0 (unsigned) or negative (signed).
++
++PARAMETERS
++  val           value to be incremented with saturation
++
++DEPENDENCIES
++  None
++
++RETURN VALUE
++  val
++
++SIDE EFFECTS
++  val is updated to the new value
++
++===========================================================================*/
++
++#define  INC_SAT( val )  (val = ((val)+1 > (val)) ? (val)+1 : (val))
++
++
++/*===========================================================================
++
++MACRO ARR_SIZE
++
++DESCRIPTION
++  Return the number of elements in an array.
++
++PARAMETERS
++  a             array name
++
++DEPENDENCIES
++  None
++
++RETURN VALUE
++  Number of elements in array a
++
++SIDE EFFECTS
++  None.
++
++===========================================================================*/
++#if !defined(ARR_SIZE)
++#define  ARR_SIZE( a )  ( sizeof( (a) ) / sizeof( (a[0]) ) )
++#endif
++/*===========================================================================
++                     MACRO MOD_BY_POWER_OF_TWO
++
++     Will calculate x % y, where x is a non-negative integer and
++     y is a power of 2 from 2^0..2^32.
++
++     Will work for 2^0, 2^1, 2^2, 2^3, 2^4, ... 2^32
++      ie.            1,   2,   4,   8,  16, ... 4294967296
++===========================================================================*/
++
++#define MOD_BY_POWER_OF_TWO( val, mod_by ) \
++           ( (dword)(val) & (dword)((mod_by)-1) )
++
++/* -------------------------------------------------------------------------
++**                       Debug Declarations
++** ------------------------------------------------------------------------- */
++
++/* Define 'SHOW_STAT' in order to view static's as globals
++** (e.g. cl /DSHOW_STAT foo.c) If 'SHOW_STAT' is not defined,
++** it gets defined as 'static'
++*/
++#ifdef LOCAL
++   #undef LOCAL
++#endif
++
++/* Permanently turn on SHOW_STAT since this has always been the case anyway
++*/
++#define SHOW_STAT
++
++#ifdef SHOW_STAT
++  #define LOCAL
++#else
++  #define LOCAL static
++#endif
++
++/* Provide a new macro that will hopefully be used correctly to conditionally
++** turn static on/off
++*/
++#ifdef GLOBALIZE_STATIC
++   #define STATIC
++#else
++   #define STATIC static
++#endif
++
++
++/*===========================================================================
++
++                      FUNCTION DECLARATIONS
++
++===========================================================================*/
++
++
++
++/*===========================================================================
++
++FUNCTION inp, outp, inpw, outpw, inpdw, outpdw
++
++DESCRIPTION
++  IN/OUT port macros for byte and word ports, typically inlined by compilers
++  which support these routines
++
++PARAMETERS
++  inp(   xx_addr )
++  inpw(  xx_addr )
++  inpdw( xx_addr )
++  outp(   xx_addr, xx_byte_val  )
++  outpw(  xx_addr, xx_word_val  )
++  outpdw( xx_addr, xx_dword_val )
++      xx_addr      - Address of port to read or write (may be memory mapped)
++      xx_byte_val  - 8 bit value to write
++      xx_word_val  - 16 bit value to write
++      xx_dword_val - 32 bit value to write
++
++DEPENDENCIES
++  None
++
++RETURN VALUE
++  inp/inpw/inpdw: the byte, word or dword read from the given address
++  outp/outpw/outpdw: the byte, word or dword written to the given address
++
++SIDE EFFECTS
++  None.
++
++===========================================================================*/
++
++#ifdef PC_EMULATOR_H
++
++  /* For PC emulation, include a header which defines inp/outp/inpw/outpw
++  ** with the semantics above
++  */
++  #define PC_EMULATOR_IO
++  #include PC_EMULATOR_H
++  #undef  PC_EMULATOR_IO
++
++#else
++
++  /* ARM based targets use memory mapped i/o, so the inp/outp calls are
++  ** macroized to access memory directly
++  */
++
++  #define inp(port)         (*((volatile byte *) (port)))
++  #define inpw(port)        (*((volatile word *) (port)))
++  #define inpdw(port)       (*((volatile dword *)(port)))
++
++  #define outp(port, val)   (*((volatile byte *) (port)) = ((byte) (val)))
++  #define outpw(port, val)  (*((volatile word *) (port)) = ((word) (val)))
++  #define outpdw(port, val) (*((volatile dword *) (port)) = ((dword) (val)))
++
++#endif
++
++
++/*===========================================================================
++
++FUNCTION enable, disable
++
++DESCRIPTION
++  Interrupt enable and disable routines.  Enable should cause the CPU to
++  allow interrupts and disable should cause the CPU to disallow
++  interrupts
++
++PARAMETERS
++  None
++
++DEPENDENCIES
++  None
++
++RETURN VALUE
++  None
++
++SIDE EFFECTS
++  None.
++
++===========================================================================*/
++
++#ifndef T_WINNT
++
++  #if !defined _ARM_ASM_
++    /* ARM has no such definition, so we provide one here to enable/disable
++    ** interrupts
++    */
++    #define _disable() (void)rex_int_lock()
++    #define _enable()  (void)rex_int_free()
++
++  #endif
++#endif
++
++#endif /* SWIG */
++
++#ifdef __cplusplus
++}
++#endif
++
++#endif  /* COMDEF_H */
+diff -Naur android-l-clean/vendor/qcom/proprietary/common/inc/common_log.h android-l-uart-ibs/vendor/qcom/proprietary/common/inc/common_log.h
+--- android-l-clean/vendor/qcom/proprietary/common/inc/common_log.h	1970-01-01 08:00:00.000000000 +0800
++++ android-l-uart-ibs/vendor/qcom/proprietary/common/inc/common_log.h	2015-06-23 11:34:40.000000000 +0800
+@@ -0,0 +1,41 @@
++#ifndef COMMON_LOG_H
++#define COMMON_LOG_H
++/*==========================================================================
++
++  -----------------------------------------------------------------------------
++  Copyright (c) 2012 Qualcomm Technologies, Inc.
++  All Rights Reserved. Qualcomm Technologies Proprietary and Confidential.
++  -----------------------------------------------------------------------------
++
++===========================================================================*/
++
++
++#ifdef __cplusplus
++extern "C" {
++#endif
++
++#ifndef LOGE
++#define LOGE ALOGE
++#endif
++
++#ifndef LOGW
++#define LOGW ALOGW
++#endif
++
++#ifndef LOGD
++#define LOGD ALOGD
++#endif
++
++#ifndef LOGV
++#define LOGV ALOGV
++#endif
++
++#ifndef LOGI
++#define LOGI ALOGI
++#endif
++
++#ifdef __cplusplus
++}
++#endif
++
++#endif  /* COMMON_LOG_H */
+diff -Naur android-l-clean/vendor/qcom/proprietary/common/inc/customer.h android-l-uart-ibs/vendor/qcom/proprietary/common/inc/customer.h
+--- android-l-clean/vendor/qcom/proprietary/common/inc/customer.h	1970-01-01 08:00:00.000000000 +0800
++++ android-l-uart-ibs/vendor/qcom/proprietary/common/inc/customer.h	2015-06-23 11:34:40.000000000 +0800
+@@ -0,0 +1,11 @@
++/******************************************************************************
++ ----------------------------------------------------------------------------
++ Copyright (c) 2007 Qualcomm Technologies, Inc.
++ All Rights Reserved. Qualcomm Technologies Proprietary and Confidential.
++ ----------------------------------------------------------------------------
++*******************************************************************************/
++
++#ifndef CUSTOMER_H
++#define CUSTOMER_H
++
++#endif /* CUSTOMER_H */
+diff -Naur android-l-clean/vendor/qcom/proprietary/common/inc/rex.h android-l-uart-ibs/vendor/qcom/proprietary/common/inc/rex.h
+--- android-l-clean/vendor/qcom/proprietary/common/inc/rex.h	1970-01-01 08:00:00.000000000 +0800
++++ android-l-uart-ibs/vendor/qcom/proprietary/common/inc/rex.h	2015-06-23 11:34:40.000000000 +0800
+@@ -0,0 +1,15 @@
++#ifndef REX_H
++#define REX_H
++
++/*----------------------------------------------------------------------------
++ Copyright (c) 2007 Qualcomm Technologies, Inc.  All Rights Reserved.  
++ Qualcomm Technologies Proprietary and Confidential. 
++----------------------------------------------------------------------------*/
++  
++/// @todo RJS !!! Fix
++#define rex_task_lock( )
++#define rex_task_free( )
++typedef dword   rex_sigs_type;
++
++
++#endif /* REX_H */
+diff -Naur android-l-clean/vendor/qcom/proprietary/common/inc/stringl.h android-l-uart-ibs/vendor/qcom/proprietary/common/inc/stringl.h
+--- android-l-clean/vendor/qcom/proprietary/common/inc/stringl.h	1970-01-01 08:00:00.000000000 +0800
++++ android-l-uart-ibs/vendor/qcom/proprietary/common/inc/stringl.h	2015-06-23 11:34:40.000000000 +0800
+@@ -0,0 +1 @@
++#include "string.h"
+diff -Naur android-l-clean/vendor/qcom/proprietary/common/inc/target.h android-l-uart-ibs/vendor/qcom/proprietary/common/inc/target.h
+--- android-l-clean/vendor/qcom/proprietary/common/inc/target.h	1970-01-01 08:00:00.000000000 +0800
++++ android-l-uart-ibs/vendor/qcom/proprietary/common/inc/target.h	2015-06-23 11:34:40.000000000 +0800
+@@ -0,0 +1,83 @@
++#ifndef TARGET_H
++#define TARGET_H
++/*===========================================================================
++
++      T A R G E T   C O N F I G U R A T I O N   H E A D E R   F I L E
++
++DESCRIPTION
++  All the declarations and definitions necessary for general configuration
++  of the DMSS software for a given target environment.
++
++-----------------------------------------------------------------------------
++Copyright (c) 1998-2002 Qualcomm Technologies, Inc.
++All Rights Reserved. Qualcomm Technologies Proprietary and Confidential.
++-----------------------------------------------------------------------------
++===========================================================================*/
++
++/*===========================================================================
++                      EDIT HISTORY FOR FILE
++
++This section contains comments describing changes made to this file.
++Notice that changes are listed in reverse chronological order.
++
++$Header: //linux/pkgs/proprietary/oncrpc/main/source/inc/target.h#3 $
++
++when       who     what, where, why
++--------   ---     ----------------------------------------------------------
++07/12/02   jct     The appropriate target file is now included via customer.h
++                   in cust*.h.  TG is now fixed to be T_G and all other T_xxx
++                   vars that could be assigned to T_G are deleted.  The use of
++                   TG is deprecated. 
++10/06/00   dsb     The appropriate target file is now included automatically
++                   a make macro. Removed check on T_ACP, T_SMS, and T_SMS_UI.
++                   Cannot remove check on T_AUTH as many files still use this 
++                   instead of FEATURE_AUTH as they should.
++                   Eventually, we want to eliminate T==T_xxx codes, but many
++                   upper layer files still use them, so I have left them in.
++                   When the rest of the DMSS stops using them, they should be
++                   removed here.
++08/13/99   jkl     Included T_Q2
++01/15/99   hrk     Integrating from COMMON_ARM.03.01.00 VU from MSM3000 subsystem.
++                   Re-introduced #defines for all targets. Removal of support for
++                   these targets will be done in the next phase.
++12/16/98   jct     Created for MSM3000+ support
++
++===========================================================================*/
++
++#define T_PC    1       /* PC test software, 80386/80486, running MSDOS  */
++#define T_P     2       /* Portable Phone hardware                       */
++#define T_M     3       /* Mobile Phone hardware                         */
++#define T_REX   4       /* REX test software, 80386/80486, REX and MSDOS */
++#define T_S     5       /* Stretch-portable hardware                     */
++#define T_B2    6       /* Beta II mobile hardware                       */
++#define T_I1    7       /* ISS1 WLL hardware                             */
++#define T_DM    8       /* Diagnostic Monitor                            */
++#define T_G     9       /* Gemini Portable hardware                      */
++#define T_I2    10      /* ISS2 WLL hardware                             */
++#define T_C1    11      /* CSS1 WLL hardware                             */
++#define T_SP    12      /* Service Programming Tool                      */
++#define T_T     13      /* TGP (Third Generation Portable)               */
++#define T_MD    14      /* 1900 MHz Module (Charon)                      */
++#define T_Q     15      /* Q phones (Q-1900, Q-800)                      */
++#define T_O     16      /* Odie (5GP)                                    */
++#define T_Q2    17      /* Q phones (Q-1900, Q-800)                      */             
++
++/* This is deprecated - force to always be T_G
++*/
++#define TG T_G
++
++/* Backward compatibile migration, needs to be eliminated completely
++*/
++#undef T_AUTH
++#ifdef FEATURE_AUTH
++   #define T_AUTH
++#endif
++
++/* All featurization starts from customer.h which includes the appropriate
++**    cust*.h and targ*.h
++*/
++#ifdef CUST_H
++   #include "customer.h"
++#endif
++
++#endif /* TARGET_H */

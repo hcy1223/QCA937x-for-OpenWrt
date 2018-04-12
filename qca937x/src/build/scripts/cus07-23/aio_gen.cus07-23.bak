@@ -1,0 +1,72 @@
+#!/bin/bash
+# Add cus07-23 specific patches
+# 
+
+# subversion of AIO
+# start with "."
+BRD_TYPE_VER=.07.23.08
+
+#
+# For each board type,
+# determine which components should be downloaded.
+# The settings here will overwrite the default in aio_gen_bit.sh.
+# 
+# ONLY add/enable those components need download.
+#
+# 1. patch files
+DOWNLOAD_PATCH=y
+
+# 2. kernel
+DOWNLOAD_KERNEL_BACKPORT_3_12=y
+
+# 3. WLAN/BT host drivers
+DOWNLOAD_DRIVER_WLAN_HOST=y
+
+# 4. APPs
+DOWNLOAD_APP_WLAN_LIBNL_3_2_25=y
+DOWNLOAD_APP_WLAN_HOSTAP_2_4=y
+DOWNLOAD_BLUEDROID=n
+DOWNLOAD_QCOM_BT=y
+
+
+
+# Convert to "cus07_23" from "cus07-23".
+BOARD_TYPE_PREFIX=${INPUT_BOARD_TYPE/-/_}
+
+# The format of array should be composed of "BOARD_TYPE_PREFIX + BOARD_TYPE_POSTFIX"
+declare -a cus07_23_aio_patch_arr=(
+"cus07-23-001-wpa_supplicant_defconfig.patch"
+"cus07-23-002-CLD-driver.patch"
+"cus07-23-003-backports.patch"
+"cus07-23-004-wpa_supplicant_libnl32.patch"
+)
+
+# Please add the correct link on CAF if related folder released
+BOARD_TYPE_AIO_PATCH_CAF=
+#BOARD_TYPE_AIO_PATCH_CAF="https://www.codeaurora.org/patches/external/wlan/fixce/3rdparty/patches/cus07-23"
+
+OLD_DIR=`pwd`
+
+if [ ${DOWNLOAD_BLUEDROID} == "y" ]
+then
+    echo "download the codebase for bluedroid"
+    cd ${AIO_TOP}/apps
+    git clone git://codeaurora.org/quic/la/platform/external/bluetooth/bluedroid
+    cd bluedroid
+    git checkout LNX.LA.3.6.1.c4
+    git checkout -b svvd 26a4ed8
+    echo "download the codebase for bluedroid done"
+fi
+
+if [ ${DOWNLOAD_QCOM_BT} == "y" ]
+then
+    echo "download the codebase for hardware bt"
+    cd ${AIO_TOP}/apps
+    git clone git://codeaurora.org/quic/la/platform/hardware/qcom/bt
+    cd bt
+    git checkout LNX.LA.3.6.1.c4
+    git checkout -b svvd 34f2d1adb3c50
+    echo "download the codebase for hardware bt done"
+fi
+
+cd ${OLD_DIR}

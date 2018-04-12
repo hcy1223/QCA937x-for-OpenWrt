@@ -1,0 +1,11 @@
+diff -Nuar qcacld-new.old/CORE/HDD/src/wlan_hdd_cfg80211.c qcacld-new/CORE/HDD/src/wlan_hdd_cfg80211.c
+--- qcacld-new.old/CORE/HDD/src/wlan_hdd_cfg80211.c	2015-10-14 10:02:10.427706419 +0800
++++ qcacld-new/CORE/HDD/src/wlan_hdd_cfg80211.c	2015-10-14 10:02:37.279706362 +0800
+@@ -9140,6 +9140,7 @@
+     switch(key_mgmt)
+     {
+         case WLAN_AKM_SUITE_PSK:
++        case WLAN_AKM_SUITE_PSK_SHA256:
+ #ifdef WLAN_FEATURE_VOWIFI_11R
+         case WLAN_AKM_SUITE_FT_PSK:
+ #endif

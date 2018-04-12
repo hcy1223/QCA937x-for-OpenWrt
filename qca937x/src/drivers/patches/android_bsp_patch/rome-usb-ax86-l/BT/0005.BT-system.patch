@@ -1,0 +1,19 @@
+/*
+* Copyright (c) 2015 Qualcomm Atheros, Inc.
+* All Rights Reserved.
+* Qualcomm Atheros Confidential and Proprietary.
+* NOT A CONTRIBUTION
+*/
+
+diff -Nuar l-bt-orig/system/core/init/devices.c l-bt-work/system/core/init/devices.c
+--- l-bt-orig/system/core/init/devices.c	2015-04-01 22:44:32.271571515 +0800
++++ l-bt-work/system/core/init/devices.c	2015-03-26 23:00:20.000000000 +0800
+@@ -740,7 +740,7 @@
+             return;
+         mkdir_recursive_for_devpath(devpath);
+     } else if (!strncmp(uevent->subsystem, "usb", 3)) {
+-         if (!strcmp(uevent->subsystem, "usb")) {
++         if (!strcmp(uevent->subsystem, "usb") || !strcmp(uevent->subsystem, "usbmisc")) {
+             if (uevent->device_name) {
+                 if (!assemble_devpath(devpath, "/dev", uevent->device_name))
+                     return;

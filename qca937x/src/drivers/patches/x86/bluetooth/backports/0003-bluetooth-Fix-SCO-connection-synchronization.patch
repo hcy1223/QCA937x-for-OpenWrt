@@ -1,0 +1,82 @@
+From c27797c516a4dc0dc11fe25393859a00b858cf2c Mon Sep 17 00:00:00 2001
+From: Nitin Srivastava <nitinsr@codeaurora.org>
+Date: Wed, 25 Jun 2014 10:48:42 +0530
+Subject: [PATCH 03/25] bluetooth: Fix SCO connection synchronization.
+
+Configure the alternate setting of interface '1' to
+'2' once the BT USB driver gets the SCO connection complete
+event from HCI Layer. Similarly, configure the alt. setting
+to '0' on SCO disconnection complete event.
+
+Change-Id: Ia1384451bedda52749599516e9ff4ec3b1f409c7
+Signed-off-by: Nitin Srivastava <nitinsr@codeaurora.org>
+---
+ drivers/bluetooth/btusb.c   |   10 ++++++----
+ include/net/bluetooth/hci.h |    1 +
+ net/bluetooth/hci_event.c   |    3 +++
+ 3 files changed, 10 insertions(+), 4 deletions(-)
+
+diff --git a/drivers/bluetooth/btusb.c b/drivers/bluetooth/btusb.c
+index 8024ac9..4d31349 100644
+--- a/drivers/bluetooth/btusb.c
++++ b/drivers/bluetooth/btusb.c
+@@ -35,7 +35,8 @@ static bool ignore_sniffer;
+ static bool disable_scofix;
+ static bool force_scofix;
+ 
+-static bool reset = 1;
++static int sco_conn;
++static int reset = 1;
+ 
+ static struct usb_driver btusb_driver;
+ 
+@@ -820,8 +821,9 @@ static void btusb_notify(struct hci_dev *hdev, unsigned int evt)
+ 
+ 	BT_DBG("%s evt %d", hdev->name, evt);
+ 
+-	if (hdev->conn_hash.sco_num != data->sco_num) {
+-		data->sco_num = hdev->conn_hash.sco_num;
++	if ((evt == HCI_NOTIFY_SCO_COMPLETE) || (evt == HCI_NOTIFY_CONN_DEL)) {
++		BT_DBG("SCO conn state changed: evt %d", evt);
++		sco_conn = (evt == HCI_NOTIFY_SCO_COMPLETE) ? 1 : 0;
+ 		schedule_work(&data->work);
+ 	}
+ }
+@@ -876,7 +878,7 @@ static void btusb_work(struct work_struct *work)
+ 	int new_alts;
+ 	int err;
+ 
+-	if (hdev->conn_hash.sco_num > 0) {
++	if (sco_conn) {
+ 		if (!test_bit(BTUSB_DID_ISO_RESUME, &data->flags)) {
+ 			err = usb_autopm_get_interface(data->isoc ? data->isoc : data->intf);
+ 			if (err < 0) {
+diff --git a/include/net/bluetooth/hci.h b/include/net/bluetooth/hci.h
+index e0512aa..fff67ae 100644
+--- a/include/net/bluetooth/hci.h
++++ b/include/net/bluetooth/hci.h
+@@ -47,6 +47,7 @@
+ #define HCI_NOTIFY_CONN_ADD		1
+ #define HCI_NOTIFY_CONN_DEL		2
+ #define HCI_NOTIFY_VOICE_SETTING	3
++#define HCI_NOTIFY_SCO_COMPLETE		4
+ 
+ /* HCI bus types */
+ #define HCI_VIRTUAL	0
+diff --git a/net/bluetooth/hci_event.c b/net/bluetooth/hci_event.c
+index b93cd2e..f97baf4 100644
+--- a/net/bluetooth/hci_event.c
++++ b/net/bluetooth/hci_event.c
+@@ -2961,6 +2961,9 @@ static void hci_sync_conn_complete_evt(struct hci_dev *hdev,
+ 		conn->state  = BT_CONNECTED;
+ 
+ 		hci_conn_add_sysfs(conn);
++		BT_DBG("SCO conn complete");
++		if (hdev->notify)
++			hdev->notify(hdev, HCI_NOTIFY_SCO_COMPLETE);
+ 		break;
+ 
+ 	case 0x11:	/* Unsupported Feature or Parameter Value */
+-- 
+1.7.9.5
+

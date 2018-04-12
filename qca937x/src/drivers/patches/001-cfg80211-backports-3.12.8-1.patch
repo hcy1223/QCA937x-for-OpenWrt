@@ -1,0 +1,2775 @@
+/*
+* Copyright (c) 2014 Linux Foundation
+* All Rights Reserved.
+* This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with this program; if not, write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+
+*/
+
+diff -Naur backports-3.12.8-1.org/include/net/cfg80211.h backports/include/net/cfg80211.h
+--- backports-3.12.8-1.org/include/net/cfg80211.h	2014-08-10 09:29:40.850539595 +0800
++++ backports/include/net/cfg80211.h	2014-08-10 09:29:58.702539299 +0800
+@@ -735,6 +735,10 @@
+  * @capability: station capability
+  * @ext_capab: extended capabilities of the station
+  * @ext_capab_len: number of extended capabilities
++ * @supported_channels: supported channels in IEEE 802.11 format
++ * @supported_channels_len: number of supported channels
++ * @supported_oper_classes: supported oper classes in IEEE 802.11 format
++ * @supported_oper_classes_len: number of supported operating classes
+  */
+ struct station_parameters {
+ 	const u8 *supported_rates;
+@@ -754,6 +758,10 @@
+ 	u16 capability;
+ 	const u8 *ext_capab;
+ 	u8 ext_capab_len;
++	const u8 *supported_channels;
++	u8 supported_channels_len;
++	const u8 *supported_oper_classes;
++	u8 supported_oper_classes_len;
+ };
+ 
+ /**
+@@ -1374,10 +1382,12 @@
+ /**
+  * struct cfg80211_match_set - sets of attributes to match
+  *
+- * @ssid: SSID to be matched
++ * @ssid: SSID to be matched; may be zero-length for no match (RSSI only)
++ * @rssi_thold: don't report scan results below this threshold (in s32 dBm)
+  */
+ struct cfg80211_match_set {
+ 	struct cfg80211_ssid ssid;
++	s32 rssi_thold;
+ };
+ 
+ /**
+@@ -1400,7 +1410,8 @@
+  * @dev: the interface
+  * @scan_start: start time of the scheduled scan
+  * @channels: channels to scan
+- * @rssi_thold: don't report scan results below this threshold (in s32 dBm)
++ * @min_rssi_thold: for drivers only supporting a single threshold, this
++ *	contains the minimum over all matchsets
+  */
+ struct cfg80211_sched_scan_request {
+ 	struct cfg80211_ssid *ssids;
+@@ -1413,7 +1424,8 @@
+ 	u32 flags;
+ 	struct cfg80211_match_set *match_sets;
+ 	int n_match_sets;
+-	s32 rssi_thold;
++	s32 min_rssi_thold;
++	s32 rssi_thold; /* just for backward compatible */
+ 
+ 	/* internal */
+ 	struct wiphy *wiphy;
+@@ -2290,8 +2302,7 @@
+ 	void	(*rfkill_poll)(struct wiphy *wiphy);
+ 
+ #ifdef CPTCFG_NL80211_TESTMODE
+-	int	(*testmode_cmd)(struct wiphy *wiphy, struct wireless_dev *wdev,
+-				void *data, int len);
++	int	(*testmode_cmd)(struct wiphy *wiphy, void *data, int len);
+ 	int	(*testmode_dump)(struct wiphy *wiphy, struct sk_buff *skb,
+ 				 struct netlink_callback *cb,
+ 				 void *data, int len);
+@@ -2418,22 +2429,28 @@
+  * enum wiphy_flags - wiphy capability flags
+  *
+  * @WIPHY_FLAG_CUSTOM_REGULATORY:  tells us the driver for this device
+- * 	has its own custom regulatory domain and cannot identify the
+- * 	ISO / IEC 3166 alpha2 it belongs to. When this is enabled
+- * 	we will disregard the first regulatory hint (when the
+- * 	initiator is %REGDOM_SET_BY_CORE).
+- * @WIPHY_FLAG_STRICT_REGULATORY: tells us the driver for this device will
+- *	ignore regulatory domain settings until it gets its own regulatory
+- *	domain via its regulatory_hint() unless the regulatory hint is
+- *	from a country IE. After its gets its own regulatory domain it will
+- *	only allow further regulatory domain settings to further enhance
+- *	compliance. For example if channel 13 and 14 are disabled by this
+- *	regulatory domain no user regulatory domain can enable these channels
+- *	at a later time. This can be used for devices which do not have
+- *	calibration information guaranteed for frequencies or settings
+- *	outside of its regulatory domain. If used in combination with
+- *	WIPHY_FLAG_CUSTOM_REGULATORY the inspected country IE power settings
+- *	will be followed.
++ *	has its own custom regulatory domain and cannot identify the
++ *	ISO / IEC 3166 alpha2 it belongs to. When this is enabled
++ *	we will disregard the first regulatory hint (when the
++ *	initiator is %REGDOM_SET_BY_CORE). wiphys can set the custom
++ *	regulatory domain using wiphy_apply_custom_regulatory()
++ *	prior to wiphy registration.
++ * @WIPHY_FLAG_STRICT_REGULATORY: tells us that the wiphy for this device
++ *	has regulatory domain that it wishes to be considered as the
++ *	superset for regulatory rules. After this device gets its regulatory
++ *	domain programmed further regulatory hints shall only be considered
++ *	for this device to enhance regulatory compliance, forcing the
++ *	device to only possibly use subsets of the original regulatory
++ *	rules. For example if channel 13 and 14 are disabled by this
++ *	device's regulatory domain no user specified regulatory hint which
++ *	has these channels enabled would enable them for this wiphy,
++ *	the device's original regulatory domain will be trusted as the
++ *	base. You can program the superset of regulatory rules for this
++ *	wiphy with regulatory_hint() for cards programmed with an
++ *	ISO3166-alpha2 country code. wiphys that use regulatory_hint()
++ *	will have their wiphy->regd programmed once the regulatory
++ *	domain is set, and all other regulatory hints will be ignored
++ *	until their own regulatory domain gets programmed.
+  * @WIPHY_FLAG_DISABLE_BEACON_HINTS: enable this if your driver needs to ensure
+  *	that passive scan flags and beaconing flags may not be lifted by
+  *	cfg80211 due to regulatory beacon hints. For more information on beacon
+@@ -2474,6 +2491,7 @@
+  * @WIPHY_FLAG_SUPPORTS_5_10_MHZ: Device supports 5 MHz and 10 MHz channels.
+  * @WIPHY_FLAG_HAS_CHANNEL_SWITCH: Device supports channel switch in
+  *	beaconing mode (AP, IBSS, Mesh, ...).
++ * @WIPHY_FLAG_DFS_OFFLOAD: The driver handles all the DFS related operations.
+  */
+ enum wiphy_flags {
+ 	WIPHY_FLAG_CUSTOM_REGULATORY		= BIT(0),
+@@ -2497,8 +2515,10 @@
+ 	WIPHY_FLAG_AP_PROBE_RESP_OFFLOAD	= BIT(19),
+ 	WIPHY_FLAG_OFFCHAN_TX			= BIT(20),
+ 	WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL	= BIT(21),
+-	WIPHY_FLAG_SUPPORTS_5_10_MHZ		= BIT(22),
++	WIPHY_FLAG_DFS_OFFLOAD                  = BIT(22),
+ 	WIPHY_FLAG_HAS_CHANNEL_SWITCH		= BIT(23),
++// DFS OFFLOAD occupied bit 22.
++	WIPHY_FLAG_SUPPORTS_5_10_MHZ		= BIT(24)
+ };
+ 
+ /**
+@@ -2655,6 +2675,34 @@
+ };
+ 
+ /**
++ * enum wiphy_vendor_command_flags - validation flags for vendor commands
++ * @WIPHY_VENDOR_CMD_NEED_WDEV: vendor command requires wdev
++ * @WIPHY_VENDOR_CMD_NEED_NETDEV: vendor command requires netdev
++ * @WIPHY_VENDOR_CMD_NEED_RUNNING: interface/wdev must be up & running
++ *	(must be combined with %_WDEV or %_NETDEV)
++ */
++enum wiphy_vendor_command_flags {
++	WIPHY_VENDOR_CMD_NEED_WDEV = BIT(0),
++	WIPHY_VENDOR_CMD_NEED_NETDEV = BIT(1),
++	WIPHY_VENDOR_CMD_NEED_RUNNING = BIT(2),
++};
++
++/**
++ * struct wiphy_vendor_command - vendor command definition
++ * @info: vendor command identifying information, as used in nl80211
++ * @flags: flags, see &enum wiphy_vendor_command_flags
++ * @doit: callback for the operation, note that wdev is %NULL if the
++ *	flags didn't ask for a wdev and non-%NULL otherwise; the data
++ *	pointer may be %NULL if userspace provided no data at all
++ */
++struct wiphy_vendor_command {
++	struct nl80211_vendor_cmd_info info;
++	u32 flags;
++	int (*doit)(struct wiphy *wiphy, struct wireless_dev *wdev,
++		    const void *data, int data_len);
++};
++
++/**
+  * struct wiphy - wireless hardware description
+  * @reg_notifier: the driver's regulatory notification callback,
+  *	note that if your driver uses wiphy_apply_custom_regulatory()
+@@ -2765,6 +2813,17 @@
+  * @extended_capabilities_mask: mask of the valid values
+  * @extended_capabilities_len: length of the extended capabilities
+  * @coalesce: packet coalescing support information
++ * @country_ie_pref: country IE processing preferences specified
++ *     by enum nl80211_country_ie_pref
++ * @vendor_commands: array of vendor commands supported by the hardware
++ * @n_vendor_commands: number of vendor commands
++ * @vendor_events: array of vendor events supported by the hardware
++ * @n_vendor_events: number of vendor events
++ *
++ * @max_ap_assoc_sta: maximum number of associated stations supported in AP mode
++ *	(including P2P GO) or 0 to indicate no such limit is advertised. The
++ *	driver is allowed to advertise a theoretical limit that it can reach in
++ *	some cases, but may not always reach.
+  */
+ struct wiphy {
+ 	/* assign these fields before you register the wiphy */
+@@ -2817,7 +2876,8 @@
+ 	u32 hw_version;
+ 
+ #ifdef CONFIG_PM
+-	const struct wiphy_wowlan_support *wowlan;
++//	const struct wiphy_wowlan_support *wowlan;
++	struct wiphy_wowlan_support wowlan;
+ 	struct cfg80211_wowlan *wowlan_config;
+ #endif
+ 
+@@ -2838,6 +2898,8 @@
+ 	const u8 *extended_capabilities, *extended_capabilities_mask;
+ 	u8 extended_capabilities_len;
+ 
++	u8 country_ie_pref;
++
+ 	/* If multiple wiphys are registered and you're handed e.g.
+ 	 * a regular netdev with assigned ieee80211_ptr, you won't
+ 	 * know whether it points to a wiphy your driver has registered
+@@ -2879,6 +2941,12 @@
+ 
+ 	const struct wiphy_coalesce_support *coalesce;
+ 
++	const struct wiphy_vendor_command *vendor_commands;
++	const struct nl80211_vendor_cmd_info *vendor_events;
++	int n_vendor_commands, n_vendor_events;
++
++	u16 max_ap_assoc_sta;
++
+ 	char priv[0] __aligned(NETDEV_ALIGN);
+ };
+ 
+@@ -3442,6 +3510,32 @@
+ int regulatory_hint(struct wiphy *wiphy, const char *alpha2);
+ 
+ /**
++ * regulatory_hint_user - hint to the wireless core a regulatory domain
++ * which the driver has received from an application
++ * @alpha2: the ISO/IEC 3166 alpha2 the driver claims its regulatory domain
++ *	should be in. If @rd is set this should be NULL. Note that if you
++ *	set this to NULL you should still set rd->alpha2 to some accepted
++ *	alpha2.
++ * @user_reg_hint_type: the type of user regulatory hint.
++ *
++ * Wireless drivers can use this function to hint to the wireless core
++ * the current regulatory domain as specified by trusted applications,
++ * it is the driver's responsibilty to estbalish which applications it
++ * trusts.
++ *
++ * The wiphy should be registered to cfg80211 prior to this call.
++ * For cfg80211 drivers this means you must first use wiphy_register(),
++ * for mac80211 drivers you must first use ieee80211_register_hw().
++ *
++ * Drivers should check the return value, its possible you can get
++ * an -ENOMEM or an -EINVAL.
++ *
++ * Return: 0 on success. -ENOMEM, -EINVAL.
++ */
++int regulatory_hint_user(const char *alpha2,
++			 enum nl80211_user_reg_hint_type user_reg_hint_type);
++
++/**
+  * wiphy_apply_custom_regulatory - apply a custom driver regulatory domain
+  * @wiphy: the wireless device we want to process the regulatory domain on
+  * @regd: the custom regulatory domain to use for this wiphy
+@@ -3727,6 +3821,44 @@
+ void cfg80211_rx_unprot_mlme_mgmt(struct net_device *dev,
+ 				  const u8 *buf, size_t len);
+ 
++
++/**
++ * __cfg80211_send_disassoc - notification of processed disassociation
++ * @dev: network device
++ * @buf: disassociation response frame (header + body)
++ * @len: length of the frame data
++ *
++ * Like cfg80211_send_disassoc(), but doesn't take the wdev lock.
++ */
++void __cfg80211_send_disassoc(struct net_device *dev, const u8 *buf,
++	size_t len);
++
++/**
++ * cfg80211_send_unprot_deauth - notification of unprotected deauthentication
++ * @dev: network device
++ * @buf: deauthentication frame (header + body)
++ * @len: length of the frame data
++ *
++ * This function is called whenever a received Deauthentication frame has been
++ * dropped in station mode because of MFP being used but the Deauthentication
++ * frame was not protected. This function may sleep.
++ */
++void cfg80211_send_unprot_deauth(struct net_device *dev, const u8 *buf,
++				 size_t len);
++
++/**
++ * cfg80211_send_unprot_disassoc - notification of unprotected disassociation
++ * @dev: network device
++ * @buf: disassociation frame (header + body)
++ * @len: length of the frame data
++ *
++ * This function is called whenever a received Disassociation frame has been
++ * dropped in station mode because of MFP being used but the Disassociation
++ * frame was not protected. This function may sleep.
++ */
++void cfg80211_send_unprot_disassoc(struct net_device *dev, const u8 *buf,
++				   size_t len);
++
+ /**
+  * cfg80211_michael_mic_failure - notification of Michael MIC failure (TKIP)
+  * @dev: network device
+@@ -3809,6 +3941,129 @@
+  */
+ void wiphy_rfkill_stop_polling(struct wiphy *wiphy);
+ 
++/**
++ * DOC: Vendor commands
++ *
++ * Occasionally, there are special protocol or firmware features that
++ * can't be implemented very openly. For this and similar cases, the
++ * vendor command functionality allows implementing the features with
++ * (typically closed-source) userspace and firmware, using nl80211 as
++ * the configuration mechanism.
++ *
++ * A driver supporting vendor commands must register them as an array
++ * in struct wiphy, with handlers for each one, each command has an
++ * OUI and sub command ID to identify it.
++ *
++ * Note that this feature should not be (ab)used to implement protocol
++ * features that could openly be shared across drivers. In particular,
++ * it must never be required to use vendor commands to implement any
++ * "normal" functionality that higher-level userspace like connection
++ * managers etc. need.
++ */
++
++struct sk_buff *__cfg80211_alloc_reply_skb(struct wiphy *wiphy,
++                                           enum nl80211_commands cmd,
++                                           enum nl80211_attrs attr,
++                                           int approxlen);
++
++struct sk_buff *__cfg80211_alloc_event_skb(struct wiphy *wiphy,
++                                           enum nl80211_commands cmd,
++                                           enum nl80211_attrs attr,
++                                           int vendor_event_idx,
++                                           int approxlen, gfp_t gfp);
++
++void __cfg80211_send_event_skb(struct sk_buff *skb, gfp_t gfp);
++/**
++ * cfg80211_vendor_cmd_alloc_reply_skb - allocate vendor command reply
++ * @wiphy: the wiphy
++ * @approxlen: an upper bound of the length of the data that will
++ *      be put into the skb
++ *
++ * This function allocates and pre-fills an skb for a reply to
++ * a vendor command. Since it is intended for a reply, calling
++ * it outside of a vendor command's doit() operation is invalid.
++ *
++ * The returned skb is pre-filled with some identifying data in
++ * a way that any data that is put into the skb (with skb_put(),
++ * nla_put() or similar) will end up being within the
++ * %NL80211_ATTR_VENDOR_DATA attribute, so all that needs to be done
++ * with the skb is adding data for the corresponding userspace tool
++ * which can then read that data out of the testdata attribute. You
++ * must not modify the skb in any other way.
++ *
++ * When done, call cfg80211_vendor_cmd_reply() with the skb and return
++ * its error code as the result of the doit() operation.
++ *
++ * Return: An allocated and pre-filled skb. %NULL if any errors happen.
++ */
++static inline struct sk_buff *
++cfg80211_vendor_cmd_alloc_reply_skb(struct wiphy *wiphy, int approxlen)
++{
++        return __cfg80211_alloc_reply_skb(wiphy, NL80211_CMD_TESTMODE,
++                                          NL80211_ATTR_TESTDATA, approxlen);
++}
++
++struct sk_buff *__cfg80211_alloc_event_skb(struct wiphy *wiphy,
++					   enum nl80211_commands cmd,
++					   enum nl80211_attrs attr,
++					   int vendor_event_idx,
++					   int approxlen, gfp_t gfp);
++
++void __cfg80211_send_event_skb(struct sk_buff *skb, gfp_t gfp);
++
++/**
++ * cfg80211_vendor_cmd_reply - send the reply skb
++ * @skb: The skb, must have been allocated with
++ *      cfg80211_vendor_cmd_alloc_reply_skb()
++ *
++ * Since calling this function will usually be the last thing
++ * before returning from the vendor command doit() you should
++ * return the error code.  Note that this function consumes the
++ * skb regardless of the return value.
++ *
++ * Return: An error code or 0 on success.
++ */
++int cfg80211_vendor_cmd_reply(struct sk_buff *skb);
++
++/**
++ * cfg80211_vendor_event_alloc - allocate vendor-specific event skb
++ * @wiphy: the wiphy
++ * @event_idx: index of the vendor event in the wiphy's vendor_events
++ * @approxlen: an upper bound of the length of the data that will
++ *      be put into the skb
++ * @gfp: allocation flags
++ *
++ * This function allocates and pre-fills an skb for an event on the
++ * vendor-specific multicast group.
++ *
++ * When done filling the skb, call cfg80211_vendor_event() with the
++ * skb to send the event.
++ *
++ * Return: An allocated and pre-filled skb. %NULL if any errors happen.
++ */
++static inline struct sk_buff *
++cfg80211_vendor_event_alloc(struct wiphy *wiphy, int approxlen,
++                            int event_idx, gfp_t gfp)
++{
++        return __cfg80211_alloc_event_skb(wiphy, NL80211_CMD_VENDOR,
++                                          NL80211_ATTR_VENDOR_DATA,
++                                          event_idx, approxlen, gfp);
++}
++
++/**
++ * cfg80211_vendor_event - send the event
++ * @skb: The skb, must have been allocated with cfg80211_vendor_event_alloc()
++ * @gfp: allocation flags
++ *
++ * This function sends the given @skb, which must have been allocated
++ * by cfg80211_vendor_event_alloc(), as an event. It always consumes it.
++ */
++static inline void cfg80211_vendor_event(struct sk_buff *skb, gfp_t gfp)
++{
++        __cfg80211_send_event_skb(skb, gfp);
++}
++
++
+ #ifdef CPTCFG_NL80211_TESTMODE
+ /**
+  * DOC: Test mode
+@@ -3844,8 +4099,12 @@
+  *
+  * Return: An allocated and pre-filled skb. %NULL if any errors happen.
+  */
+-struct sk_buff *cfg80211_testmode_alloc_reply_skb(struct wiphy *wiphy,
+-						  int approxlen);
++static inline struct sk_buff *
++cfg80211_testmode_alloc_reply_skb(struct wiphy *wiphy, int approxlen)
++{
++	return __cfg80211_alloc_reply_skb(wiphy, NL80211_CMD_TESTMODE,
++					  NL80211_ATTR_TESTDATA, approxlen);
++}
+ 
+ /**
+  * cfg80211_testmode_reply - send the reply skb
+@@ -3859,7 +4118,10 @@
+  *
+  * Return: An error code or 0 on success.
+  */
+-int cfg80211_testmode_reply(struct sk_buff *skb);
++static inline int cfg80211_testmode_reply(struct sk_buff *skb)
++{
++	return cfg80211_vendor_cmd_reply(skb);
++}
+ 
+ /**
+  * cfg80211_testmode_alloc_event_skb - allocate testmode event
+@@ -3882,8 +4144,13 @@
+  *
+  * Return: An allocated and pre-filled skb. %NULL if any errors happen.
+  */
+-struct sk_buff *cfg80211_testmode_alloc_event_skb(struct wiphy *wiphy,
+-						  int approxlen, gfp_t gfp);
++static inline struct sk_buff *
++cfg80211_testmode_alloc_event_skb(struct wiphy *wiphy, int approxlen, gfp_t gfp)
++{
++	return __cfg80211_alloc_event_skb(wiphy, NL80211_CMD_TESTMODE,
++					  NL80211_ATTR_TESTDATA, -1,
++					  approxlen, gfp);
++}
+ 
+ /**
+  * cfg80211_testmode_event - send the event
+@@ -3895,7 +4162,10 @@
+  * by cfg80211_testmode_alloc_event_skb(), as an event. It always
+  * consumes it.
+  */
+-void cfg80211_testmode_event(struct sk_buff *skb, gfp_t gfp);
++static inline void cfg80211_testmode_event(struct sk_buff *skb, gfp_t gfp)
++{
++	__cfg80211_send_event_skb(skb, gfp);
++}
+ 
+ #define CFG80211_TESTMODE_CMD(cmd)	.testmode_cmd = (cmd),
+ #define CFG80211_TESTMODE_DUMP(cmd)	.testmode_dump = (cmd),
+@@ -4059,7 +4329,6 @@
+  * @sig_dbm: signal strength in mBm, or 0 if unknown
+  * @buf: Management frame (header + body)
+  * @len: length of the frame data
+- * @flags: flags, as defined in enum nl80211_rxmgmt_flags
+  * @gfp: context flags
+  *
+  * This function is called whenever an Action frame is received for a station
+@@ -4071,7 +4340,7 @@
+  * driver is responsible for rejecting the frame.
+  */
+ bool cfg80211_rx_mgmt(struct wireless_dev *wdev, int freq, int sig_dbm,
+-		      const u8 *buf, size_t len, u32 flags, gfp_t gfp);
++		      const u8 *buf, size_t len, gfp_t gfp);
+ 
+ /**
+  * cfg80211_mgmt_tx_status - notification of TX status for management frame
+@@ -4380,6 +4649,16 @@
+  */
+ void cfg80211_crit_proto_stopped(struct wireless_dev *wdev, gfp_t gfp);
+ 
++/**
++ * cfg80211_is_gratuitous_arp_unsolicited_na - packet is grat. ARP/unsol. NA
++ * @skb: the input packet, must be an ethernet frame already
++ *
++ * Return: %true if the packet is a gratuitous ARP or unsolicited NA packet.
++ * This is used to drop packets that shouldn't occur because the AP implements
++ * a proxy service.
++ */
++bool cfg80211_is_gratuitous_arp_unsolicited_na(struct sk_buff *skb);
++
+ /* Logging, debugging and troubleshooting/diagnostic helpers. */
+ 
+ /* wiphy_printk helpers, similar to dev_printk */
+diff -Naur backports-3.12.8-1.org/include/uapi/linux/nl80211.h backports/include/uapi/linux/nl80211.h
+--- backports-3.12.8-1.org/include/uapi/linux/nl80211.h	2014-08-10 09:29:40.846539595 +0800
++++ backports/include/uapi/linux/nl80211.h	2014-08-10 09:29:58.706539298 +0800
+@@ -686,6 +686,28 @@
+  *	other station that transmission must be blocked until the channel
+  *	switch is complete.
+  *
++ * @NL80211_CMD_GET_COALESCE: Get currently supported coalesce rules.
++ * @NL80211_CMD_SET_COALESCE: Configure coalesce rules or clear existing rules.
++ *
++ * @NL80211_CMD_CHANNEL_SWITCH: Perform a channel switch by announcing the
++ *	the new channel information (Channel Switch Announcement - CSA)
++ *	in the beacon for some time (as defined in the
++ *	%NL80211_ATTR_CH_SWITCH_COUNT parameter) and then change to the
++ *	new channel. Userspace provides the new channel information (using
++ *	%NL80211_ATTR_WIPHY_FREQ and the attributes determining channel
++ *	width). %NL80211_ATTR_CH_SWITCH_BLOCK_TX may be supplied to inform
++ *	other station that transmission must be blocked until the channel
++ *	switch is complete.
++ *
++ * @NL80211_CMD_VENDOR: Vendor-specified command/event. The command is specified
++ *	by the %NL80211_ATTR_VENDOR_ID attribute and a sub-command in
++ *	%NL80211_ATTR_VENDOR_SUBCMD. Parameter(s) can be transported in
++ *	%NL80211_ATTR_VENDOR_DATA.
++ *	For feature advertisement, the %NL80211_ATTR_VENDOR_DATA attribute is
++ *	used in the wiphy data as a nested attribute containing descriptions
++ *	(&struct nl80211_vendor_cmd_info) of the supported vendor commands.
++ *	This may also be sent as an event with the same attributes.
++ *
+  * @NL80211_CMD_MAX: highest used command number
+  * @__NL80211_CMD_AFTER_LAST: internal use
+  */
+@@ -853,6 +875,8 @@
+ 
+ 	NL80211_CMD_CHANNEL_SWITCH,
+ 
++	NL80211_CMD_VENDOR,
++
+ 	/* add new commands above here */
+ 
+ 	/* used to define NL80211_CMD_MAX below */
+@@ -1496,6 +1520,50 @@
+  * @NL80211_ATTR_RXMGMT_FLAGS: flags for nl80211_send_mgmt(), u32.
+  *	As specified in the &enum nl80211_rxmgmt_flags.
+  *
++ * @NL80211_ATTR_HANDLE_DFS: A flag indicating whether user space
++ *	controls DFS operation in IBSS mode. If the flag is included in
++ *	%NL80211_CMD_JOIN_IBSS request, the driver will allow use of DFS
++ *	channels and reports radar events to userspace. Userspace is required
++ *	to react to radar events, e.g. initiate a channel switch or leave the
++ *	IBSS network.
++ *
++ * @NL80211_ATTR_VENDOR_ID: The vendor ID, either a 24-bit OUI or, if
++ *	%NL80211_VENDOR_ID_IS_LINUX is set, a special Linux ID (not used yet)
++ * @NL80211_ATTR_VENDOR_SUBCMD: vendor sub-command
++ * @NL80211_ATTR_VENDOR_DATA: data for the vendor command, if any; this
++ *	attribute is also used for vendor command feature advertisement
++ * @NL80211_ATTR_VENDOR_EVENTS: used for event list advertising in the wiphy
++ *	info, containing a nested array of possible events
++ *
++ * @NL80211_ATTR_COALESCE_RULE: Coalesce rule information.
++ *
++ * @NL80211_ATTR_CH_SWITCH_COUNT: u32 attribute specifying the number of TBTT's
++ *	until the channel switch event.
++ * @NL80211_ATTR_CH_SWITCH_BLOCK_TX: flag attribute specifying that transmission
++ *	must be blocked on the current channel (before the channel switch
++ *	operation).
++ * @NL80211_ATTR_CSA_IES: Nested set of attributes containing the IE information
++ *	for the time while performing a channel switch.
++ * @NL80211_ATTR_CSA_C_OFF_BEACON: Offset of the channel switch counter
++ *	field in the beacons tail (%NL80211_ATTR_BEACON_TAIL).
++ * @NL80211_ATTR_CSA_C_OFF_PRESP: Offset of the channel switch counter
++ *	field in the probe response (%NL80211_ATTR_PROBE_RESP).
++ *
++ * @NL80211_ATTR_RXMGMT_FLAGS: flags for nl80211_send_mgmt(), u32.
++ *	As specified in the &enum nl80211_rxmgmt_flags.
++ *
++ * @NL80211_ATTR_STA_SUPPORTED_CHANNELS: array of supported channels.
++ *
++ * @NL80211_ATTR_STA_SUPPORTED_OPER_CLASSES: array of supported
++ *      supported operating classes.
++ *
++ * @NL80211_ATTR_MAX_AP_ASSOC_STA: Device attribute that indicates how many
++ *	associated stations are supported in AP mode (including P2P GO); u32.
++ *	Since drivers may not have a fixed limit on the maximum number (e.g.,
++ *	other concurrent operations may affect this), drivers are allowed to
++ *	advertise values that cannot always be met. In such cases, an attempt
++ *	to add a new station entry with @NL80211_CMD_NEW_STATION may fail.
++ *
+  * @NL80211_ATTR_MAX: highest attribute number currently defined
+  * @__NL80211_ATTR_AFTER_LAST: internal use
+  */
+@@ -1806,8 +1874,26 @@
+ 
+ 	NL80211_ATTR_RXMGMT_FLAGS,
+ 
++	NL80211_ATTR_STA_SUPPORTED_CHANNELS,
++
++	NL80211_ATTR_STA_SUPPORTED_OPER_CLASSES,
+ 	/* add attributes here, update the policy in nl80211.c */
+ 
++	NL80211_ATTR_HANDLE_DFS,
++
++	NL80211_ATTR_SUPPORT_5_MHZ,
++	NL80211_ATTR_SUPPORT_10_MHZ,
++
++	NL80211_ATTR_OPMODE_NOTIF,
++
++	NL80211_ATTR_VENDOR_ID,
++	NL80211_ATTR_VENDOR_SUBCMD,
++	NL80211_ATTR_VENDOR_DATA,
++
++	NL80211_ATTR_VENDOR_EVENTS,
++
++	NL80211_ATTR_MAX_AP_ASSOC_STA,
++
+ 	__NL80211_ATTR_AFTER_LAST,
+ 	NL80211_ATTR_MAX = __NL80211_ATTR_AFTER_LAST - 1
+ };
+@@ -2321,6 +2407,34 @@
+ };
+ 
+ /**
++ * enum nl80211_country_ie_pref - country IE processing preferences
++ *
++ * enumerates the different preferences a 802.11 card can advertize
++ * for parsing the country IEs. As per the current implementation
++ * country IEs are only used derive the apha2, the information
++ * for power settings that comes with the country IE is ignored
++ * and we use the power settings from regdb.
++ *
++ * @NL80211_COUNTRY_IE_FOLLOW_CORE - This is the default behaviour.
++ *	It allows the core to update channel flags according to the
++ *	ISO3166-alpha2 in the country IE. The applied power is -
++ *	MIN(power specified by custom domain, power obtained from regdb)
++ * @NL80211_COUNTRY_IE_FOLLOW_POWER - for devices that have a
++ *	preference that even though they may have programmed their own
++ *	custom power setting prior to wiphy registration, they want
++ *	to ensure their channel power settings are updated for this
++ *	connection with the power settings derived from alpha2 of the
++ *	country IE.
++ * @NL80211_COUNTRY_IE_IGNORE_CORE - for devices that have a preference to
++ *	to ignore all country IE information processed by the core.
++ */
++enum nl80211_country_ie_pref {
++	NL80211_COUNTRY_IE_FOLLOW_CORE,
++	NL80211_COUNTRY_IE_FOLLOW_POWER,
++	NL80211_COUNTRY_IE_IGNORE_CORE,
++};
++
++/**
+  * enum nl80211_reg_rule_attr - regulatory rule attributes
+  * @__NL80211_REG_RULE_ATTR_INVALID: attribute number 0 is reserved
+  * @NL80211_ATTR_REG_RULE_FLAGS: a set of flags which specify additional
+@@ -2363,9 +2477,15 @@
+  * enum nl80211_sched_scan_match_attr - scheduled scan match attributes
+  * @__NL80211_SCHED_SCAN_MATCH_ATTR_INVALID: attribute number 0 is reserved
+  * @NL80211_SCHED_SCAN_MATCH_ATTR_SSID: SSID to be used for matching,
+- * only report BSS with matching SSID.
++ *	only report BSS with matching SSID.
+  * @NL80211_SCHED_SCAN_MATCH_ATTR_RSSI: RSSI threshold (in dBm) for reporting a
+- *	BSS in scan results. Filtering is turned off if not specified.
++ *	BSS in scan results. Filtering is turned off if not specified. Note that
++ *	if this attribute is in a match set of its own, then it is treated as
++ *	the default value for all matchsets with an SSID, rather than being a
++ *	matchset of its own without an RSSI filter. This is due to problems with
++ *	how this API was implemented in the past. Also, due to the same problem,
++ *	the only way to create a matchset with only an RSSI filter (with this
++ *	attribute) is if there's only a single matchset with the RSSI attribute.
+  * @NL80211_SCHED_SCAN_MATCH_ATTR_MAX: highest scheduled scan filter
+  *	attribute number currently defined
+  * @__NL80211_SCHED_SCAN_MATCH_ATTR_AFTER_LAST: internal use
+@@ -3917,4 +4037,24 @@
+ 	NL80211_RXMGMT_FLAG_ANSWERED = 1 << 0,
+ };
+ 
++/*
++ * If this flag is unset, the lower 24 bits are an OUI, if set
++ * a Linux nl80211 vendor ID is used (no such IDs are allocated
++ * yet, so that's not valid so far)
++ */
++#define NL80211_VENDOR_ID_IS_LINUX	0x80000000
++
++/**
++ * struct nl80211_vendor_cmd_info - vendor command data
++ * @vendor_id: If the %NL80211_VENDOR_ID_IS_LINUX flag is clear, then the
++ *	value is a 24-bit OUI; if it is set then a separately allocated ID
++ *	may be used, but no such IDs are allocated yet. New IDs should be
++ *	added to this file when needed.
++ * @subcmd: sub-command ID for the command
++ */
++struct nl80211_vendor_cmd_info {
++	__u32 vendor_id;
++	__u32 subcmd;
++};
++
+ #endif /* __LINUX_NL80211_H */
+diff -Naur backports-3.12.8-1.org/net/wireless/core.c backports/net/wireless/core.c
+--- backports-3.12.8-1.org/net/wireless/core.c	2014-08-10 09:29:40.990539593 +0800
++++ backports/net/wireless/core.c	2014-08-10 09:29:58.706539298 +0800
+@@ -462,13 +462,13 @@
+ 	wiphy->flags &= ~WIPHY_FLAG_SUPPORTS_5_10_MHZ;
+ 
+ #ifdef CONFIG_PM
+-	if (WARN_ON(wiphy->wowlan &&
+-		    (wiphy->wowlan->flags & WIPHY_WOWLAN_GTK_REKEY_FAILURE) &&
+-		    !(wiphy->wowlan->flags & WIPHY_WOWLAN_SUPPORTS_GTK_REKEY)))
+-		return -EINVAL;
+-	if (WARN_ON(wiphy->wowlan &&
+-		    !wiphy->wowlan->flags && !wiphy->wowlan->n_patterns &&
+-		    !wiphy->wowlan->tcp))
++	if (WARN_ON(&wiphy->wowlan &&
++		    (wiphy->wowlan.flags & WIPHY_WOWLAN_GTK_REKEY_FAILURE) &&
++		    !(wiphy->wowlan.flags & WIPHY_WOWLAN_SUPPORTS_GTK_REKEY)))
++		return -EINVAL;
++	if (WARN_ON(&wiphy->wowlan &&
++		    !wiphy->wowlan.flags && !wiphy->wowlan.n_patterns &&
++		    !wiphy->wowlan.tcp))
+ 		return -EINVAL;
+ #endif
+ 
+@@ -566,10 +566,10 @@
+ 	}
+ 
+ #ifdef CONFIG_PM
+-	if (WARN_ON(rdev->wiphy.wowlan && rdev->wiphy.wowlan->n_patterns &&
+-		    (!rdev->wiphy.wowlan->pattern_min_len ||
+-		     rdev->wiphy.wowlan->pattern_min_len >
+-				rdev->wiphy.wowlan->pattern_max_len)))
++	if (WARN_ON(&rdev->wiphy.wowlan && rdev->wiphy.wowlan.n_patterns &&
++		    (!rdev->wiphy.wowlan.pattern_min_len ||
++		     rdev->wiphy.wowlan.pattern_min_len >
++				rdev->wiphy.wowlan.pattern_max_len)))
+ 		return -EINVAL;
+ #endif
+ 
+diff -Naur backports-3.12.8-1.org/net/wireless/core.h backports/net/wireless/core.h
+--- backports-3.12.8-1.org/net/wireless/core.h	2014-08-10 09:29:40.990539593 +0800
++++ backports/net/wireless/core.h	2014-08-10 09:29:58.710539298 +0800
+@@ -68,6 +68,7 @@
+ 	struct work_struct sched_scan_results_wk;
+ 
+ #ifdef CPTCFG_NL80211_TESTMODE
++	struct genl_info *cur_cmd_info;
+ 	struct genl_info *testmode_info;
+ #endif
+ 
+diff -Naur backports-3.12.8-1.org/net/wireless/db.txt backports/net/wireless/db.txt
+--- backports-3.12.8-1.org/net/wireless/db.txt	2014-08-10 09:29:40.990539593 +0800
++++ backports/net/wireless/db.txt	2014-08-10 09:29:58.710539298 +0800
+@@ -1,13 +1,13 @@
+ #
+ # This file is a placeholder to prevent accidental build breakage if someone
+-# enables CPTCFG_CFG80211_INTERNAL_REGDB.  Almost no one actually needs to
++# enables CONFIG_CFG80211_INTERNAL_REGDB.  Almost no one actually needs to
+ # enable that build option.
+ #
+ # You should be using CRDA instead.  It is even better if you use the CRDA
+ # package provided by your distribution, since they will probably keep it
+ # up-to-date on your behalf.
+ #
+-# If you _really_ intend to use CPTCFG_CFG80211_INTERNAL_REGDB then you will
++# If you _really_ intend to use CONFIG_CFG80211_INTERNAL_REGDB then you will
+ # need to replace this file with one containing appropriately formatted
+ # regulatory rules that cover the regulatory domains you will be using.  Your
+ # best option is to extract the db.txt file from the wireless-regdb git
+@@ -15,3 +15,993 @@
+ #
+ #   git://git.kernel.org/pub/scm/linux/kernel/git/linville/wireless-regdb.git
+ #
++# This is the world regulatory domain
++country 00:
++	(2402 - 2472 @ 40), (3, 20)
++	# Channel 12 - 13.
++	(2457 - 2482 @ 40), (3, 20), PASSIVE-SCAN, NO-IBSS
++	# Channel 14. Only JP enables this and for 802.11b only
++	(2474 - 2494 @ 20), (3, 20), PASSIVE-SCAN, NO-IBSS, NO-OFDM
++	# Channel 36 - 48
++	(5170 - 5250 @ 80), (3, 20), PASSIVE-SCAN, NO-IBSS
++	# NB: 5260 MHz - 5700 MHz requies DFS
++	# Channel 149 - 165
++	(5735 - 5835 @ 80), (3, 20), PASSIVE-SCAN, NO-IBSS
++	# IEEE 802.11ad (60GHz), channels 1..3
++	(57240 - 63720 @ 2160), (N/A, 0)
++
++
++country AE:
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5170 - 5250 @ 80), (3, 17)
++	(5250 - 5330 @ 80), (3, 24), DFS
++	(5490 - 5710 @ 80), (3, 24), DFS
++	(5735 - 5835 @ 80), (3, 30)
++
++country AL:
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5150 - 5250 @ 80), (N/A, 20)
++	(5250 - 5350 @ 80), (N/A, 20), DFS
++	(5470 - 5725 @ 80), (N/A, 27), DFS
++
++country AM:
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5170 - 5250 @ 20), (N/A, 18)
++	(5250 - 5330 @ 20), (N/A, 18), DFS
++
++country AN:
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5170 - 5250 @ 80), (N/A, 20)
++	(5250 - 5330 @ 80), (N/A, 20), DFS
++	(5490 - 5710 @ 80), (N/A, 27), DFS
++
++country AR:
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5170 - 5250 @ 80), (3, 17)
++	(5250 - 5330 @ 80), (3, 23), DFS
++	(5490 - 5600 @ 80), (3, 23), DFS
++	(5650 - 5730 @ 80), (3, 23), DFS
++	(5735 - 5835 @ 80), (3, 30)
++
++country AS:
++	(2402 - 2472 @ 40), (N/A, 30)
++	(5150 - 5250 @ 80), (6, 17)
++	(5250 - 5350 @ 80), (6, 24), DFS
++	(5470 - 5725 @ 80), (6, 24), DFS
++	(5725 - 5850 @ 80), (6, 30)
++
++country AT: DFS-ETSI
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5170 - 5250 @ 80), (N/A, 20)
++	(5250 - 5330 @ 80), (N/A, 20), DFS
++	(5490 - 5710 @ 80), (N/A, 27), DFS
++	# 60 gHz band channels 1-4, ref: Etsi En 302 567
++	(57240 - 65880 @ 2160), (N/A, 40), NO-OUTDOOR
++
++country AU:
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5170 - 5250 @ 80), (3, 17)
++	(5250 - 5330 @ 80), (3, 23), DFS
++	(5490 - 5600 @ 80), (3, 23), DFS
++	(5650 - 5730 @ 80), (3, 23), DFS
++	(5735 - 5835 @ 80), (3, 30)
++
++country AW:
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5170 - 5250 @ 40), (N/A, 20)
++	(5250 - 5330 @ 40), (N/A, 20), DFS
++	(5490 - 5710 @ 40), (N/A, 27), DFS
++
++country AZ:
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5170 - 5250 @ 80), (N/A, 18)
++	(5250 - 5330 @ 80), (N/A, 18), DFS
++
++country BA: DFS-ETSI
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5170 - 5250 @ 80), (N/A, 20)
++	(5250 - 5330 @ 80), (N/A, 20), DFS
++	(5490 - 5710 @ 80), (N/A, 27), DFS
++	# 60 gHz band channels 1-4, ref: Etsi En 302 567
++	(57240 - 65880 @ 2160), (N/A, 40), NO-OUTDOOR
++
++country BB:
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5170 - 5250 @ 80), (3, 23)
++	(5250 - 5330 @ 80), (3, 23), DFS
++	(5735 - 5835 @ 80), (3, 30)
++
++country BD:
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5725 - 5850 @ 80), (N/A, 30)
++
++country BE: DFS-ETSI
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5170 - 5250 @ 80), (N/A, 20)
++	(5250 - 5330 @ 80), (N/A, 20), DFS
++	(5490 - 5710 @ 80), (N/A, 27), DFS
++	# 60 gHz band channels 1-4, ref: Etsi En 302 567
++	(57240 - 65880 @ 2160), (N/A, 40), NO-OUTDOOR
++
++country BG: DFS-ETSI
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5170 - 5250 @ 80), (N/A, 23)
++	(5250 - 5290 @ 80), (N/A, 23), DFS
++	(5490 - 5710 @ 80), (N/A, 30), DFS
++	# 60 gHz band channels 1-4, ref: Etsi En 302 567
++	(57240 - 65880 @ 2160), (N/A, 40), NO-OUTDOOR
++
++country BH:
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5170 - 5250 @ 20), (N/A, 20)
++	(5250 - 5330 @ 20), (N/A, 20), DFS
++	(5735 - 5835 @ 20), (N/A, 20)
++
++country BM:
++	(2402 - 2472 @ 40), (N/A, 30)
++	(5150 - 5250 @ 80), (6, 17)
++	(5250 - 5350 @ 80), (6, 24), DFS
++	(5470 - 5725 @ 80), (6, 24), DFS
++	(5725 - 5850 @ 80), (6, 30)
++
++country BN:
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5170 - 5250 @ 80), (N/A, 20)
++	(5250 - 5330 @ 80), (N/A, 20), DFS
++	(5735 - 5835 @ 80), (N/A, 30)
++
++country BO:
++	(2402 - 2482 @ 40), (N/A, 30)
++	(5735 - 5835 @ 80), (N/A, 30)
++
++country BR:
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5170 - 5250 @ 80), (3, 17)
++	(5250 - 5330 @ 80), (3, 24), DFS
++	(5490 - 5710 @ 80), (3, 24), DFS
++	(5735 - 5835 @ 80), (3, 30)
++
++country BS:
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5150 - 5250 @ 80), (6, 17)
++	(5250 - 5350 @ 80), (6, 24), DFS
++	(5470 - 5725 @ 80), (6, 24), DFS
++	(5725 - 5850 @ 80), (6, 30)
++
++country BY:
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5170 - 5250 @ 80), (N/A, 20)
++	(5250 - 5330 @ 80), (N/A, 20), DFS
++	(5490 - 5710 @ 80), (N/A, 27), DFS
++
++country BZ:
++	(2402 - 2482 @ 40), (N/A, 30)
++	(5735 - 5835 @ 80), (N/A, 30)
++
++country CA:
++	(2402 - 2472 @ 40), (N/A, 27)
++	(5170 - 5250 @ 80), (3, 17)
++	(5250 - 5330 @ 80), (3, 23), DFS
++	(5490 - 5600 @ 80), (3, 23), DFS
++	(5650 - 5730 @ 80), (3, 23), DFS
++	(5735 - 5835 @ 80), (3, 30)
++
++country CH: DFS-ETSI
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5170 - 5250 @ 80), (N/A, 20)
++	(5250 - 5330 @ 80), (N/A, 20), DFS
++	(5490 - 5710 @ 80), (N/A, 27), DFS
++	# 60 gHz band channels 1-4, ref: Etsi En 302 567
++	(57240 - 65880 @ 2160), (N/A, 40), NO-OUTDOOR
++
++country CL:
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5170 - 5250 @ 80), (N/A, 20)
++	(5250 - 5330 @ 80), (N/A, 20), DFS
++	(5735 - 5835 @ 80), (N/A, 20)
++
++country CN:
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5150 - 5250 @ 80), (6,	23)
++	(5250 - 5350 @ 80), (6,	23), DFS
++	(5725 - 5850 @ 80), (6,	30)
++	(5735 - 5835 @ 80), (N/A, 30)
++	# 60 gHz band channels 1,4: 28dBm, channels 2,3: 44dBm
++	# ref: http://www.miit.gov.cn/n11293472/n11505629/n11506593/n11960250/n11960606/n11960700/n12330791.files/n12330790.pdf
++	(57240 - 59400 @ 2160), (N/A, 28)
++	(59400 - 63720 @ 2160), (N/A, 44)
++	(63720 - 65880 @ 2160), (N/A, 28)
++
++country CO:
++	(2402 - 2472 @ 40), (N/A, 27)
++	(5170 - 5250 @ 80), (3, 17)
++	(5250 - 5330 @ 80), (3, 24), DFS
++	(5490 - 5710 @ 80), (3, 24), DFS
++	(5735 - 5835 @ 80), (3, 30)
++
++country CR:
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5170 - 5250 @ 20), (3, 17)
++	(5250 - 5330 @ 20), (3, 24), DFS
++	(5490 - 5710 @ 20), (3, 24), DFS
++	(5735 - 5835 @ 20), (3, 30)
++
++country CY: DFS-ETSI
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5170 - 5250 @ 80), (N/A, 20)
++	(5250 - 5330 @ 80), (N/A, 20), DFS
++	(5490 - 5710 @ 80), (N/A, 27), DFS
++	# 60 gHz band channels 1-4, ref: Etsi En 302 567
++	(57240 - 65880 @ 2160), (N/A, 40), NO-OUTDOOR
++
++# Data from http://www.ctu.eu/164/download/VOR/VOR-12-08-2005-34.pdf
++# and http://www.ctu.eu/164/download/VOR/VOR-12-05-2007-6-AN.pdf
++# Power at 5250 - 5350 MHz and 5470 - 5725 MHz can be doubled if TPC is
++# implemented.
++country CZ: DFS-ETSI
++	(2400 - 2483.5 @ 40), (N/A, 100 mW)
++	(5150 - 5250 @ 80), (N/A, 200 mW), NO-OUTDOOR
++	(5250 - 5350 @ 80), (N/A, 100 mW), NO-OUTDOOR, DFS
++	(5470 - 5725 @ 80), (N/A, 500 mW), DFS
++	# 60 gHz band channels 1-4, ref: Etsi En 302 567
++	(57240 - 65880 @ 2160), (N/A, 40), NO-OUTDOOR
++
++# Data from "Frequenznutzungsplan" (as published in April 2008), downloaded from
++# http://www.bundesnetzagentur.de/cae/servlet/contentblob/38448/publicationFile/2659/Frequenznutzungsplan2008_Id17448pdf.pdf
++# For the 5GHz range also see
++# http://www.bundesnetzagentur.de/cae/servlet/contentblob/38216/publicationFile/6579/WLAN5GHzVfg7_2010_28042010pdf.pdf
++# The values have been reduced by a factor of 2 (3db) for non TPC devices
++# (in other words: devices with TPC can use twice the tx power of this table).
++# Note that the docs do not require TPC for 5150--5250; the reduction to
++# 100mW thus is not strictly required -- however the conservative 100mW
++# limit is used here as the non-interference with radar and satellite
++# apps relies on the attenuation by the building walls only in the
++# absence of DFS; the neighbour countries have 100mW limit here as well.
++
++country DE: DFS-ETSI
++	# entries 279004 and 280006
++	(2400 - 2483.5 @ 40), (N/A, 100 mW)
++	# entry 303005
++	(5150 - 5250 @ 80), (N/A, 100 mW), NO-OUTDOOR
++	# entries 304002 and 305002
++	(5250 - 5350 @ 80), (N/A, 100 mW), NO-OUTDOOR, DFS
++	# entries 308002, 309001 and 310003
++	(5470 - 5725 @ 80), (N/A, 500 mW), DFS
++	# 60 gHz band channels 1-4, ref: Etsi En 302 567
++	(57240 - 65880 @ 2160), (N/A, 40), NO-OUTDOOR
++
++country DK: DFS-ETSI
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5170 - 5250 @ 80), (N/A, 20)
++	(5250 - 5330 @ 80), (N/A, 20), DFS
++	(5490 - 5710 @ 80), (N/A, 27), DFS
++	# 60 gHz band channels 1-4, ref: Etsi En 302 567
++	(57240 - 65880 @ 2160), (N/A, 40), NO-OUTDOOR
++
++country DO:
++	(2402 - 2472 @ 40), (N/A, 27)
++	(5170 - 5250 @ 80), (3, 17)
++	(5250 - 5330 @ 80), (3, 23), DFS
++	(5735 - 5835 @ 80), (3, 30)
++
++country DZ:
++	(2402 - 2482 @ 40), (N/A, 20)
++
++country EC:
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5170 - 5250 @ 20), (3, 17)
++	(5250 - 5330 @ 20), (3, 24), DFS
++	(5490 - 5710 @ 20), (3, 24), DFS
++	(5735 - 5835 @ 20), (3, 30)
++
++country EE: DFS-ETSI
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5170 - 5250 @ 80), (N/A, 20)
++	(5250 - 5330 @ 80), (N/A, 20), DFS
++	(5490 - 5710 @ 80), (N/A, 27), DFS
++	# 60 gHz band channels 1-4, ref: Etsi En 302 567
++	(57240 - 65880 @ 2160), (N/A, 40), NO-OUTDOOR
++
++country EG:
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5170 - 5250 @ 20), (N/A, 20)
++	(5250 - 5330 @ 20), (N/A, 20), DFS
++
++country ES: DFS-ETSI
++	(2400 - 2483.5 @ 40), (N/A, 100 mW)
++	(5150 - 5250 @ 80), (N/A, 100 mW), NO-OUTDOOR
++	(5250 - 5350 @ 80), (N/A, 100 mW), NO-OUTDOOR, DFS
++	(5470 - 5725 @ 80), (N/A, 500 mW), DFS
++	# 60 gHz band channels 1-4, ref: Etsi En 302 567
++	(57240 - 65880 @ 2160), (N/A, 40), NO-OUTDOOR
++
++country ET: DFS-ETSI
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5170 - 5250 @ 80), (N/A, 20)
++	(5250 - 5330 @ 80), (N/A, 20), DFS
++	(5490 - 5710 @ 80), (N/A, 27), DFS
++
++country FI: DFS-ETSI
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5170 - 5250 @ 80), (N/A, 20)
++	(5250 - 5330 @ 80), (N/A, 20), DFS
++	(5490 - 5710 @ 80), (N/A, 27), DFS
++	# 60 gHz band channels 1-4, ref: Etsi En 302 567
++	(57240 - 65880 @ 2160), (N/A, 40), NO-OUTDOOR
++
++country FR: DFS-ETSI
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5170 - 5250 @ 80), (N/A, 20)
++	(5250 - 5330 @ 80), (N/A, 20), DFS
++	(5490 - 5710 @ 80), (N/A, 27), DFS
++	# 60 gHz band channels 1-4, ref: Etsi En 302 567
++	(57240 - 65880 @ 2160), (N/A, 40), NO-OUTDOOR
++
++country GF:
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5150 - 5250 @ 80), (N/A, 20)
++	(5250 - 5350 @ 80), (N/A, 20), DFS
++        (5470 - 5725 @ 80), (N/A, 20), DFS
++
++country GE:
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5170 - 5250 @ 80), (N/A, 18)
++	(5250 - 5330 @ 80), (N/A, 18), DFS
++	# 60 gHz band channels 1-4, ref: Etsi En 302 567
++	(57240 - 65880 @ 2160), (N/A, 40), NO-OUTDOOR
++
++country GB: DFS-ETSI
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5170 - 5250 @ 80), (N/A, 20)
++	(5250 - 5330 @ 80), (N/A, 20), DFS
++	(5490 - 5710 @ 80), (N/A, 27), DFS
++	# 60 gHz band channels 1-4, ref: Etsi En 302 567
++	(57240 - 65880 @ 2160), (N/A, 40), NO-OUTDOOR
++
++country GD:
++	(2402 - 2472 @ 40), (3, 30)
++	(5170 - 5250 @ 80), (6, 17)
++	(5250 - 5330 @ 80), (6, 24), DFS
++	(5490 - 5710 @ 80), (6, 24), DFS
++	(5735 - 5835 @ 80), (6, 30)
++
++country GP:
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5150 - 5250 @ 80), (N/A, 20)
++	(5250 - 5350 @ 80), (N/A, 20), DFS
++        (5470 - 5725 @ 80), (N/A, 27), DFS
++
++country GR: DFS-ETSI
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5170 - 5250 @ 80), (N/A, 20)
++	(5250 - 5330 @ 80), (N/A, 20), DFS
++	(5490 - 5710 @ 80), (N/A, 27), DFS
++	# 60 gHz band channels 1-4, ref: Etsi En 302 567
++	(57240 - 65880 @ 2160), (N/A, 40), NO-OUTDOOR
++
++country GL: DFS-ETSI
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5170 - 5250 @ 20), (N/A, 20)
++	(5250 - 5330 @ 20), (N/A, 20), DFS
++	(5490 - 5710 @ 20), (N/A, 27), DFS
++
++country GT:
++	(2402 - 2472 @ 40), (3, 30)
++	(5170 - 5250 @ 80), (6, 17)
++	(5250 - 5330 @ 80), (6, 23), DFS
++	(5735 - 5835 @ 80), (6, 30)
++
++country GU:
++	(2402 - 2472 @ 40), (3, 30)
++	(5170 - 5250 @ 20), (6, 17)
++	(5250 - 5330 @ 20), (6, 24), DFS
++	(5490 - 5710 @ 20), (6, 24), DFS
++	(5735 - 5835 @ 20), (6, 30)
++
++country HN:
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5170 - 5250 @ 80), (6, 17)
++	(5250 - 5330 @ 80), (6, 24), DFS
++	(5490 - 5710 @ 80), (6, 24), DFS
++	(5735 - 5835 @ 80), (6, 30)
++
++country HK:
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5170 - 5250 @ 80), (6, 17)
++	(5250 - 5330 @ 80), (6, 24), DFS
++	(5490 - 5710 @ 80), (6, 24), DFS
++	(5735 - 5835 @ 80), (6, 30)
++
++country HR: DFS-ETSI
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5170 - 5250 @ 80), (N/A, 20)
++	(5250 - 5330 @ 80), (N/A, 20), DFS
++	(5490 - 5710 @ 80), (N/A, 27), DFS
++	# 60 gHz band channels 1-4, ref: Etsi En 302 567
++	(57240 - 65880 @ 2160), (N/A, 40), NO-OUTDOOR
++
++country HT:
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5170 - 5250 @ 80), (N/A, 20)
++	(5250 - 5330 @ 80), (N/A, 20), DFS
++	(5490 - 5710 @ 80), (N/A, 27), DFS
++
++country HU: DFS-ETSI
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5170 - 5250 @ 80), (N/A, 20)
++	(5250 - 5330 @ 80), (N/A, 20), DFS
++	(5490 - 5710 @ 80), (N/A, 27), DFS
++	# 60 gHz band channels 1-4, ref: Etsi En 302 567
++	(57240 - 65880 @ 2160), (N/A, 40), NO-OUTDOOR
++
++country ID:
++	# ref: http://www.postel.go.id/content/ID/regulasi/standardisasi/kepdir/bwa%205,8%20ghz.pdf
++	(2402 - 2482 @ 20), (N/A, 20)
++	(5735 - 5815 @ 20), (N/A, 23)
++
++country IE: DFS-ETSI
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5170 - 5250 @ 80), (N/A, 20)
++	(5250 - 5330 @ 80), (N/A, 20), DFS
++	(5490 - 5710 @ 80), (N/A, 27), DFS
++	# 60 gHz band channels 1-4, ref: Etsi En 302 567
++	(57240 - 65880 @ 2160), (N/A, 40), NO-OUTDOOR
++
++country IL:
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5150 - 5250 @ 80), (N/A, 20)
++	(5250 - 5330 @ 80), (N/A, 20), DFS
++
++country IN:
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5170 - 5250 @ 80), (N/A, 20)
++	(5250 - 5330 @ 80), (N/A, 20), DFS
++	(5735 - 5835 @ 80), (N/A, 20)
++
++country IS: DFS-ETSI
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5170 - 5250 @ 80), (N/A, 20)
++	(5250 - 5330 @ 80), (N/A, 20), DFS
++	(5490 - 5710 @ 80), (N/A, 27), DFS
++	# 60 gHz band channels 1-4, ref: Etsi En 302 567
++	(57240 - 65880 @ 2160), (N/A, 40), NO-OUTDOOR
++
++country IR:
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5735 - 5835 @ 80), (N/A, 30)
++
++country IT: DFS-ETSI
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5170 - 5250 @ 80), (N/A, 20)
++	(5250 - 5330 @ 80), (N/A, 20), DFS
++	(5490 - 5710 @ 80), (N/A, 27), DFS
++	# 60 gHz band channels 1-4, ref: Etsi En 302 567
++	(57240 - 65880 @ 2160), (N/A, 40), NO-OUTDOOR
++
++country JM:
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5170 - 5250 @ 80), (6, 17)
++	(5250 - 5330 @ 80), (6, 24), DFS
++	(5490 - 5710 @ 80), (6, 24), DFS
++	(5735 - 5835 @ 80), (6, 30)
++
++country JP:
++	(2402 - 2482 @ 40), (N/A, 20)
++	(2474 - 2494 @ 20), (N/A, 20), NO-OFDM
++	(5170 - 5250 @ 80), (N/A, 20)
++	(5250 - 5330 @ 80), (N/A, 20), DFS
++	(5490 - 5710 @ 160), (N/A, 20), DFS
++
++country JO:
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5150 - 5250 @ 80), (N/A, 23)
++	(5725 - 5850 @ 80), (N/A, 23)
++
++country KE:
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5150 - 5250 @ 80), (N/A, 23)
++        (5470 - 5570 @ 80), (N/A, 30), DFS
++        (5725 - 5775 @ 80), (N/A, 23)
++
++country KH:
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5170 - 5250 @ 80), (N/A, 20)
++	(5250 - 5330 @ 80), (N/A, 20), DFS
++	(5490 - 5710 @ 80), (N/A, 27), DFS
++
++country KY:
++        (2402 - 2472 @ 40), (N/A, 27)
++	(5170 - 5250 @ 80), (3, 17)
++	(5250 - 5330 @ 80), (3, 24), DFS
++	(5490 - 5710 @ 80), (3, 24), DFS
++	(5735 - 5835 @ 80), (3, 30)
++
++country KR:
++	(2402 - 2482 @ 20), (N/A, 20)
++	(5150 - 5250 @ 80), (6, 20)
++	(5250 - 5350 @ 80), (6, 20), DFS
++	(5470 - 5630 @ 80), (6, 30), DFS
++	(5735 - 5725 @ 80), (6, 30), DFS
++	(5725 - 5825 @ 80), (6, 30)
++
++country KW:
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5170 - 5250 @ 80), (N/A, 20)
++	(5250 - 5330 @ 80), (N/A, 20), DFS
++
++country KZ:
++	(2402 - 2482 @ 40), (N/A, 20)
++
++country LB:
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5150 - 5250 @ 80), (6, 17)
++	(5250 - 5350 @ 80), (6, 24), DFS
++	(5470 - 5725 @ 80), (6, 24), DFS
++	(5725 - 5850 @ 80), (6, 30)
++
++country LI: DFS-ETSI
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5170 - 5250 @ 80), (N/A, 20)
++	(5250 - 5330 @ 80), (N/A, 20), DFS
++	(5490 - 5710 @ 80), (N/A, 27), DFS
++
++country LK:
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5170 - 5250 @ 20), (3, 17)
++	(5250 - 5330 @ 20), (3, 20), DFS
++	(5490 - 5710 @ 20), (3, 20), DFS
++	(5735 - 5835 @ 20), (3, 30)
++
++country LT: DFS-ETSI
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5170 - 5250 @ 80), (N/A, 20)
++	(5250 - 5330 @ 80), (N/A, 20), DFS
++	(5490 - 5710 @ 80), (N/A, 27), DFS
++	# 60 gHz band channels 1-4, ref: Etsi En 302 567
++	(57240 - 65880 @ 2160), (N/A, 40), NO-OUTDOOR
++
++country LU: DFS-ETSI
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5170 - 5250 @ 80), (N/A, 20)
++	(5250 - 5330 @ 80), (N/A, 20), DFS
++	(5490 - 5710 @ 80), (N/A, 27), DFS
++	# 60 gHz band channels 1-4, ref: Etsi En 302 567
++	(57240 - 65880 @ 2160), (N/A, 40), NO-OUTDOOR
++
++country LV: DFS-ETSI
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5170 - 5250 @ 80), (N/A, 20)
++	(5250 - 5330 @ 80), (N/A, 20), DFS
++	(5490 - 5710 @ 80), (N/A, 27), DFS
++	# 60 gHz band channels 1-4, ref: Etsi En 302 567
++	(57240 - 65880 @ 2160), (N/A, 40), NO-OUTDOOR
++
++country MC: DFS-ETSI
++	(2402 - 2482 @ 40), (N/A, 20)
++        (5150 - 5250 @ 80), (N/A, 20)
++        (5250 - 5350 @ 80), (N/A, 20), DFS
++        (5470 - 5725 @ 80), (N/A, 27), DFS
++
++country MA:
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5170 - 5250 @ 80), (N/A, 20)
++	(5735 - 5835 @ 80), (N/A, 20), DFS
++
++country MO:
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5170 - 5250 @ 40), (3, 23)
++	(5250 - 5330 @ 40), (3, 23), DFS
++	(5735 - 5835 @ 40), (3, 30)
++
++country MP:
++	(2402 - 2472 @ 40), (N/A, 30)
++        (5150 - 5250 @ 80), (6, 17)
++        (5250 - 5350 @ 80), (6, 24), DFS
++        (5470 - 5725 @ 80), (6,	24), DFS
++        (5725 - 5850 @ 80), (6, 30)
++
++country MK: DFS-ETSI
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5170 - 5250 @ 40), (N/A, 20)
++	(5250 - 5330 @ 40), (N/A, 20), DFS
++	(5490 - 5710 @ 40), (N/A, 27), DFS
++	# 60 gHz band channels 1-4, ref: Etsi En 302 567
++	(57240 - 65880 @ 2160), (N/A, 40), NO-OUTDOOR
++
++country MN:
++	(2402 - 2482 @ 40), (N/A, 20)
++        (5150 - 5250 @ 80), (6, 17)
++        (5250 - 5350 @ 80), (6, 24), DFS
++        (5470 - 5725 @ 80), (6, 24), DFS
++        (5725 - 5850 @ 80), (6,	30)
++
++country MT: DFS-ETSI
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5170 - 5250 @ 40), (N/A, 20)
++	(5250 - 5330 @ 40), (N/A, 20), DFS
++	(5490 - 5710 @ 40), (N/A, 27), DFS
++	# 60 gHz band channels 1-4, ref: Etsi En 302 567
++	(57240 - 65880 @ 2160), (N/A, 40), NO-OUTDOOR
++
++country MQ: DFS-ETSI
++        (2402 - 2482 @ 40), (N/A, 20)
++        (5150 - 5250 @ 80), (N/A, 20)
++	(5250 - 5350 @ 80), (N/A, 20), DFS
++	(5470 - 5725 @ 80), (N/A, 27), DFS
++
++country MU:
++        (2402 - 2482 @ 40), (N/A, 20)
++        (5150 - 5250 @ 80), (6, 17)
++        (5250 - 5350 @ 80), (6, 24), DFS
++        (5470 - 5725 @ 80), (6, 24), DFS
++        (5725 - 5850 @ 80), (6, 30)
++
++country MY:
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5170 - 5250 @ 80), (N/A, 17)
++	(5250 - 5330 @ 80), (N/A, 23), DFS
++	(5735 - 5835 @ 80), (N/A, 30)
++
++country MX:
++	(2402 - 2482 @ 40), (3, 20)
++	(5170 - 5250 @ 80), (3, 17)
++	(5250 - 5330 @ 80), (3, 24), DFS
++	(5490 - 5710 @ 80), (3, 24), DFS
++	(5735 - 5835 @ 80), (3, 30)
++
++country MW:
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5150 - 5250 @ 80), (N/A, 20)
++	(5250 - 5350 @ 80), (N/A, 20), DFS
++	(5470 - 5725 @ 80), (N/A, 27), DFS
++
++country NG:
++	(2402 - 2482 @ 40), (N/A, 20)
++        (5250 - 5350 @ 80), (N/A, 30), DFS
++        (5725 - 5850 @ 80), (N/A, 30)
++
++country NI:
++	(2402 - 2472 @ 40), (N/A, 30)
++        (5150 - 5250 @ 80), (6, 17)
++        (5250 - 5350 @ 80), (6, 24), DFS
++        (5470 - 5725 @ 80), (6,	24), DFS
++        (5725 - 5850 @ 80), (6, 30)
++
++country NL: DFS-ETSI
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5170 - 5250 @ 80), (N/A, 20), NO-OUTDOOR
++	(5250 - 5330 @ 80), (N/A, 20), NO-OUTDOOR, DFS
++	(5490 - 5710 @ 80), (N/A, 27), DFS
++	# 60 gHz band channels 1-4, ref: Etsi En 302 567
++	(57240 - 65880 @ 2160), (N/A, 40), NO-OUTDOOR
++
++country NO: DFS-ETSI
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5170 - 5250 @ 80), (N/A, 20)
++	(5250 - 5330 @ 80), (N/A, 20), DFS
++	(5490 - 5710 @ 80), (N/A, 27), DFS
++	# 60 gHz band channels 1-4, ref: Etsi En 302 567
++	(57240 - 65880 @ 2160), (N/A, 40), NO-OUTDOOR
++
++country NP:
++	(2402 - 2482 @ 40), (N/A, 20)
++        (5150 - 5250 @ 80), (N/A, 20)
++        (5250 - 5350 @ 80), (N/A, 20), DFS
++        (5725 - 5850 @ 80), (N/A, 20)
++
++country NZ:
++	(2402 - 2482 @ 40), (N/A, 30)
++	(5170 - 5250 @ 80), (6, 17)
++	(5250 - 5330 @ 80), (6, 24), DFS
++	(5490 - 5710 @ 80), (6, 24), DFS
++	(5735 - 5835 @ 80), (6, 30)
++
++country OM:
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5150 - 5250 @ 80), (N/A, 20)
++	(5250 - 5350 @ 80), (N/A, 20), DFS
++	(5470 - 5725 @ 80), (N/A, 27), DFS
++
++country PA:
++	(2402 - 2472 @ 40), (N/A, 30)
++	(5170 - 5250 @ 80), (6, 17)
++	(5250 - 5330 @ 80), (6, 23), DFS
++	(5735 - 5835 @ 80), (6, 30)
++
++country PE:
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5170 - 5250 @ 80), (6, 20)
++	(5250 - 5330 @ 80), (6, 20), DFS
++	(5490 - 5710 @ 80), (6, 27), DFS
++	(5735 - 5835 @ 80), (6, 30)
++
++country PF:
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5150 - 5250 @ 80), (N/A, 20)
++	(5250 - 5350 @ 80), (N/A, 20), DFS
++        (5470 - 5725 @ 80), (N/A, 27), DFS
++
++country PG:
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5150 - 5250 @ 80), (6, 17)
++	(5250 - 5350 @ 80), (6, 24), DFS
++	(5470 - 5725 @ 80), (6, 24), DFS
++	(5725 - 5850 @ 80), (6, 30)
++
++country PH:
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5170 - 5250 @ 80), (6, 17)
++	(5250 - 5330 @ 80), (6, 24), DFS
++	(5490 - 5710 @ 80), (6, 24), DFS
++	(5735 - 5835 @ 80), (6, 30)
++
++country PK:
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5735 - 5835 @ 80), (N/A, 30)
++
++country PL: DFS-ETSI
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5170 - 5250 @ 80), (N/A, 20)
++	(5250 - 5330 @ 80), (N/A, 20), DFS
++	(5490 - 5710 @ 80), (N/A, 27), DFS
++	# 60 gHz band channels 1-4, ref: Etsi En 302 567
++	(57240 - 65880 @ 2160), (N/A, 40), NO-OUTDOOR
++
++country PT: DFS-ETSI
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5170 - 5250 @ 80), (N/A, 20)
++	(5250 - 5330 @ 80), (N/A, 20), DFS
++	(5490 - 5710 @ 80), (N/A, 27), DFS
++	# 60 gHz band channels 1-4, ref: Etsi En 302 567
++	(57240 - 65880 @ 2160), (N/A, 40), NO-OUTDOOR
++
++country PR:
++	(2402 - 2472 @ 40), (3, 30)
++	(5170 - 5250 @ 80), (6, 17)
++	(5250 - 5330 @ 80), (6, 24), DFS
++	(5490 - 5710 @ 80), (6, 24), DFS
++	(5735 - 5835 @ 80), (6, 30)
++
++country PY:
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5150 - 5250 @ 80), (6, 17)
++	(5250 - 5350 @ 80), (6, 24), DFS
++	(5470 - 5725 @ 80), (6, 24), DFS
++	(5725 - 5850 @ 80), (6, 30)
++
++country QA:
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5735 - 5835 @ 80), (N/A, 30)
++
++country RE:
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5150 - 5250 @ 80), (N/A, 20)
++	(5250 - 5350 @ 80), (N/A, 20), DFS
++	(5470 - 5725 @ 80), (N/A, 27), DFS
++
++country RO: DFS-ETSI
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5170 - 5250 @ 80), (N/A, 20)
++	(5250 - 5330 @ 80), (N/A, 20), DFS
++	(5490 - 5710 @ 80), (N/A, 27), DFS
++	# 60 gHz band channels 1-4, ref: Etsi En 302 567
++	(57240 - 65880 @ 2160), (N/A, 40), NO-OUTDOOR
++
++
++# Source:
++# http://www.ratel.rs/upload/documents/Plan_namene/Plan_namene-sl_glasnik.pdf
++country RS:
++	(2400 - 2483.5 @ 40), (N/A, 100 mW)
++	(5150 - 5250 @ 80), (N/A, 200 mW), NO-OUTDOOR
++        (5250 - 5350 @ 80), (N/A, 200 mW), DFS
++	(5470 - 5725 @ 80), (3, 1000 mW), DFS
++	# 60 gHz band channels 1-4, ref: Etsi En 302 567
++	(57240 - 65880 @ 2160), (N/A, 40), NO-OUTDOOR
++
++country RU:
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5150 - 5250 @ 40), (N/A, 20)
++	(5250 - 5350 @ 40), (N/A, 20), DFS
++	(5650 - 5725 @ 40), (N/A, 30), DFS
++	(5725 - 5825 @ 40), (N/A, 30)
++
++country RW:
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5150 - 5250 @ 80), (6, 17)
++	(5250 - 5330 @ 80), (6, 24), DFS
++	(5470 - 5725 @ 80), (6, 24), DFS
++	(5725 - 5835 @ 80), (6, 30)
++
++country SA:
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5170 - 5250 @ 80), (3, 17)
++	(5250 - 5330 @ 80), (3, 24), DFS
++	(5490 - 5710 @ 80), (3, 24), DFS
++
++country SE: DFS-ETSI
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5170 - 5250 @ 80), (N/A, 20)
++	(5250 - 5330 @ 80), (N/A, 20), DFS
++	(5490 - 5710 @ 80), (N/A, 27), DFS
++	# 60 gHz band channels 1-4, ref: Etsi En 302 567
++	(57240 - 65880 @ 2160), (N/A, 40), NO-OUTDOOR
++
++country SG:
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5170 - 5250 @ 80), (6, 17)
++	(5250 - 5330 @ 80), (6, 24), DFS
++	(5490 - 5710 @ 80), (6, 24), DFS
++	(5735 - 5835 @ 80), (6, 30)
++
++country SI: DFS-ETSI
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5170 - 5250 @ 80), (N/A, 20)
++	(5250 - 5330 @ 80), (N/A, 20), DFS
++	(5490 - 5710 @ 80), (N/A, 27), DFS
++	# 60 gHz band channels 1-4, ref: Etsi En 302 567
++	(57240 - 65880 @ 2160), (N/A, 40), NO-OUTDOOR
++
++country SK: DFS-ETSI
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5170 - 5250 @ 80), (N/A, 20)
++	(5250 - 5330 @ 80), (N/A, 20), DFS
++	(5490 - 5710 @ 80), (N/A, 27), DFS
++	# 60 gHz band channels 1-4, ref: Etsi En 302 567
++	(57240 - 65880 @ 2160), (N/A, 40), NO-OUTDOOR
++
++country SR: DFS-ETSI
++	(2400 - 2483.5 @ 40), (N/A, 100 mW)
++	(5150 - 5250 @ 80), (N/A, 100 mW), NO-OUTDOOR
++	(5250 - 5350 @ 80), (N/A, 100 mW), NO-OUTDOOR, DFS
++	(5470 - 5725 @ 80), (N/A, 500 mW), DFS
++
++country SV:
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5170 - 5250 @ 20), (3, 17)
++	(5250 - 5330 @ 20), (3, 23), DFS
++	(5735 - 5835 @ 20), (3, 30)
++
++country SY:
++	(2402 - 2482 @ 40), (N/A, 20)
++
++country TW:
++	(2402 - 2472 @ 40), (3, 30)
++	(5270 - 5330 @ 40), (6, 17)
++	(5490 - 5590 @ 80), (6, 30), DFS
++	(5650 - 5730 @ 80), (6, 30), DFS
++	(5735 - 5815 @ 80), (6, 30)
++
++country TH:
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5170 - 5250 @ 80), (3, 17)
++	(5250 - 5330 @ 80), (3, 24), DFS
++	(5490 - 5710 @ 80), (3, 24), DFS
++	(5735 - 5835 @ 80), (3, 30)
++
++country TT:
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5170 - 5250 @ 40), (3, 17)
++	(5250 - 5330 @ 40), (3, 20), DFS
++	(5490 - 5710 @ 40), (3, 20), DFS
++	(5735 - 5835 @ 40), (3, 30)
++
++country TN:
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5170 - 5250 @ 20), (N/A, 20)
++	(5250 - 5330 @ 20), (N/A, 20), DFS
++
++country TR: DFS-ETSI
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5170 - 5250 @ 80), (N/A, 20)
++	(5250 - 5330 @ 80), (N/A, 20), DFS
++	(5490 - 5710 @ 80), (N/A, 27), DFS
++	# 60 gHz band channels 1-4, ref: Etsi En 302 567
++	(57240 - 65880 @ 2160), (N/A, 40), NO-OUTDOOR
++ 
++# Source:
++# #914 / 06 Sep 2007: http://www.ucrf.gov.ua/uk/doc/nkrz/1196068874
++# #1174 / 23 Oct 2008: http://www.nkrz.gov.ua/uk/activities/ruling/1225269361
++# (appendix 8)
++# Listed 5GHz range is a lowest common denominator for all related
++# rules in the referenced laws. Such a range is used because of
++# disputable definitions there.
++country UA:
++	(2400 - 2483.5 @ 40), (N/A, 20), NO-OUTDOOR
++	(5150 - 5250 @ 40), (N/A, 20), NO-OUTDOOR
++	(5250 - 5350 @ 40), (N/A, 20), NO-OUTDOOR, DFS
++	(5470 - 5670 @ 40), (N/A, 20), DFS
++	(5725 - 5850 @ 40), (N/A, 20)
++	# 60 gHz band channels 1-4, ref: Etsi En 302 567
++	(57240 - 65880 @ 2160), (N/A, 40), NO-OUTDOOR
++
++country UG:
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5150 - 5250 @ 80), (6, 20)
++	(5250 - 5350 @ 80), (6, 20), DFS
++        (5470 - 5725 @ 80), (6, 20), DFS
++        (5725 - 5825 @ 80), (6, 20)
++
++country US: DFS-FCC
++	(2402 - 2472 @ 40), (3, 27)
++	(5170 - 5250 @ 80), (3, 17)
++	(5250 - 5330 @ 80), (3, 24), DFS
++	(5490 - 5600 @ 80), (3, 24), DFS
++	(5650 - 5710 @ 40), (3, 24), DFS
++	(5710 - 5835 @ 80), (3, 30)
++	# 60g band
++	# reference: http://cfr.regstoday.com/47cfr15.aspx#47_CFR_15p255
++	# channels 1,2,3, EIRP=40dBm(43dBm peak)
++	(57240 - 63720 @ 2160), (N/A, 40)
++
++# Public Safety FCCA, FCC4
++#  27dBm [4.9GHz 1/4 rate], 30dBm [1/2 rate], 33dBm [full rate], and 5GHz same as FCC1
++#  db.txt cannot express the limitation on 5G so disable all 5G channels for FCC4
++country PS:
++	(2402 - 2472 @ 40), (N/A, 30)
++	#(4940 - 4990 @ 40), (6, 27)
++	#(5150 - 5250 @ 80), (6, 30)
++	#(5250 - 5350 @ 80), (6, 30), DFS
++	#(5725 - 5850 @ 80), (6, 33)
++
++country UY:
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5170 - 5250 @ 40), (3, 17)
++	(5250 - 5330 @ 40), (3, 20), DFS
++	(5490 - 5710 @ 40), (3, 20), DFS
++	(5735 - 5835 @ 40), (3, 30)
++
++country UZ:
++	(2402 - 2472 @ 40), (3, 27)
++	(5170 - 5250 @ 40), (3, 17)
++	(5250 - 5330 @ 40), (3, 20), DFS
++	(5490 - 5710 @ 40), (3, 20), DFS
++	(5735 - 5835 @ 40), (3, 30)
++
++country VE:
++	(2402 - 2482 @ 40), (N/A, 20)
++      (5150 - 5250 @ 80), (6, 17)
++      (5250 - 5350 @ 80), (6, 23), DFS
++      (5725 - 5850 @ 80), (6, 30)
++
++
++country VN:
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5170 - 5250 @ 80), (3, 17)
++	(5250 - 5330 @ 80), (3, 24), DFS
++	(5490 - 5710 @ 80), (3, 24), DFS
++	(5735 - 5835 @ 80), (3, 30)
++
++country VI:
++	(2402 - 2472 @ 40), (N/A, 30)
++	(5150 - 5250 @ 80), (6, 17)
++	(5250 - 5350 @ 80), (6, 24), DFS
++	(5470 - 5725 @ 80), (6, 24), DFS
++	(5725 - 5850 @ 80), (6, 30)
++
++country WS: DFS-ETSI
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5170 - 5250 @ 20), (3, 17)
++	(5250 - 5330 @ 80), (3, 24), DFS
++	(5490 - 5710 @ 80), (3, 24), DFS
++
++country YE:
++	(2402 - 2482 @ 40), (N/A, 20)
++
++country YT: DFS-ETSI
++	(2402 - 2482 @ 40), (N/A, 20)
++        (5150 - 5250 @ 80), (N/A, 20)
++        (5250 - 5350 @ 80), (N/A, 20), DFS
++        (5470 - 5725 @ 80), (N/A, 27), DFS
++
++country ZA:
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5170 - 5250 @ 80), (3, 20)
++	(5250 - 5330 @ 80), (3, 20), DFS
++	(5490 - 5710 @ 80), (3, 27), DFS
++
++country ZW:
++	(2402 - 2482 @ 40), (N/A, 20)
++	(5150 - 5250 @ 80), (N/A, 20)
++	(5250 - 5350 @ 80), (N/A, 20), DFS
++	(5470 - 5725 @ 80), (N/A, 27), DFS
++
+diff -Naur backports-3.12.8-1.org/net/wireless/mlme.c backports/net/wireless/mlme.c
+--- backports-3.12.8-1.org/net/wireless/mlme.c	2014-08-10 09:29:40.990539593 +0800
++++ backports/net/wireless/mlme.c	2014-08-10 09:29:58.710539298 +0800
+@@ -621,7 +621,7 @@
+ }
+ 
+ bool cfg80211_rx_mgmt(struct wireless_dev *wdev, int freq, int sig_mbm,
+-		      const u8 *buf, size_t len, u32 flags, gfp_t gfp)
++		      const u8 *buf, size_t len, gfp_t gfp)
+ {
+ 	struct wiphy *wiphy = wdev->wiphy;
+ 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
+@@ -664,7 +664,7 @@
+ 		/* Indicate the received Action frame to user space */
+ 		if (nl80211_send_mgmt(rdev, wdev, reg->nlportid,
+ 				      freq, sig_mbm,
+-				      buf, len, flags, gfp))
++				      buf, len, gfp))
+ 			continue;
+ 
+ 		result = true;
+diff -Naur backports-3.12.8-1.org/net/wireless/nl80211.c backports/net/wireless/nl80211.c
+--- backports-3.12.8-1.org/net/wireless/nl80211.c	2014-08-10 09:29:40.990539593 +0800
++++ backports/net/wireless/nl80211.c	2014-08-10 09:30:31.988812081 +0800
+@@ -349,11 +349,16 @@
+ 	[NL80211_ATTR_IE_RIC] = { .type = NLA_BINARY,
+ 				  .len = IEEE80211_MAX_DATA_LEN },
+ 	[NL80211_ATTR_PEER_AID] = { .type = NLA_U16 },
++	[NL80211_ATTR_STA_SUPPORTED_CHANNELS] = { .type = NLA_BINARY },
++	[NL80211_ATTR_STA_SUPPORTED_OPER_CLASSES] = { .type = NLA_BINARY },
+ 	[NL80211_ATTR_CH_SWITCH_COUNT] = { .type = NLA_U32 },
+ 	[NL80211_ATTR_CH_SWITCH_BLOCK_TX] = { .type = NLA_FLAG },
+ 	[NL80211_ATTR_CSA_IES] = { .type = NLA_NESTED },
+ 	[NL80211_ATTR_CSA_C_OFF_BEACON] = { .type = NLA_U16 },
+ 	[NL80211_ATTR_CSA_C_OFF_PRESP] = { .type = NLA_U16 },
++	[NL80211_ATTR_VENDOR_ID] = { .type = NLA_U32 },
++	[NL80211_ATTR_VENDOR_SUBCMD] = { .type = NLA_U32 },
++	[NL80211_ATTR_VENDOR_DATA] = { .type = NLA_BINARY },
+ };
+ 
+ /* policy for the key attributes */
+@@ -920,7 +925,7 @@
+ static int nl80211_send_wowlan_tcp_caps(struct cfg80211_registered_device *rdev,
+ 					struct sk_buff *msg)
+ {
+-	const struct wiphy_wowlan_tcp_support *tcp = rdev->wiphy.wowlan->tcp;
++	const struct wiphy_wowlan_tcp_support *tcp = rdev->wiphy.wowlan.tcp;
+ 	struct nlattr *nl_tcp;
+ 
+ 	if (!tcp)
+@@ -963,37 +968,37 @@
+ {
+ 	struct nlattr *nl_wowlan;
+ 
+-	if (!dev->wiphy.wowlan)
++	if (&dev->wiphy.wowlan)
+ 		return 0;
+ 
+ 	nl_wowlan = nla_nest_start(msg, NL80211_ATTR_WOWLAN_TRIGGERS_SUPPORTED);
+ 	if (!nl_wowlan)
+ 		return -ENOBUFS;
+ 
+-	if (((dev->wiphy.wowlan->flags & WIPHY_WOWLAN_ANY) &&
++	if (((dev->wiphy.wowlan.flags & WIPHY_WOWLAN_ANY) &&
+ 	     nla_put_flag(msg, NL80211_WOWLAN_TRIG_ANY)) ||
+-	    ((dev->wiphy.wowlan->flags & WIPHY_WOWLAN_DISCONNECT) &&
++	    ((dev->wiphy.wowlan.flags & WIPHY_WOWLAN_DISCONNECT) &&
+ 	     nla_put_flag(msg, NL80211_WOWLAN_TRIG_DISCONNECT)) ||
+-	    ((dev->wiphy.wowlan->flags & WIPHY_WOWLAN_MAGIC_PKT) &&
++	    ((dev->wiphy.wowlan.flags & WIPHY_WOWLAN_MAGIC_PKT) &&
+ 	     nla_put_flag(msg, NL80211_WOWLAN_TRIG_MAGIC_PKT)) ||
+-	    ((dev->wiphy.wowlan->flags & WIPHY_WOWLAN_SUPPORTS_GTK_REKEY) &&
++	    ((dev->wiphy.wowlan.flags & WIPHY_WOWLAN_SUPPORTS_GTK_REKEY) &&
+ 	     nla_put_flag(msg, NL80211_WOWLAN_TRIG_GTK_REKEY_SUPPORTED)) ||
+-	    ((dev->wiphy.wowlan->flags & WIPHY_WOWLAN_GTK_REKEY_FAILURE) &&
++	    ((dev->wiphy.wowlan.flags & WIPHY_WOWLAN_GTK_REKEY_FAILURE) &&
+ 	     nla_put_flag(msg, NL80211_WOWLAN_TRIG_GTK_REKEY_FAILURE)) ||
+-	    ((dev->wiphy.wowlan->flags & WIPHY_WOWLAN_EAP_IDENTITY_REQ) &&
++	    ((dev->wiphy.wowlan.flags & WIPHY_WOWLAN_EAP_IDENTITY_REQ) &&
+ 	     nla_put_flag(msg, NL80211_WOWLAN_TRIG_EAP_IDENT_REQUEST)) ||
+-	    ((dev->wiphy.wowlan->flags & WIPHY_WOWLAN_4WAY_HANDSHAKE) &&
++	    ((dev->wiphy.wowlan.flags & WIPHY_WOWLAN_4WAY_HANDSHAKE) &&
+ 	     nla_put_flag(msg, NL80211_WOWLAN_TRIG_4WAY_HANDSHAKE)) ||
+-	    ((dev->wiphy.wowlan->flags & WIPHY_WOWLAN_RFKILL_RELEASE) &&
++	    ((dev->wiphy.wowlan.flags & WIPHY_WOWLAN_RFKILL_RELEASE) &&
+ 	     nla_put_flag(msg, NL80211_WOWLAN_TRIG_RFKILL_RELEASE)))
+ 		return -ENOBUFS;
+ 
+-	if (dev->wiphy.wowlan->n_patterns) {
++	if (dev->wiphy.wowlan.n_patterns) {
+ 		struct nl80211_pattern_support pat = {
+-			.max_patterns = dev->wiphy.wowlan->n_patterns,
+-			.min_pattern_len = dev->wiphy.wowlan->pattern_min_len,
+-			.max_pattern_len = dev->wiphy.wowlan->pattern_max_len,
+-			.max_pkt_offset = dev->wiphy.wowlan->max_pkt_offset,
++			.max_patterns = dev->wiphy.wowlan.n_patterns,
++			.min_pattern_len = dev->wiphy.wowlan.pattern_min_len,
++			.max_pattern_len = dev->wiphy.wowlan.pattern_max_len,
++			.max_pkt_offset = dev->wiphy.wowlan.max_pkt_offset,
+ 		};
+ 
+ 		if (nla_put(msg, NL80211_WOWLAN_TRIG_PKT_PATTERN,
+@@ -1523,6 +1528,44 @@
+ 				dev->wiphy.max_acl_mac_addrs))
+ 			goto nla_put_failure;
+ 
++		if (dev->wiphy.max_ap_assoc_sta &&
++		    nla_put_u32(msg, NL80211_ATTR_MAX_AP_ASSOC_STA,
++				dev->wiphy.max_ap_assoc_sta))
++			goto nla_put_failure;
++
++		if (dev->wiphy.n_vendor_commands) {
++			const struct nl80211_vendor_cmd_info *info;
++			struct nlattr *nested;
++
++			nested = nla_nest_start(msg, NL80211_ATTR_VENDOR_DATA);
++			if (!nested)
++				goto nla_put_failure;
++
++			for (i = 0; i < dev->wiphy.n_vendor_commands; i++) {
++				info = &dev->wiphy.vendor_commands[i].info;
++				if (nla_put(msg, i + 1, sizeof(*info), info))
++					goto nla_put_failure;
++			}
++				nla_nest_end(msg, nested);
++		}
++
++		if (dev->wiphy.n_vendor_events) {
++			const struct nl80211_vendor_cmd_info *info;
++			struct nlattr *nested;
++
++			nested = nla_nest_start(msg,
++				NL80211_ATTR_VENDOR_EVENTS);
++			if (!nested)
++				goto nla_put_failure;
++
++			for (i = 0; i < dev->wiphy.n_vendor_events; i++) {
++				info = &dev->wiphy.vendor_events[i];
++				if (nla_put(msg, i + 1, sizeof(*info), info))
++					goto nla_put_failure;
++			}
++			nla_nest_end(msg, nested);
++		}
++
+ 		/*
+ 		 * Any information below this point is only available to
+ 		 * applications that can deal with it being split. This
+@@ -3858,6 +3901,41 @@
+ 	return ERR_PTR(ret);
+ }
+ 
++static int nl80211_parse_sta_channel_info(struct genl_info *info,
++				      struct station_parameters *params)
++{
++	if (info->attrs[NL80211_ATTR_STA_SUPPORTED_CHANNELS]) {
++		params->supported_channels =
++		     nla_data(info->attrs[NL80211_ATTR_STA_SUPPORTED_CHANNELS]);
++		params->supported_channels_len =
++		     nla_len(info->attrs[NL80211_ATTR_STA_SUPPORTED_CHANNELS]);
++		/*
++		 * Need to include at least one (first channel, number of
++		 * channels) tuple for each subband, and must have proper
++		 * tuples for the rest of the data as well.
++		 */
++		if (params->supported_channels_len < 2)
++			return -EINVAL;
++		if (params->supported_channels_len % 2)
++			return -EINVAL;
++	}
++
++	if (info->attrs[NL80211_ATTR_STA_SUPPORTED_OPER_CLASSES]) {
++		params->supported_oper_classes =
++		 nla_data(info->attrs[NL80211_ATTR_STA_SUPPORTED_OPER_CLASSES]);
++		params->supported_oper_classes_len =
++		  nla_len(info->attrs[NL80211_ATTR_STA_SUPPORTED_OPER_CLASSES]);
++		/*
++		 * The value of the Length field of the Supported Operating
++		 * Classes element is between 2 and 253.
++		 */
++		if (params->supported_oper_classes_len < 2 ||
++		    params->supported_oper_classes_len > 253)
++			return -EINVAL;
++	}
++	return 0;
++}
++
+ static struct nla_policy
+ nl80211_sta_wme_policy[NL80211_STA_WME_MAX + 1] __read_mostly = {
+ 	[NL80211_STA_WME_UAPSD_QUEUES] = { .type = NLA_U8 },
+@@ -3901,6 +3979,7 @@
+ static int nl80211_set_station_tdls(struct genl_info *info,
+ 				    struct station_parameters *params)
+ {
++	int err;
+ 	/* Dummy STA entry gets updated once the peer capabilities are known */
+ 	if (info->attrs[NL80211_ATTR_PEER_AID])
+ 		params->aid = nla_get_u16(info->attrs[NL80211_ATTR_PEER_AID]);
+@@ -3911,6 +3990,10 @@
+ 		params->vht_capa =
+ 			nla_data(info->attrs[NL80211_ATTR_VHT_CAPABILITY]);
+ 
++	err = nl80211_parse_sta_channel_info(info, params);
++	if (err)
++		return err;
++
+ 	return nl80211_parse_sta_wme(info, params);
+ }
+ 
+@@ -4091,6 +4174,10 @@
+ 			return -EINVAL;
+ 	}
+ 
++	err = nl80211_parse_sta_channel_info(info, &params);
++	if (err)
++		return err;
++
+ 	err = nl80211_parse_sta_wme(info, &params);
+ 	if (err)
+ 		return err;
+@@ -5343,6 +5430,7 @@
+ 	enum ieee80211_band band;
+ 	size_t ie_len;
+ 	struct nlattr *tb[NL80211_SCHED_SCAN_MATCH_ATTR_MAX + 1];
++	s32 default_match_rssi = NL80211_SCAN_RSSI_THOLD_OFF;
+ 
+ 	if (!(rdev->wiphy.flags & WIPHY_FLAG_SUPPORTS_SCHED_SCAN) ||
+ 	    !rdev->ops->sched_scan_start)
+@@ -5381,11 +5469,40 @@
+ 	if (n_ssids > wiphy->max_sched_scan_ssids)
+ 		return -EINVAL;
+ 
+-	if (info->attrs[NL80211_ATTR_SCHED_SCAN_MATCH])
++	/*
++	 * First, count the number of 'real' matchsets. Due to an issue with
++	 * the old implementation, matchsets containing only the RSSI attribute
++	 * (NL80211_SCHED_SCAN_MATCH_ATTR_RSSI) are considered as the 'default'
++	 * RSSI for all matchsets, rather than their own matchset for reporting
++	 * all APs with a strong RSSI. This is needed to be compatible with
++	 * older userspace that treated a matchset with only the RSSI as the
++	 * global RSSI for all other matchsets - if there are other matchsets.
++	 */
++	if (info->attrs[NL80211_ATTR_SCHED_SCAN_MATCH]) {
+ 		nla_for_each_nested(attr,
+ 				    info->attrs[NL80211_ATTR_SCHED_SCAN_MATCH],
+-				    tmp)
+-			n_match_sets++;
++				    tmp) {
++			struct nlattr *rssi;
++
++			err = nla_parse(tb, NL80211_SCHED_SCAN_MATCH_ATTR_MAX,
++					nla_data(attr), nla_len(attr),
++					nl80211_match_policy);
++			if (err)
++				return err;
++			/* add other standalone attributes here */
++			if (tb[NL80211_SCHED_SCAN_MATCH_ATTR_SSID]) {
++				n_match_sets++;
++				continue;
++			}
++			rssi = tb[NL80211_SCHED_SCAN_MATCH_ATTR_RSSI];
++			if (rssi)
++				default_match_rssi = nla_get_s32(rssi);
++		}
++	}
++
++	/* However, if there's no other matchset, add the RSSI one */
++	if (!n_match_sets && default_match_rssi != NL80211_SCAN_RSSI_THOLD_OFF)
++		n_match_sets = 1;
+ 
+ 	if (n_match_sets > wiphy->max_match_sets)
+ 		return -EINVAL;
+@@ -5511,6 +5628,15 @@
+ 				  nl80211_match_policy);
+ 			ssid = tb[NL80211_SCHED_SCAN_MATCH_ATTR_SSID];
+ 			if (ssid) {
++				if (WARN_ON(i >= n_match_sets)) {
++					/* this indicates a programming error,
++					 * the loop above should have verified
++					 * things properly
++					 */
++					err = -EINVAL;
++					goto out_free;
++				}
++
+ 				if (nla_len(ssid) > IEEE80211_MAX_SSID_LEN) {
+ 					err = -EINVAL;
+ 					goto out_free;
+@@ -5519,17 +5645,32 @@
+ 				       nla_data(ssid), nla_len(ssid));
+ 				request->match_sets[i].ssid.ssid_len =
+ 					nla_len(ssid);
++				/* special attribute - old implemenation w/a */
++				request->match_sets[i].rssi_thold =
++					default_match_rssi;
++				rssi = tb[NL80211_SCHED_SCAN_MATCH_ATTR_RSSI];
++				if (rssi)
++					request->match_sets[i].rssi_thold =
++						nla_get_s32(rssi);
+ 			}
+-			rssi = tb[NL80211_SCHED_SCAN_MATCH_ATTR_RSSI];
+-			if (rssi)
+-				request->rssi_thold = nla_get_u32(rssi);
+-			else
+-				request->rssi_thold =
+-						   NL80211_SCAN_RSSI_THOLD_OFF;
+ 			i++;
+ 		}
++
++		/* there was no other matchset, so the RSSI one is alone */
++		if (i == 0)
++			request->match_sets[0].rssi_thold = default_match_rssi;
++
++		request->min_rssi_thold = INT_MAX;
++		for (i = 0; i < n_match_sets; i++)
++			request->min_rssi_thold =
++				min(request->match_sets[i].rssi_thold,
++				    request->min_rssi_thold);
++	} else {
++		request->min_rssi_thold = NL80211_SCAN_RSSI_THOLD_OFF;
+ 	}
+ 
++	request->rssi_thold = request->min_rssi_thold;
++
+ 	if (info->attrs[NL80211_ATTR_IE]) {
+ 		request->ie_len = nla_len(info->attrs[NL80211_ATTR_IE]);
+ 		memcpy((void *)request->ie,
+@@ -6588,12 +6729,62 @@
+ 	return err;
+ }
+ 
++static struct sk_buff *
++__cfg80211_alloc_vendor_skb(struct cfg80211_registered_device *rdev,
++			    int approxlen, u32 portid, u32 seq,
++			    enum nl80211_commands cmd,
++			    enum nl80211_attrs attr,
++			    const struct nl80211_vendor_cmd_info *info,
++			    gfp_t gfp)
++{
++	struct sk_buff *skb;
++	void *hdr;
++	struct nlattr *data;
++
++	skb = nlmsg_new(approxlen + 100, gfp);
++	if (!skb)
++		return NULL;
++
++	hdr = nl80211hdr_put(skb, portid, seq, 0, cmd);
++	if (!hdr) {
++		kfree_skb(skb);
++		return NULL;
++	}
++
++	if (nla_put_u32(skb, NL80211_ATTR_WIPHY, rdev->wiphy_idx))
++		goto nla_put_failure;
++
++	if (info) {
++		if (nla_put_u32(skb, NL80211_ATTR_VENDOR_ID,
++				info->vendor_id))
++			goto nla_put_failure;
++		if (nla_put_u32(skb, NL80211_ATTR_VENDOR_SUBCMD,
++				info->subcmd))
++			goto nla_put_failure;
++	}
++
++	data = nla_nest_start(skb, attr);
++
++	((void **)skb->cb)[0] = rdev;
++	((void **)skb->cb)[1] = hdr;
++	((void **)skb->cb)[2] = data;
++
++	return skb;
++
++ nla_put_failure:
++	kfree_skb(skb);
++	return NULL;
++}
+ 
+ #ifdef CPTCFG_NL80211_TESTMODE
+ static struct genl_multicast_group nl80211_testmode_mcgrp = {
+ 	.name = "testmode",
+ };
+ 
++static struct genl_multicast_group nl80211_vendor_mcgrp = {
++	.name = "vendor",
++};
++
+ static int nl80211_testmode_do(struct sk_buff *skb, struct genl_info *info)
+ {
+ 	struct cfg80211_registered_device *rdev = info->user_ptr[0];
+@@ -6616,11 +6807,11 @@
+ 	if (!info->attrs[NL80211_ATTR_TESTDATA])
+ 		return -EINVAL;
+ 
+-	rdev->testmode_info = info;
++	rdev->cur_cmd_info = info;
+ 	err = rdev_testmode_cmd(rdev, wdev,
+ 				nla_data(info->attrs[NL80211_ATTR_TESTDATA]),
+ 				nla_len(info->attrs[NL80211_ATTR_TESTDATA]));
+-	rdev->testmode_info = NULL;
++	rdev->cur_cmd_info = NULL;
+ 
+ 	return err;
+ }
+@@ -6720,92 +6911,53 @@
+ 	return err;
+ }
+ 
+-static struct sk_buff *
+-__cfg80211_testmode_alloc_skb(struct cfg80211_registered_device *rdev,
+-			      int approxlen, u32 portid, u32 seq, gfp_t gfp)
+-{
+-	struct sk_buff *skb;
+-	void *hdr;
+-	struct nlattr *data;
+-
+-	skb = nlmsg_new(approxlen + 100, gfp);
+-	if (!skb)
+-		return NULL;
+-
+-	hdr = nl80211hdr_put(skb, portid, seq, 0, NL80211_CMD_TESTMODE);
+-	if (!hdr) {
+-		kfree_skb(skb);
+-		return NULL;
+-	}
+-
+-	if (nla_put_u32(skb, NL80211_ATTR_WIPHY, rdev->wiphy_idx))
+-		goto nla_put_failure;
+-	data = nla_nest_start(skb, NL80211_ATTR_TESTDATA);
+-
+-	((void **)skb->cb)[0] = rdev;
+-	((void **)skb->cb)[1] = hdr;
+-	((void **)skb->cb)[2] = data;
+-
+-	return skb;
+-
+- nla_put_failure:
+-	kfree_skb(skb);
+-	return NULL;
+-}
+-
+-struct sk_buff *cfg80211_testmode_alloc_reply_skb(struct wiphy *wiphy,
+-						  int approxlen)
+-{
+-	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
+-
+-	if (WARN_ON(!rdev->testmode_info))
+-		return NULL;
+-
+-	return __cfg80211_testmode_alloc_skb(rdev, approxlen,
+-				genl_info_snd_portid(rdev->testmode_info),
+-				rdev->testmode_info->snd_seq,
+-				GFP_KERNEL);
+-}
+-EXPORT_SYMBOL(cfg80211_testmode_alloc_reply_skb);
+-
+-int cfg80211_testmode_reply(struct sk_buff *skb)
+-{
+-	struct cfg80211_registered_device *rdev = ((void **)skb->cb)[0];
+-	void *hdr = ((void **)skb->cb)[1];
+-	struct nlattr *data = ((void **)skb->cb)[2];
+-
+-	if (WARN_ON(!rdev->testmode_info)) {
+-		kfree_skb(skb);
+-		return -EINVAL;
+-	}
+-
+-	nla_nest_end(skb, data);
+-	genlmsg_end(skb, hdr);
+-	return genlmsg_reply(skb, rdev->testmode_info);
+-}
+-EXPORT_SYMBOL(cfg80211_testmode_reply);
+-
+-struct sk_buff *cfg80211_testmode_alloc_event_skb(struct wiphy *wiphy,
+-						  int approxlen, gfp_t gfp)
+-{
+-	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
+-
+-	return __cfg80211_testmode_alloc_skb(rdev, approxlen, 0, 0, gfp);
+-}
+-EXPORT_SYMBOL(cfg80211_testmode_alloc_event_skb);
+-
+-void cfg80211_testmode_event(struct sk_buff *skb, gfp_t gfp)
+-{
+-	struct cfg80211_registered_device *rdev = ((void **)skb->cb)[0];
+-	void *hdr = ((void **)skb->cb)[1];
+-	struct nlattr *data = ((void **)skb->cb)[2];
+-
+-	nla_nest_end(skb, data);
+-	genlmsg_end(skb, hdr);
+-	genlmsg_multicast_netns(wiphy_net(&rdev->wiphy), skb, 0,
+-				nl80211_testmode_mcgrp.id, gfp);
++struct sk_buff *__cfg80211_alloc_event_skb(struct wiphy *wiphy,
++                                           enum nl80211_commands cmd,
++                                           enum nl80211_attrs attr,
++                                           int vendor_event_idx,
++                                           int approxlen, gfp_t gfp)
++{
++        struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
++        const struct nl80211_vendor_cmd_info *info;
++
++        switch (cmd) {
++        case NL80211_CMD_TESTMODE:
++                if (WARN_ON(vendor_event_idx != -1))
++                        return NULL;
++                info = NULL;
++                break;
++        case NL80211_CMD_VENDOR:
++                if (WARN_ON(vendor_event_idx < 0 ||
++                            vendor_event_idx >= wiphy->n_vendor_events))
++                        return NULL;
++                info = &wiphy->vendor_events[vendor_event_idx];
++                break;
++        default:
++                WARN_ON(1);
++                return NULL;
++        }
++        return __cfg80211_alloc_vendor_skb(rdev, approxlen, 0, 0,
++                                           cmd, attr, info, gfp);
++}
++EXPORT_SYMBOL(__cfg80211_alloc_event_skb);
++
++void __cfg80211_send_event_skb(struct sk_buff *skb, gfp_t gfp)
++{
++        struct cfg80211_registered_device *rdev = ((void **)skb->cb)[0];
++        void *hdr = ((void **)skb->cb)[1];
++        struct nlattr *data = ((void **)skb->cb)[2];
++
++        nla_nest_end(skb, data);
++        genlmsg_end(skb, hdr);
++
++        if (data->nla_type == NL80211_ATTR_VENDOR_DATA)
++                genlmsg_multicast_netns(wiphy_net(&rdev->wiphy), skb, 0,
++                        nl80211_vendor_mcgrp.id, gfp);
++        else
++                genlmsg_multicast_netns(wiphy_net(&rdev->wiphy), skb, 0,
++                        nl80211_testmode_mcgrp.id, gfp);
+ }
+-EXPORT_SYMBOL(cfg80211_testmode_event);
++EXPORT_SYMBOL(__cfg80211_send_event_skb);
+ #endif
+ 
+ static int nl80211_connect(struct sk_buff *skb, struct genl_info *info)
+@@ -7835,7 +7987,7 @@
+ 	void *hdr;
+ 	u32 size = NLMSG_DEFAULT_SIZE;
+ 
+-	if (!rdev->wiphy.wowlan)
++	if (&rdev->wiphy.wowlan)
+ 		return -EOPNOTSUPP;
+ 
+ 	if (rdev->wiphy.wowlan_config && rdev->wiphy.wowlan_config->tcp) {
+@@ -7908,7 +8060,7 @@
+ 	u32 data_size, wake_size, tokens_size = 0, wake_mask_size;
+ 	int err, port;
+ 
+-	if (!rdev->wiphy.wowlan->tcp)
++	if (&rdev->wiphy.wowlan.tcp)
+ 		return -EINVAL;
+ 
+ 	err = nla_parse(tb, MAX_NL80211_WOWLAN_TCP,
+@@ -7928,16 +8080,16 @@
+ 		return -EINVAL;
+ 
+ 	data_size = nla_len(tb[NL80211_WOWLAN_TCP_DATA_PAYLOAD]);
+-	if (data_size > rdev->wiphy.wowlan->tcp->data_payload_max)
++	if (data_size > rdev->wiphy.wowlan.tcp->data_payload_max)
+ 		return -EINVAL;
+ 
+ 	if (nla_get_u32(tb[NL80211_WOWLAN_TCP_DATA_INTERVAL]) >
+-			rdev->wiphy.wowlan->tcp->data_interval_max ||
++			rdev->wiphy.wowlan.tcp->data_interval_max ||
+ 	    nla_get_u32(tb[NL80211_WOWLAN_TCP_DATA_INTERVAL]) == 0)
+ 		return -EINVAL;
+ 
+ 	wake_size = nla_len(tb[NL80211_WOWLAN_TCP_WAKE_PAYLOAD]);
+-	if (wake_size > rdev->wiphy.wowlan->tcp->wake_payload_max)
++	if (wake_size > rdev->wiphy.wowlan.tcp->wake_payload_max)
+ 		return -EINVAL;
+ 
+ 	wake_mask_size = nla_len(tb[NL80211_WOWLAN_TCP_WAKE_MASK]);
+@@ -7952,13 +8104,13 @@
+ 
+ 		if (!tok->len || tokens_size % tok->len)
+ 			return -EINVAL;
+-		if (!rdev->wiphy.wowlan->tcp->tok)
++		if (!rdev->wiphy.wowlan.tcp->tok)
+ 			return -EINVAL;
+-		if (tok->len > rdev->wiphy.wowlan->tcp->tok->max_len)
++		if (tok->len > rdev->wiphy.wowlan.tcp->tok->max_len)
+ 			return -EINVAL;
+-		if (tok->len < rdev->wiphy.wowlan->tcp->tok->min_len)
++		if (tok->len < rdev->wiphy.wowlan.tcp->tok->min_len)
+ 			return -EINVAL;
+-		if (tokens_size > rdev->wiphy.wowlan->tcp->tok->bufsize)
++		if (tokens_size > rdev->wiphy.wowlan.tcp->tok->bufsize)
+ 			return -EINVAL;
+ 		if (tok->offset + tok->len > data_size)
+ 			return -EINVAL;
+@@ -7966,7 +8118,7 @@
+ 
+ 	if (tb[NL80211_WOWLAN_TCP_DATA_PAYLOAD_SEQ]) {
+ 		seq = nla_data(tb[NL80211_WOWLAN_TCP_DATA_PAYLOAD_SEQ]);
+-		if (!rdev->wiphy.wowlan->tcp->seq)
++		if (!rdev->wiphy.wowlan.tcp->seq)
+ 			return -EINVAL;
+ 		if (seq->len == 0 || seq->len > 4)
+ 			return -EINVAL;
+@@ -8047,7 +8199,7 @@
+ 	struct nlattr *tb[NUM_NL80211_WOWLAN_TRIG];
+ 	struct cfg80211_wowlan new_triggers = {};
+ 	struct cfg80211_wowlan *ntrig;
+-	const struct wiphy_wowlan_support *wowlan = rdev->wiphy.wowlan;
++	const struct wiphy_wowlan_support *wowlan = &rdev->wiphy.wowlan;
+ 	int err, i;
+ 	bool prev_enabled = rdev->wiphy.wowlan_config;
+ 
+@@ -8774,6 +8926,109 @@
+ 	return 0;
+ }
+ 
++static int nl80211_vendor_cmd(struct sk_buff *skb, struct genl_info *info)
++{
++	struct cfg80211_registered_device *rdev = info->user_ptr[0];
++	struct wireless_dev *wdev =
++		__cfg80211_wdev_from_attrs(genl_info_net(info), info->attrs);
++	int i, err;
++	u32 vid, subcmd;
++
++	if (!rdev->wiphy.vendor_commands)
++		return -EOPNOTSUPP;
++
++	if (IS_ERR(wdev)) {
++		err = PTR_ERR(wdev);
++		if (err != -EINVAL)
++			return err;
++		wdev = NULL;
++	} else if (wdev->wiphy != &rdev->wiphy) {
++		return -EINVAL;
++	}
++
++	if (!info->attrs[NL80211_ATTR_VENDOR_ID] ||
++	    !info->attrs[NL80211_ATTR_VENDOR_SUBCMD])
++		return -EINVAL;
++
++	vid = nla_get_u32(info->attrs[NL80211_ATTR_VENDOR_ID]);
++	subcmd = nla_get_u32(info->attrs[NL80211_ATTR_VENDOR_SUBCMD]);
++	for (i = 0; i < rdev->wiphy.n_vendor_commands; i++) {
++		const struct wiphy_vendor_command *vcmd;
++		void *data = NULL;
++		int len = 0;
++
++		vcmd = &rdev->wiphy.vendor_commands[i];
++
++		if (vcmd->info.vendor_id != vid || vcmd->info.subcmd != subcmd)
++			continue;
++
++		if (vcmd->flags & (WIPHY_VENDOR_CMD_NEED_WDEV |
++				   WIPHY_VENDOR_CMD_NEED_NETDEV)) {
++			if (!wdev)
++				return -EINVAL;
++			if (vcmd->flags & WIPHY_VENDOR_CMD_NEED_NETDEV &&
++			    !wdev->netdev)
++				return -EINVAL;
++
++			if (vcmd->flags & WIPHY_VENDOR_CMD_NEED_RUNNING) {
++				if (wdev->netdev &&
++				    !netif_running(wdev->netdev))
++					return -ENETDOWN;
++			}
++		} else {
++			wdev = NULL;
++		}
++
++		if (info->attrs[NL80211_ATTR_VENDOR_DATA]) {
++			data = nla_data(info->attrs[NL80211_ATTR_VENDOR_DATA]);
++			len = nla_len(info->attrs[NL80211_ATTR_VENDOR_DATA]);
++		}
++
++		rdev->cur_cmd_info = info;
++		err = rdev->wiphy.vendor_commands[i].doit(&rdev->wiphy, wdev,
++							   data, len);
++		rdev->cur_cmd_info = NULL;
++
++		return err;
++	}
++
++	return -EOPNOTSUPP;
++}
++
++struct sk_buff *__cfg80211_alloc_reply_skb(struct wiphy *wiphy,
++					   enum nl80211_commands cmd,
++					   enum nl80211_attrs attr,
++					   int approxlen)
++{
++	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
++
++	if (WARN_ON(!rdev->cur_cmd_info))
++		return NULL;
++
++	return __cfg80211_alloc_vendor_skb(rdev, approxlen,
++					   genl_info_snd_portid(rdev->cur_cmd_info),
++					   rdev->cur_cmd_info->snd_seq,
++					   cmd, attr, NULL, GFP_KERNEL);
++}
++EXPORT_SYMBOL(__cfg80211_alloc_reply_skb);
++
++int cfg80211_vendor_cmd_reply(struct sk_buff *skb)
++{
++	struct cfg80211_registered_device *rdev = ((void **)skb->cb)[0];
++	void *hdr = ((void **)skb->cb)[1];
++	struct nlattr *data = ((void **)skb->cb)[2];
++
++	if (WARN_ON(!rdev->cur_cmd_info)) {
++		kfree_skb(skb);
++		return -EINVAL;
++	}
++
++	nla_nest_end(skb, data);
++	genlmsg_end(skb, hdr);
++	return genlmsg_reply(skb, rdev->cur_cmd_info);
++}
++EXPORT_SYMBOL(cfg80211_vendor_cmd_reply);
++
+ #define NL80211_FLAG_NEED_WIPHY		0x01
+ #define NL80211_FLAG_NEED_NETDEV	0x02
+ #define NL80211_FLAG_NEED_RTNL		0x04
+@@ -9063,7 +9318,8 @@
+ 		.doit = nl80211_set_reg,
+ 		.policy = nl80211_policy,
+ 		.flags = GENL_ADMIN_PERM,
+-		.internal_flags = NL80211_FLAG_NEED_RTNL,
++		.internal_flags = NL80211_FLAG_NEED_WIPHY |
++				  NL80211_FLAG_NEED_RTNL,
+ 	},
+ 	{
+ 		.cmd = NL80211_CMD_REQ_SET_REG,
+@@ -9498,6 +9754,15 @@
+ 		.internal_flags = NL80211_FLAG_NEED_NETDEV_UP |
+ 				  NL80211_FLAG_NEED_RTNL,
+ 	},
++	{
++		.cmd = NL80211_CMD_VENDOR,
++		.doit = nl80211_vendor_cmd,
++		.policy = nl80211_policy,
++		.flags = GENL_ADMIN_PERM,
++		.internal_flags = NL80211_FLAG_NEED_WIPHY |
++				  NL80211_FLAG_NEED_RTNL,
++	},
++
+ };
+ 
+ static struct genl_multicast_group nl80211_mlme_mcgrp = {
+@@ -9870,6 +10135,32 @@
+ }
+ EXPORT_SYMBOL(cfg80211_rx_unprot_mlme_mgmt);
+ 
++void cfg80211_send_unprot_deauth(struct net_device *dev, const u8 *buf,
++				 size_t len)
++{
++	struct wireless_dev *wdev = dev->ieee80211_ptr;
++	struct wiphy *wiphy = wdev->wiphy;
++	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
++
++//	trace_cfg80211_send_unprot_deauth(dev);
++	nl80211_send_mlme_event(rdev, dev, buf, len,
++				NL80211_CMD_UNPROT_DEAUTHENTICATE, GFP_ATOMIC);
++}
++EXPORT_SYMBOL(cfg80211_send_unprot_deauth);
++
++void cfg80211_send_unprot_disassoc(struct net_device *dev, const u8 *buf,
++				   size_t len)
++{
++	struct wireless_dev *wdev = dev->ieee80211_ptr;
++	struct wiphy *wiphy = wdev->wiphy;
++	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
++
++//	trace_cfg80211_send_unprot_disassoc(dev);
++	nl80211_send_mlme_event(rdev, dev, buf, len,
++				NL80211_CMD_UNPROT_DISASSOCIATE, GFP_ATOMIC);
++}
++EXPORT_SYMBOL(cfg80211_send_unprot_disassoc);
++
+ static void nl80211_send_mlme_timeout(struct cfg80211_registered_device *rdev,
+ 				      struct net_device *netdev, int cmd,
+ 				      const u8 *addr, gfp_t gfp)
+@@ -10454,7 +10745,7 @@
+ int nl80211_send_mgmt(struct cfg80211_registered_device *rdev,
+ 		      struct wireless_dev *wdev, u32 nlportid,
+ 		      int freq, int sig_dbm,
+-		      const u8 *buf, size_t len, u32 flags, gfp_t gfp)
++		      const u8 *buf, size_t len, gfp_t gfp)
+ {
+ 	struct net_device *netdev = wdev->netdev;
+ 	struct sk_buff *msg;
+@@ -10477,9 +10768,7 @@
+ 	    nla_put_u32(msg, NL80211_ATTR_WIPHY_FREQ, freq) ||
+ 	    (sig_dbm &&
+ 	     nla_put_u32(msg, NL80211_ATTR_RX_SIGNAL_DBM, sig_dbm)) ||
+-	    nla_put(msg, NL80211_ATTR_FRAME, len, buf) ||
+-	    (flags &&
+-	     nla_put_u32(msg, NL80211_ATTR_RXMGMT_FLAGS, flags)))
++	    nla_put(msg, NL80211_ATTR_FRAME, len, buf))
+ 		goto nla_put_failure;
+ 
+ 	genlmsg_end(msg, hdr);
+diff -Naur backports-3.12.8-1.org/net/wireless/nl80211.h backports/net/wireless/nl80211.h
+--- backports-3.12.8-1.org/net/wireless/nl80211.h	2014-08-10 09:29:40.990539593 +0800
++++ backports/net/wireless/nl80211.h	2014-08-10 09:29:58.714539298 +0800
+@@ -66,7 +66,7 @@
+ int nl80211_send_mgmt(struct cfg80211_registered_device *rdev,
+ 		      struct wireless_dev *wdev, u32 nlpid,
+ 		      int freq, int sig_dbm,
+-		      const u8 *buf, size_t len, u32 flags, gfp_t gfp);
++		      const u8 *buf, size_t len, gfp_t gfp);
+ 
+ void
+ nl80211_radar_notify(struct cfg80211_registered_device *rdev,
+diff -Naur backports-3.12.8-1.org/net/wireless/rdev-ops.h backports/net/wireless/rdev-ops.h
+--- backports-3.12.8-1.org/net/wireless/rdev-ops.h	2014-08-10 09:29:40.990539593 +0800
++++ backports/net/wireless/rdev-ops.h	2014-08-10 09:29:58.714539298 +0800
+@@ -521,7 +521,7 @@
+ {
+ 	int ret;
+ 	trace_rdev_testmode_cmd(&rdev->wiphy, wdev);
+-	ret = rdev->ops->testmode_cmd(&rdev->wiphy, wdev, data, len);
++	ret = rdev->ops->testmode_cmd(&rdev->wiphy,data, len);
+ 	trace_rdev_return_int(&rdev->wiphy, ret);
+ 	return ret;
+ }
+diff -Naur backports-3.12.8-1.org/net/wireless/reg.c backports/net/wireless/reg.c
+--- backports-3.12.8-1.org/net/wireless/reg.c	2014-08-10 09:29:40.990539593 +0800
++++ backports/net/wireless/reg.c	2014-08-10 09:29:58.714539298 +0800
+@@ -845,6 +845,18 @@
+ 
+ 		REG_DBG_PRINT("Disabling freq %d MHz\n", chan->center_freq);
+ 		chan->flags |= IEEE80211_CHAN_DISABLED;
++		if (lr->initiator == NL80211_REGDOM_SET_BY_DRIVER &&
++		    request_wiphy && request_wiphy == wiphy &&
++		    request_wiphy->flags & WIPHY_FLAG_STRICT_REGULATORY) {
++			REG_DBG_PRINT("Disabling freq %d MHz for good\n",
++				      chan->center_freq);
++			chan->orig_flags |= IEEE80211_CHAN_DISABLED;
++			chan->flags = chan->orig_flags;
++		} else {
++			REG_DBG_PRINT("Disabling freq %d MHz\n",
++				      chan->center_freq);
++			chan->flags |= IEEE80211_CHAN_DISABLED;
++			}
+ 		return;
+ 	}
+ 
+@@ -888,13 +900,11 @@
+ 	chan->max_reg_power = (int) MBM_TO_DBM(power_rule->max_eirp);
+ 	if (chan->orig_mpwr) {
+ 		/*
+-		 * Devices that have their own custom regulatory domain
+-		 * but also use WIPHY_FLAG_STRICT_REGULATORY will follow the
+-		 * passed country IE power settings.
++		 * Devices that use NL80211_COUNTRY_IE_FOLLOW_POWER will always
++		 * follow the passed country IE power settings.
+ 		 */
+ 		if (initiator == NL80211_REGDOM_SET_BY_COUNTRY_IE &&
+-		    wiphy->flags & WIPHY_FLAG_CUSTOM_REGULATORY &&
+-		    wiphy->flags & WIPHY_FLAG_STRICT_REGULATORY)
++		    wiphy->country_ie_pref & NL80211_COUNTRY_IE_FOLLOW_POWER)
+ 			chan->max_power = chan->max_reg_power;
+ 		else
+ 			chan->max_power = min(chan->orig_mpwr,
+@@ -1240,7 +1250,9 @@
+ 	if (IS_ERR(reg_rule)) {
+ 		REG_DBG_PRINT("Disabling freq %d MHz as custom regd has no rule that fits it\n",
+ 			      chan->center_freq);
+-		chan->flags = IEEE80211_CHAN_DISABLED;
++		chan->orig_flags |= IEEE80211_CHAN_DISABLED;
++		chan->flags = chan->orig_flags;
++
+ 		return;
+ 	}
+ 
+@@ -1314,6 +1326,9 @@
+ 	case NL80211_REGDOM_SET_BY_CORE:
+ 		return REG_REQ_OK;
+ 	case NL80211_REGDOM_SET_BY_COUNTRY_IE:
++		if (wiphy->country_ie_pref & NL80211_COUNTRY_IE_IGNORE_CORE)
++			return REG_REQ_IGNORE;
++
+ 		if (reg_request_cell_base(lr)) {
+ 			/* Trust a Cell base station over the AP's country IE */
+ 			if (regdom_changes(pending_request->alpha2))
+@@ -1664,6 +1679,7 @@
+ 
+ 	return 0;
+ }
++EXPORT_SYMBOL(regulatory_hint_user);
+ 
+ /* Driver hints */
+ int regulatory_hint(struct wiphy *wiphy, const char *alpha2)
+diff -Naur backports-3.12.8-1.org/net/wireless/reg.h backports/net/wireless/reg.h
+--- backports-3.12.8-1.org/net/wireless/reg.h	2014-08-10 09:29:40.990539593 +0800
++++ backports/net/wireless/reg.h	2014-08-10 09:29:58.718539298 +0800
+@@ -21,9 +21,6 @@
+ bool is_world_regdom(const char *alpha2);
+ bool reg_supported_dfs_region(u8 dfs_region);
+ 
+-int regulatory_hint_user(const char *alpha2,
+-			 enum nl80211_user_reg_hint_type user_reg_hint_type);
+-
+ int reg_device_uevent(struct device *dev, struct kobj_uevent_env *env);
+ void wiphy_regulatory_register(struct wiphy *wiphy);
+ void wiphy_regulatory_deregister(struct wiphy *wiphy);
+diff -Naur backports-3.12.8-1.org/net/wireless/util.c backports/net/wireless/util.c
+--- backports-3.12.8-1.org/net/wireless/util.c	2014-08-10 09:29:40.990539593 +0800
++++ backports/net/wireless/util.c	2014-08-10 09:29:58.718539298 +0800
+@@ -10,6 +10,8 @@
+ #include <net/cfg80211.h>
+ #include <net/ip.h>
+ #include <net/dsfield.h>
++#include <net/ndisc.h>
++#include <linux/if_arp.h>
+ #include "core.h"
+ #include "rdev-ops.h"
+ 
+@@ -1457,3 +1459,54 @@
+ const unsigned char bridge_tunnel_header[] __aligned(2) =
+ 	{ 0xaa, 0xaa, 0x03, 0x00, 0x00, 0xf8 };
+ EXPORT_SYMBOL(bridge_tunnel_header);
++
++bool cfg80211_is_gratuitous_arp_unsolicited_na(struct sk_buff *skb)
++{
++	const struct ethhdr *eth = (void *)skb->data;
++	const struct {
++		struct arphdr hdr;
++		u8 ar_sha[ETH_ALEN];
++		u8 ar_sip[4];
++		u8 ar_tha[ETH_ALEN];
++		u8 ar_tip[4];
++	} __packed *arp;
++	const struct ipv6hdr *ipv6;
++	const struct icmp6hdr *icmpv6;
++
++	switch (eth->h_proto) {
++	case cpu_to_be16(ETH_P_ARP):
++		/* can't say - but will probably be dropped later anyway */
++		if (!pskb_may_pull(skb, sizeof(*eth) + sizeof(*arp)))
++			return false;
++
++		arp = (void *)(eth + 1);
++
++		if ((arp->hdr.ar_op == cpu_to_be16(ARPOP_REPLY) ||
++		     arp->hdr.ar_op == cpu_to_be16(ARPOP_REQUEST)) &&
++		    !memcmp(arp->ar_sip, arp->ar_tip, sizeof(arp->ar_sip)))
++			return true;
++		break;
++	case cpu_to_be16(ETH_P_IPV6):
++		/* can't say - but will probably be dropped later anyway */
++		if (!pskb_may_pull(skb, sizeof(*eth) + sizeof(*ipv6) +
++					sizeof(*icmpv6)))
++			return false;
++
++		ipv6 = (void *)(eth + 1);
++		icmpv6 = (void *)(ipv6 + 1);
++
++		if (icmpv6->icmp6_type == NDISC_NEIGHBOUR_ADVERTISEMENT &&
++		    !memcmp(&ipv6->saddr, &ipv6->daddr, sizeof(ipv6->saddr)))
++			return true;
++		break;
++	default:
++		/*
++		 * no need to support other protocols, proxy service isn't
++		 * specified for any others
++		 */
++		break;
++	}
++
++	return false;
++}
++EXPORT_SYMBOL(cfg80211_is_gratuitous_arp_unsolicited_na);
+diff -Naur backports-3.12.8-1.org/net/wireless/wext-core.c backports/net/wireless/wext-core.c
+--- backports-3.12.8-1.org/net/wireless/wext-core.c	2014-08-10 09:29:40.990539593 +0800
++++ backports/net/wireless/wext-core.c	2014-08-10 09:29:58.718539298 +0800
+@@ -19,6 +19,7 @@
+ #include <net/netlink.h>
+ #include <net/wext.h>
+ #include <net/net_namespace.h>
++#include <linux/version.h>
+ 
+ typedef int (*wext_ioctl_func)(struct net_device *, struct iwreq *,
+ 			       unsigned int, struct iw_request_info *,

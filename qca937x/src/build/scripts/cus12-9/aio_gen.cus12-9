@@ -1,0 +1,47 @@
+#!/bin/bash
+# Add cus12-9 specific patches download.
+# Add components need to be downloaded.
+# 
+
+# subversion of AIO
+# start with "."
+BRD_TYPE_VER=.12.9.04
+
+#
+# For each board type,
+# determine which components should be downloaded.
+# The settings here will overwrite the default in aio_gen_bit.sh.
+# 
+# ONLY add/enable those components need download.
+#
+# 1. patch files
+DOWNLOAD_PATCH=y
+
+# 2. kernel
+DOWNLOAD_KERNEL_BACKPORT_3_12=y
+
+# 3. WLAN/BT host drivers
+DOWNLOAD_DRIVER_WLAN_HOST=y
+
+# 4. APPs
+DOWNLOAD_APP_WLAN_WPA_SUPPLICANT_8=y
+DOWNLOAD_APP_WLAN_LIBNL_3_2_25=y
+DOWNLOAD_APP_WLAN_IW_3_0=y
+
+
+
+# Convert to "cus12_9" from "cus12-9".
+BOARD_TYPE_PREFIX=${INPUT_BOARD_TYPE/-/_}
+
+# Please use "cus12_9" instead of "cus12-9".
+# The format of array should be composed of "BOARD_TYPE_PREFIX + BOARD_TYPE_POSTFIX"
+declare -a cus12_9_aio_patch_arr=(
+"cus12-9-001-gpio_wakeup_host.patch"
+"cus12-9-002-qcacld_wow_suspend_resume.patch"
+"cus12-9-003-wpa_supplicant_support_vendor_cmd.patch"
+"cus12-9-004-iw_3_0.patch"
+"cus12-9-005-900_cld_kernel3.8.patch"
+)
+
+# Please add the correct link on CAF if related folder released
+BOARD_TYPE_AIO_PATCH_CAF="https://www.codeaurora.org/patches/external/wlan/fixce/3rdparty/patches/cus12-9"

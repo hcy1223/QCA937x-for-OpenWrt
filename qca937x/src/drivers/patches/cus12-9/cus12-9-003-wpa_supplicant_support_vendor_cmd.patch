@@ -1,0 +1,235 @@
+diff -urN wpa_supplicant_8.old/src/drivers/driver.h wpa_supplicant_8/src/drivers/driver.h
+--- wpa_supplicant_8.old/src/drivers/driver.h	2014-09-09 15:56:48.000000000 +0800
++++ wpa_supplicant_8/src/drivers/driver.h	2015-04-26 14:17:34.229312583 +0800
+@@ -2736,6 +2736,30 @@
+ 	 int (*driver_cmd)(void *priv, char *cmd, char *buf, size_t buf_len);
+ #endif
+ 	/**
++	 * vendor_cmd - Execute vendor specific command
++	 * @priv: Private driver interface data
++	 * @vendor_id: Vendor id
++	 * @subcmd: Vendor command id
++	 * @data: Vendor command parameters (%NULL if no parameters)
++	 * @data_len: Data length
++	 * @buf: Return buffer (%NULL to ignore reply)
++	 * Returns: 0 on success, negative (<0) on failure
++	 *
++	 * This function handles vendor specific commands that are passed to
++	 * the driver/device. The command is identified by vendor id and
++	 * command id. Parameters can be passed as argument to the command
++	 * in the data buffer. Reply (if any) will be filled in the supplied
++	 * return buffer.
++	 *
++	 * The exact driver behavior is driver interface and vendor specific. As
++	 * an example, this will be converted to a vendor specific cfg80211
++	 * command in case of the nl80211 driver interface.
++	 */
++	int (*vendor_cmd)(void *priv, unsigned int vendor_id,
++			  unsigned int subcmd, const u8 *data, size_t data_len,
++			  struct wpabuf *buf);
++
++	/**
+ 	 * set_rekey_info - Set rekey information
+ 	 * @priv: Private driver interface data
+ 	 * @kek: Current KEK
+diff -urN wpa_supplicant_8.old/src/drivers/driver_nl80211.c wpa_supplicant_8/src/drivers/driver_nl80211.c
+--- wpa_supplicant_8.old/src/drivers/driver_nl80211.c	2014-09-09 15:56:48.000000000 +0800
++++ wpa_supplicant_8/src/drivers/driver_nl80211.c	2015-04-26 14:25:43.573315968 +0800
+@@ -11513,6 +11513,70 @@
+ }
+ 
+ 
++static int vendor_reply_handler(struct nl_msg *msg, void *arg)
++{
++	struct nlattr *tb[NL80211_ATTR_MAX + 1];
++	struct nlattr *nl_vendor_reply, *nl;
++	struct genlmsghdr *gnlh = nlmsg_data(nlmsg_hdr(msg));
++	struct wpabuf *buf = arg;
++	int rem;
++
++	if (!buf)
++		return NL_SKIP;
++
++	nla_parse(tb, NL80211_ATTR_MAX, genlmsg_attrdata(gnlh, 0),
++		  genlmsg_attrlen(gnlh, 0), NULL);
++	nl_vendor_reply = tb[NL80211_ATTR_VENDOR_DATA];
++
++	if (!nl_vendor_reply)
++		return NL_SKIP;
++
++	if ((size_t) nla_len(nl_vendor_reply) > wpabuf_tailroom(buf)) {
++		wpa_printf(MSG_INFO, "nl80211: Vendor command: insufficient buffer space for reply");
++		return NL_SKIP;
++	}
++
++	nla_for_each_nested(nl, nl_vendor_reply, rem) {
++		wpabuf_put_data(buf, nla_data(nl), nla_len(nl));
++	}
++
++	return NL_SKIP;
++}
++
++
++static int nl80211_vendor_cmd(void *priv, unsigned int vendor_id,
++			      unsigned int subcmd, const u8 *data,
++			      size_t data_len, struct wpabuf *buf)
++{
++	struct i802_bss *bss = priv;
++	struct wpa_driver_nl80211_data *drv = bss->drv;
++	struct nl_msg *msg;
++	int ret;
++
++	msg = nlmsg_alloc();
++	if (!msg)
++		return -ENOMEM;
++
++	nl80211_cmd(drv, msg, 0, NL80211_CMD_VENDOR);
++	if (nl80211_set_iface_id(msg, bss) < 0)
++		goto nla_put_failure;
++	NLA_PUT_U32(msg, NL80211_ATTR_VENDOR_ID, vendor_id);
++	NLA_PUT_U32(msg, NL80211_ATTR_VENDOR_SUBCMD, subcmd);
++	if (data)
++		NLA_PUT(msg, NL80211_ATTR_VENDOR_DATA, data_len, data);
++
++	ret = send_and_recv_msgs(drv, msg, vendor_reply_handler, buf);
++	if (ret)
++		wpa_printf(MSG_DEBUG, "nl80211: vendor command failed err=%d",
++			   ret);
++	return ret;
++
++nla_put_failure:
++	nlmsg_free(msg);
++	return -ENOBUFS;
++}
++
++
+ const struct wpa_driver_ops wpa_driver_nl80211_ops = {
+ 	.name = "nl80211",
+ 	.desc = "Linux nl80211/cfg80211",
+@@ -11605,4 +11669,5 @@
+ #endif
+ 	.switch_channel = nl80211_switch_channel,
+ 	.key_mgmt_set_pmk = nl80211_key_mgmt_set_pmk,
++    .vendor_cmd = nl80211_vendor_cmd,
+ };
+diff -urN wpa_supplicant_8.old/wpa_supplicant/ctrl_iface.c wpa_supplicant_8/wpa_supplicant/ctrl_iface.c
+--- wpa_supplicant_8.old/wpa_supplicant/ctrl_iface.c	2014-09-09 15:56:48.000000000 +0800
++++ wpa_supplicant_8/wpa_supplicant/ctrl_iface.c	2015-04-26 14:17:36.045312596 +0800
+@@ -5254,6 +5254,63 @@
+ #endif
+ 
+ 
++static int wpa_supplicant_vendor_cmd(struct wpa_supplicant *wpa_s, char *cmd,
++				     char *buf, size_t buflen)
++{
++	int ret;
++	char *pos;
++	u8 *data = NULL;
++	unsigned int vendor_id, subcmd;
++	struct wpabuf *reply;
++	size_t data_len = 0;
++
++	/* cmd: <vendor id> <subcommand id> [<hex formatted data>] */
++	vendor_id = strtoul(cmd, &pos, 16);
++	if (!isblank(*pos))
++		return -EINVAL;
++
++	subcmd = strtoul(pos, &pos, 10);
++
++	if (*pos != '\0') {
++		if (!isblank(*pos++))
++			return -EINVAL;
++		data_len = os_strlen(pos);
++	}
++
++	if (data_len) {
++		data_len /= 2;
++		data = os_malloc(data_len);
++		if (!data)
++			return -ENOBUFS;
++
++		if (hexstr2bin(pos, data, data_len)) {
++			wpa_printf(MSG_DEBUG,
++				   "Vendor command: wrong parameter format");
++			os_free(data);
++			return -EINVAL;
++		}
++	}
++
++	reply = wpabuf_alloc((buflen - 1) / 2);
++	if (!reply) {
++		os_free(data);
++		return -ENOBUFS;
++	}
++
++	ret = wpa_drv_vendor_cmd(wpa_s, vendor_id, subcmd, data, data_len,
++				 reply);
++
++	if (ret == 0)
++		ret = wpa_snprintf_hex(buf, buflen, wpabuf_head_u8(reply),
++				       wpabuf_len(reply));
++
++	wpabuf_free(reply);
++	os_free(data);
++
++	return ret;
++}
++
++
+ static void wpa_supplicant_ctrl_iface_flush(struct wpa_supplicant *wpa_s)
+ {
+ 	wpa_dbg(wpa_s, MSG_DEBUG, "Flush all wpa_supplicant state");
+@@ -5932,6 +5989,9 @@
+ #endif /* CONFIG_WNM */
+ 	} else if (os_strcmp(buf, "FLUSH") == 0) {
+ 		wpa_supplicant_ctrl_iface_flush(wpa_s);
++    } else if (os_strncmp(buf, "VENDOR ", 7) == 0) {
++       reply_len = wpa_supplicant_vendor_cmd(wpa_s, buf + 7, reply,
++                             reply_size);
+ 	} else {
+ 		os_memcpy(reply, "UNKNOWN COMMAND\n", 16);
+ 		reply_len = 16;
+diff -urN wpa_supplicant_8.old/wpa_supplicant/driver_i.h wpa_supplicant_8/wpa_supplicant/driver_i.h
+--- wpa_supplicant_8.old/wpa_supplicant/driver_i.h	2014-09-09 15:56:48.000000000 +0800
++++ wpa_supplicant_8/wpa_supplicant/driver_i.h	2015-04-26 14:17:36.057312596 +0800
+@@ -721,4 +721,14 @@
+ 					       pmk_len);
+ }
+ 
++static inline int wpa_drv_vendor_cmd(struct wpa_supplicant *wpa_s,
++				     int vendor_id, int subcmd, const u8 *data,
++				     size_t data_len, struct wpabuf *buf)
++{
++	if (!wpa_s->driver->vendor_cmd)
++		return -1;
++	return wpa_s->driver->vendor_cmd(wpa_s->drv_priv, vendor_id, subcmd,
++					 data, data_len, buf);
++}
++
+ #endif /* DRIVER_I_H */
+diff -urN wpa_supplicant_8.old/wpa_supplicant/wpa_cli.c wpa_supplicant_8/wpa_supplicant/wpa_cli.c
+--- wpa_supplicant_8.old/wpa_supplicant/wpa_cli.c	2014-09-09 15:56:48.000000000 +0800
++++ wpa_supplicant_8/wpa_supplicant/wpa_cli.c	2015-04-26 14:17:35.025312589 +0800
+@@ -2391,6 +2391,12 @@
+ #endif
+ 
+ 
++static int wpa_cli_cmd_vendor(struct wpa_ctrl *ctrl, int argc, char *argv[])
++{
++	return wpa_cli_cmd(ctrl, "VENDOR", 1, argc, argv);
++}
++
++
+ static int wpa_cli_cmd_flush(struct wpa_ctrl *ctrl, int argc, char *argv[])
+ {
+ 	return wpa_ctrl_command(ctrl, "FLUSH");
+@@ -2857,6 +2863,9 @@
+ 	  cli_cmd_flag_none,
+ 	  "<command> = driver private commands" },
+ #endif
++    { "vendor", wpa_cli_cmd_vendor, NULL, cli_cmd_flag_none,
++      "<vendor id> <command id> [<hex formatted command argument>] = Send vendor command"
++    },
+ 	{ NULL, NULL, NULL, cli_cmd_flag_none, NULL }
+ };
+ 

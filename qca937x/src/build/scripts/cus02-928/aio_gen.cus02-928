@@ -1,0 +1,27 @@
+#!/bin/bash
+# Add cus02-928 specific patches
+
+# subverion
+BRD_TYPE_VER=.02.928.01
+
+#
+# For each board type,
+# determine which components should be downloaded.
+# The settings here will overwrite the default in aio_gen_bit.sh.
+# 
+# ONLY add/enable those components need download.
+#
+# 1. patch files
+DOWNLOAD_PATCH=y
+
+# 2. kernel
+DOWNLOAD_KERNEL_BACKPORT_3_12=y
+
+# 3. WLAN/BT host drivers
+DOWNLOAD_DRIVER_WLAN_HOST=y
+
+# 4. APPs
+DOWNLOAD_APP_WLAN_WPA_SUPPLICANT_8=y
+DOWNLOAD_APP_WLAN_LIBNL_3_2_25=y
+
+

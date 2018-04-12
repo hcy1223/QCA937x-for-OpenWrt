@@ -1,0 +1,66 @@
+From fce05ed1698e6d8a815b2dfde3efc6844b190295 Mon Sep 17 00:00:00 2001
+From: Rupesh Tatiya <rtatiya@codeaurora.org>
+Date: Wed, 21 Jan 2015 19:55:35 +0530
+Subject: [PATCH 25/25] Bluetooth: change cancel_delayed_work to
+ cancel_delayed_work_sync
+
+When bluetooth transport driver module is unloaded, it is possible
+that workqueue is destroyed while callback for delayed work is
+executing. Wait for that callback to complete before destroying that
+workqueue.
+
+Do not cancel work in the work callback function, else it will result
+in deadlock.
+
+Change-Id: I3471f6968315fef9ad0c5ce288b61db057ff8180
+Signed-off-by: Rupesh Tatiya <rtatiya@codeaurora.org>
+---
+ net/bluetooth/hci_core.c |   13 +++++++++++--
+ 1 file changed, 11 insertions(+), 2 deletions(-)
+
+diff --git a/net/bluetooth/hci_core.c b/net/bluetooth/hci_core.c
+index d5cdda4..247067a 100644
+--- a/net/bluetooth/hci_core.c
++++ b/net/bluetooth/hci_core.c
+@@ -1203,6 +1203,10 @@ static int hci_dev_do_close(struct hci_dev *hdev)
+ 
+ 	cancel_work_sync(&hdev->le_scan);
+ 
++	/* do not call cancel_delayed_work_sync for power_off here as
++	 * hci_dev_do_close function is called from work handler which might
++	 * cause deadlock. Instead to it in hci_unregister_dev
++	*/
+ 	cancel_delayed_work(&hdev->power_off);
+ 
+ 	hci_req_cancel(hdev, ENODEV);
+@@ -1219,13 +1223,13 @@ static int hci_dev_do_close(struct hci_dev *hdev)
+ 	flush_work(&hdev->rx_work);
+ 
+ 	if (hdev->discov_timeout > 0) {
+-		cancel_delayed_work(&hdev->discov_off);
++		cancel_delayed_work_sync(&hdev->discov_off);
+ 		hdev->discov_timeout = 0;
+ 		clear_bit(HCI_DISCOVERABLE, &hdev->dev_flags);
+ 	}
+ 
+ 	if (test_and_clear_bit(HCI_SERVICE_CACHE, &hdev->dev_flags))
+-		cancel_delayed_work(&hdev->service_cache);
++		cancel_delayed_work_sync(&hdev->service_cache);
+ 
+ 	cancel_delayed_work_sync(&hdev->le_scan_disable);
+ 
+@@ -2287,6 +2291,11 @@ void hci_unregister_dev(struct hci_dev *hdev)
+ 
+ 	cancel_work_sync(&hdev->power_on);
+ 
++	/* hci_dev_do_close does not call cancel_delayed_work_sync on power_off
++	 * work, call it here while deregistration before wqs are destroyed
++	*/
++	cancel_delayed_work_sync(&hdev->power_off);
++
+ 	if (!test_bit(HCI_INIT, &hdev->flags) &&
+ 	    !test_bit(HCI_SETUP, &hdev->dev_flags)) {
+ 		hci_dev_lock(hdev);
+-- 
+1.7.9.5
+

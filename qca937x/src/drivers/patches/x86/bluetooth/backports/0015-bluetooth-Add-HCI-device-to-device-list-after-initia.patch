@@ -1,0 +1,44 @@
+From e1d1948b04e5c8afc45de86277aaea831a2a850b Mon Sep 17 00:00:00 2001
+From: Kamal Negi <kamaln@codeaurora.org>
+Date: Tue, 18 Nov 2014 16:23:15 +0530
+Subject: [PATCH 15/25] bluetooth: Add HCI device to device list after
+ initialization
+
+Avoid possible NULL pointer dereference when ioctl is called while
+device is not fully initailized
+
+Change-Id: Ie796fb070a5bf0c6f11e796152c4a84280d40021
+Signed-off-by: Kamal Negi <kamaln@codeaurora.org>
+---
+ net/bluetooth/hci_core.c |    8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/net/bluetooth/hci_core.c b/net/bluetooth/hci_core.c
+index 9764e60..d5cdda4 100644
+--- a/net/bluetooth/hci_core.c
++++ b/net/bluetooth/hci_core.c
+@@ -2206,10 +2206,6 @@ int hci_register_dev(struct hci_dev *hdev)
+ 
+ 	BT_DBG("%p name %s bus %d", hdev, hdev->name, hdev->bus);
+ 
+-	write_lock(&hci_dev_list_lock);
+-	list_add(&hdev->list, &hci_dev_list);
+-	write_unlock(&hci_dev_list_lock);
+-
+ 	hdev->workqueue = alloc_workqueue(hdev->name, WQ_HIGHPRI | WQ_UNBOUND |
+ 					  WQ_MEM_RECLAIM, 1);
+ 	if (!hdev->workqueue) {
+@@ -2245,6 +2241,10 @@ int hci_register_dev(struct hci_dev *hdev)
+ 	if (hdev->dev_type != HCI_AMP)
+ 		set_bit(HCI_AUTO_OFF, &hdev->dev_flags);
+ 
++	write_lock(&hci_dev_list_lock);
++	list_add(&hdev->list, &hci_dev_list);
++	write_unlock(&hci_dev_list_lock);
++
+ 	hci_notify(hdev, HCI_DEV_REG);
+ 	hci_dev_hold(hdev);
+ 
+-- 
+1.7.9.5
+

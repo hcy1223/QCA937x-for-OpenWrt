@@ -1,0 +1,96 @@
+/*
+* Copyright (c) 2015 Qualcomm Atheros, Inc.
+* All Rights Reserved.
+* Qualcomm Atheros Confidential and Proprietary.
+* NOT A CONTRIBUTION
+*/
+
+diff -Nuar kk-latest-clean/device/generic/x86/BoardConfig.mk kk-latest-work/device/generic/x86/BoardConfig.mk
+--- kk-latest-clean/device/generic/x86/BoardConfig.mk	2015-04-17 20:32:49.000000000 +0800
++++ kk-latest-work/device/generic/x86/BoardConfig.mk	2015-04-28 12:28:03.340788581 +0800
+@@ -85,3 +85,20 @@
+ endif
+ 
+ BOARD_KERNEL_CMDLINE := root=/dev/ram0 androidboot.hardware=$(TARGET_PRODUCT)
++BOARD_HAS_QCOM_WLAN := true
++ifeq ($(BOARD_HAS_QCOM_WLAN), true)
++    BOARD_WLAN_DEVICE := qcwcn
++    BOARD_WPA_SUPPLICANT_DRIVER := NL80211
++    BOARD_WPA_SUPPLICANT_PRIVATE_LIB := lib_driver_cmd_$(BOARD_WLAN_DEVICE)
++    BOARD_HOSTAPD_DRIVER := NL80211
++    BOARD_HOSTAPD_PRIVATE_LIB := lib_driver_cmd_$(BOARD_WLAN_DEVICE)
++    BOARD_HAS_CFG80211_KERNEL3_4 := true
++    WIFI_DRIVER_MODULE_PATH := "/system/lib/modules/wlan.ko"
++    WIFI_DRIVER_MODULE_NAME := "wlan"
++    WIFI_DRIVER_MODULE_ARG := ""
++    WPA_SUPPLICANT_VERSION := VER_0_8_X
++    HOSTAPD_VERSION := VER_0_8_X
++    WIFI_DRIVER_FW_PATH_STA := "sta"
++    WIFI_DRIVER_FW_PATH_AP  := "ap"
++    WIFI_DRIVER_FW_PATH_P2P := "p2p"
++endif
+diff -Nuar kk-latest-clean/device/generic/x86/device.mk kk-latest-work/device/generic/x86/device.mk
+--- kk-latest-clean/device/generic/x86/device.mk	2015-04-17 20:32:49.000000000 +0800
++++ kk-latest-work/device/generic/x86/device.mk	2015-04-28 12:25:04.488788958 +0800
+@@ -52,6 +52,7 @@
+     frameworks/native/data/etc/android.hardware.location.xml:system/etc/permissions/android.hardware.location.xml \
+     frameworks/native/data/etc/android.hardware.location.gps.xml:system/etc/permissions/android.hardware.location.gps.xml \
+     frameworks/native/data/etc/android.hardware.wifi.xml:system/etc/permissions/android.hardware.wifi.xml \
++    frameworks/native/data/etc/android.hardware.wifi.direct.xml:system/etc/permissions/android.hardware.wifi.direct.xml \
+     frameworks/native/data/etc/android.hardware.sensor.proximity.xml:system/etc/permissions/android.hardware.sensor.proximity.xml \
+     frameworks/native/data/etc/android.hardware.sensor.light.xml:system/etc/permissions/android.hardware.sensor.light.xml \
+     frameworks/native/data/etc/android.hardware.sensor.gyroscope.xml:system/etc/permissions/android.hardware.sensor.gyroscope.xml \
+diff -Nuar kk-latest-clean/device/generic/x86/init.sh kk-latest-work/device/generic/x86/init.sh
+--- kk-latest-clean/device/generic/x86/init.sh	2015-04-17 20:32:49.000000000 +0800
++++ kk-latest-work/device/generic/x86/init.sh	2015-05-26 18:18:12.628283424 +0800
+@@ -403,5 +403,5 @@
+ 		do_init
+ 		;;
+ esac
+-
++sysctl -p
+ return 0
+diff -Nuar kk-latest-clean/device/generic/x86/init.x86.rc kk-latest-work/device/generic/x86/init.x86.rc
+--- kk-latest-clean/device/generic/x86/init.x86.rc	2015-04-17 20:32:49.000000000 +0800
++++ kk-latest-work/device/generic/x86/init.x86.rc	2015-04-28 12:25:04.488788958 +0800
+@@ -80,12 +80,28 @@
+     setprop persist.sys.strictmode.disable 1
+     # workaround for h.265 slowness
+     setprop sys.media.vdec.drop 0
++    # set wifi.interface
++    setprop wifi.interface wlan0
+ 
+ on fs
+     setprop ro.crypto.fuse_sdcard true
+     # manually start class late_start since we don't use mount_all
+     class_start late_start
+ 
++service p2p_supplicant /system/bin/wpa_supplicant \
++    -ip2p0 -Dnl80211 -c/data/misc/wifi/p2p_supplicant.conf -N \
++    -iwlan0 -Dnl80211 -c/data/misc/wifi/wpa_supplicant.conf \
++    -O/data/misc/wifi/sockets -dd \
++    -e/data/misc/wifi/entropy.bin -g@android:wpa_wlan0
++    #   we will start as root and wpa_supplicant will switch to user wifi
++    #   after setting up the capabilities required for WEXT
++    #   user wifi
++    #   group wifi inet keystore
++    class main
++    socket wpa_wlan0 dgram 660 wifi wifi
++    disabled
++    oneshot
++	
+ service wpa_supplicant /system/bin/wpa_supplicant -c/data/misc/wifi/wpa_supplicant.conf \
+     -O/data/misc/wifi/sockets \
+     -e/data/misc/wifi/entropy.bin -g@android:wpa_wlan0
+@@ -98,6 +114,11 @@
+     disabled
+     oneshot
+ 
++service dhcpcd_p2p /system/bin/dhcpcd -aABDKL
++    class main
++    disabled
++    oneshot
++
+ service dhcpcd_wlan0 /system/bin/dhcpcd -aABDKL
+     class main
+     disabled

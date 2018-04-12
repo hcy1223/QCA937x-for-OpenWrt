@@ -1,0 +1,474 @@
+diff -uNar external_ori/bluetooth/bluedroid/btif/include/btif_api.h external/bluetooth/bluedroid/btif/include/btif_api.h
+--- external_ori/bluetooth/bluedroid/btif/include/btif_api.h	2015-05-27 18:54:21.000000000 +0800
++++ external/bluetooth/bluedroid/btif/include/btif_api.h	2015-10-08 19:31:01.000000000 +0800
+@@ -347,6 +347,19 @@
+ *******************************************************************************/
+ bt_status_t btif_le_test_mode(uint16_t opcode, uint8_t *buf, uint8_t len);
+ 
++#if HCI_RAW_CMD_INCLUDED == TRUE
++/*******************************************************************************
++**
++** Function         btif_hci_cmd_send
++**
++** Description      Sends a HCI Raw command to the controller
++**
++** Returns          BT_STATUS_SUCCESS on success
++**
++*******************************************************************************/
++bt_status_t btif_hci_cmd_send(uint16_t opcode, uint8_t *buf, uint8_t len);
++#endif
++
+ /*******************************************************************************
+ **
+ ** Function         btif_dm_read_energy_info
+diff -uNar external_ori/bluetooth/bluedroid/btif/src/bluetooth.c external/bluetooth/bluedroid/btif/src/bluetooth.c
+--- external_ori/bluetooth/bluedroid/btif/src/bluetooth.c	2015-05-27 18:54:21.000000000 +0800
++++ external/bluetooth/bluedroid/btif/src/bluetooth.c	2015-10-08 19:31:01.000000000 +0800
+@@ -430,6 +430,19 @@
+     return BT_STATUS_SUCCESS;
+ }
+ 
++#if HCI_RAW_CMD_INCLUDED == TRUE
++int hci_cmd_send(uint16_t opcode, uint8_t* buf, uint8_t len)
++{
++    ALOGI("hci_cmd_send");
++
++    /* sanity check */
++    if (interface_ready() == FALSE)
++        return BT_STATUS_NOT_READY;
++
++    return btif_hci_cmd_send(opcode, buf, len);
++}
++#endif
++
+ static const bt_interface_t bluetoothInterface = {
+     sizeof(bluetoothInterface),
+     init,
+@@ -460,6 +473,9 @@
+ #else
+     NULL,
+ #endif
++    #if HCI_RAW_CMD_INCLUDED == TRUE
++    hci_cmd_send,
++    #endif
+     config_hci_snoop_log,
+     set_os_callouts,
+     read_energy_info,
+diff -uNar external_ori/bluetooth/bluedroid/btif/src/btif_core.c external/bluetooth/bluedroid/btif/src/btif_core.c
+--- external_ori/bluetooth/bluedroid/btif/src/btif_core.c	2015-05-27 18:54:21.000000000 +0800
++++ external/bluetooth/bluedroid/btif/src/btif_core.c	2015-10-08 19:31:01.000000000 +0800
+@@ -1525,3 +1525,41 @@
+              btif_core_state == BTIF_CORE_STATE_DISABLED);
+     return BT_STATUS_SUCCESS;
+ }
++
++#if HCI_RAW_CMD_INCLUDED == TRUE
++/*******************************************************************************
++**
++** Function         btif_hci_event_cback
++**
++** Description     Callback invoked on receiving HCI event
++**
++** Returns          None
++**
++*******************************************************************************/
++static void btif_hci_event_cback ( tBTM_RAW_CMPL *p )
++{
++    BTIF_TRACE_DEBUG("%s", __FUNCTION__);
++	if(p != NULL)
++	{
++		HAL_CBACK(bt_hal_cbacks, hci_event_recv_cb, p->event_code, p->p_param_buf,
++	                p->param_len);
++	}
++}
++
++/*******************************************************************************
++**
++** Function        btif_hci_cmd_send
++**
++** Description     Sends a HCI raw command to the controller
++**
++** Returns         BT_STATUS_SUCCESS on success
++**
++*******************************************************************************/
++bt_status_t btif_hci_cmd_send(uint16_t opcode, uint8_t *buf, uint8_t len)
++{
++    BTIF_TRACE_DEBUG("%s", __FUNCTION__);
++
++    BTM_Hci_Raw_Command(opcode, len, buf, btif_hci_event_cback);
++    return BT_STATUS_SUCCESS;
++}
++#endif
+diff -uNar external_ori/bluetooth/bluedroid/include/bt_target.h external/bluetooth/bluedroid/include/bt_target.h
+--- external_ori/bluetooth/bluedroid/include/bt_target.h	2015-05-27 18:54:21.000000000 +0800
++++ external/bluetooth/bluedroid/include/bt_target.h	2015-10-08 19:31:01.000000000 +0800
+@@ -3798,6 +3798,10 @@
+ #define BTTRC_DISP        BTTRC_DispOnInsight
+ #endif
+ 
++#ifndef HCI_RAW_CMD_INCLUDED
++#define HCI_RAW_CMD_INCLUDED    TRUE
++#endif
++
+ /******************************************************************************
+ **
+ ** Tracing:  Include trace header file here.
+diff -uNar external_ori/bluetooth/bluedroid/stack/btm/btm_devctl.c external/bluetooth/bluedroid/stack/btm/btm_devctl.c
+--- external_ori/bluetooth/bluedroid/stack/btm/btm_devctl.c	2015-05-27 18:54:21.000000000 +0800
++++ external/bluetooth/bluedroid/stack/btm/btm_devctl.c	2015-10-08 19:31:02.000000000 +0800
+@@ -2490,4 +2490,75 @@
+         (*p_cb)(status);
+ }
+ 
++#if HCI_RAW_CMD_INCLUDED == TRUE
++/*******************************************************************************
++**
++** Function         BTM_Hci_Raw_Command
++**
++** Description      Send  HCI raw command to the controller.
++**
++** Returns
++**      BTM_SUCCESS         Command sent. Does not expect command complete
++**                              event. (command cmpl callback param is NULL)
++**      BTM_CMD_STARTED     Command sent. Waiting for command cmpl event.
++**
++**
++*******************************************************************************/
++tBTM_STATUS BTM_Hci_Raw_Command(UINT16 opcode, UINT8 param_len,
++                              UINT8 *p_param_buf, tBTM_RAW_CMPL_CB *p_cb)
++{
++    void *p_buf;
++    //UINT8 cond;
++    tBTM_DEVCB  *p_devcb = &btm_cb.devcb;
++
++    BTM_TRACE_EVENT("BTM: BTM_Hci_Raw_Command: Opcode: 0x%04X, ParamLen: %i.",
++                      opcode, param_len);
++
++    p_buf = GKI_getbuf((UINT16)(sizeof(BT_HDR) + sizeof (tBTM_CMPL_CB *) +
++                            param_len + HCIC_PREAMBLE_SIZE));
++    if (p_buf != NULL)
++    {
++        btsnd_hcic_raw_cmd (p_buf, opcode, param_len, p_param_buf, (void *)p_cb);
++
++        /* Return value */
++        if (p_cb != NULL) {
++            if(p_cb != (p_devcb->p_hci_evt_cb)) {
++                p_devcb->p_hci_evt_cb = p_cb;
++            }
++            return BTM_CMD_STARTED;
++        }
++        else
++            return BTM_SUCCESS;
++    }
++    else
++        return BTM_NO_RESOURCES;
++
++}
++
++/*******************************************************************************
++**
++** Function         btm_hci_event
++**
++** Description      This function is called when HCI event is received
++**                  from the HCI layer.
++**
++** Returns          void
++**
++*******************************************************************************/
++void btm_hci_event(UINT8 *p, UINT8 event_code, UINT8 param_len)
++{
++    tBTM_DEVCB     *p_devcb = &btm_cb.devcb;
++    tBTM_RAW_CMPL  raw_cplt_params;
++
++    /* If there was a callback address for raw cmd complete, call it */
++    if (p_devcb->p_hci_evt_cb)
++    {
++        /* Pass paramters to the callback function */
++        raw_cplt_params.event_code = event_code;   /* Number of bytes in return info */
++        raw_cplt_params.param_len = param_len;    /* Number of bytes in return info */
++        raw_cplt_params.p_param_buf = p;
++        (p_devcb->p_hci_evt_cb) (&raw_cplt_params);  /* Call the cmd complete callback function */
++    }
++}
++#endif
+ 
+diff -uNar external_ori/bluetooth/bluedroid/stack/btm/btm_int.h external/bluetooth/bluedroid/stack/btm/btm_int.h
+--- external_ori/bluetooth/bluedroid/stack/btm/btm_int.h	2015-05-27 18:54:21.000000000 +0800
++++ external/bluetooth/bluedroid/stack/btm/btm_int.h	2015-10-08 19:31:02.000000000 +0800
+@@ -125,7 +125,9 @@
+     BD_FEATURES     peer_le_features;       /* Peer LE Used features mask for the device */
+ 
+ #endif
+-
++#if HCI_RAW_CMD_INCLUDED == TRUE
++	tBTM_RAW_CMPL_CB	 *p_hci_evt_cb; 	  /* Callback function to be called when HCI event is received successfully */
++#endif
+ } tACL_CONN;
+ 
+ /*****************************************************
+@@ -211,6 +213,10 @@
+ 
+ 
+ #endif  /* BLE_INCLUDED */
++#if HCI_RAW_CMD_INCLUDED == TRUE
++    tBTM_RAW_CMPL_CB     *p_hci_evt_cb;       /* Callback function to be called when
++                                                HCI event is received successfully */
++#endif
+ 
+ #define BTM_DEV_STATE_WAIT_RESET_CMPLT  0
+ #define BTM_DEV_STATE_WAIT_AFTER_RESET  1
+@@ -1181,7 +1187,9 @@
+ extern void  btm_acl_set_discing (BOOLEAN discing);
+ extern UINT8 btm_sec_clr_service_by_psm (UINT16 psm);
+ extern void  btm_sec_clr_temp_auth_service (BD_ADDR bda);
+-
++#if HCI_RAW_CMD_INCLUDED == TRUE
++extern void btm_hci_event(UINT8 *p, UINT8 event_code, UINT8 param_len);
++#endif
+ #ifdef __cplusplus
+ }
+ #endif
+diff -uNar external_ori/bluetooth/bluedroid/stack/btu/btu_hcif.c external/bluetooth/bluedroid/stack/btu/btu_hcif.c
+--- external_ori/bluetooth/bluedroid/stack/btu/btu_hcif.c	2015-05-27 18:54:21.000000000 +0800
++++ external/bluetooth/bluedroid/stack/btu/btu_hcif.c	2015-10-08 19:31:02.000000000 +0800
+@@ -294,7 +294,10 @@
+             break;
+         case HCI_COMMAND_COMPLETE_EVT:
+             btu_hcif_command_complete_evt (controller_id, p, hci_evt_len);
+-            break;
++#if HCI_RAW_CMD_INCLUDED == TRUE
++            btm_hci_event (p, hci_evt_code , hci_evt_len);
++#endif
++	    break;
+         case HCI_COMMAND_STATUS_EVT:
+             btu_hcif_command_status_evt (controller_id, p);
+             break;
+diff -uNar external_ori/bluetooth/bluedroid/stack/hcic/hcicmds.c external/bluetooth/bluedroid/stack/hcic/hcicmds.c
+--- external_ori/bluetooth/bluedroid/stack/hcic/hcicmds.c	2015-05-27 18:54:21.000000000 +0800
++++ external/bluetooth/bluedroid/stack/hcic/hcicmds.c	2015-10-08 19:31:02.000000000 +0800
+@@ -3307,6 +3307,27 @@
+ #error "HCI_CMD_POOL_BUF_SIZE must be larger than 268"
+ #endif
+ 
++#if HCI_RAW_CMD_INCLUDED == TRUE
++void btsnd_hcic_raw_cmd (void *buffer, UINT16 opcode, UINT8 len,
++                                 UINT8 *p_data, void *p_cmd_cplt_cback)
++{
++    BT_HDR *p = (BT_HDR *)buffer;
++    UINT8 *pp = (UINT8 *)(p + 1);
++
++    p->len    = HCIC_PREAMBLE_SIZE + len;
++    p->offset = sizeof(void *);
++
++    *((void **)pp) = p_cmd_cplt_cback;  /* Store command complete callback in buffer */
++    pp += sizeof(void *);               /* Skip over callback pointer */
++
++    UINT16_TO_STREAM (pp, opcode);
++    UINT8_TO_STREAM  (pp, len);
++    ARRAY_TO_STREAM  (pp, p_data, len);
++
++    btu_hcif_send_cmd (LOCAL_BR_EDR_CONTROLLER_ID,  p);
++}
++#endif
++
+ void btsnd_hcic_vendor_spec_cmd (void *buffer, UINT16 opcode, UINT8 len,
+                                  UINT8 *p_data, void *p_cmd_cplt_cback)
+ {
+diff -uNar external_ori/bluetooth/bluedroid/stack/include/btm_api.h external/bluetooth/bluedroid/stack/include/btm_api.h
+--- external_ori/bluetooth/bluedroid/stack/include/btm_api.h	2015-05-27 18:54:21.000000000 +0800
++++ external/bluetooth/bluedroid/stack/include/btm_api.h	2015-10-08 19:31:02.000000000 +0800
+@@ -110,6 +110,17 @@
+     UINT8   *p_param_buf;
+ } tBTM_VSC_CMPL;
+ 
++#if HCI_RAW_CMD_INCLUDED == TRUE
++/* Structure returned with HCI Raw Command complete callback */
++typedef struct
++{
++    UINT8  event_code;
++    UINT8  param_len;
++    UINT8   *p_param_buf;
++} tBTM_RAW_CMPL;
++
++#endif
++
+ #define  BTM_VSC_CMPL_DATA_SIZE  (BTM_MAX_VENDOR_SPECIFIC_LEN + sizeof(tBTM_VSC_CMPL))
+ /**************************************************
+ **  Device Control and General Callback Functions
+@@ -149,6 +160,15 @@
+ */
+ typedef void (tBTM_VSC_CMPL_CB) (tBTM_VSC_CMPL *p1);
+ 
++#if HCI_RAW_CMD_INCLUDED == TRUE
++/* HCI RAW CMD callback function for notifying an application that a synchronous
++** BTM function is complete. The pointer contains the address of any returned data.
++*/
++typedef void (tBTM_RAW_CMPL_CB) (tBTM_RAW_CMPL *p1);
++/* HCI RAW Command Callback */
++typedef tBTM_RAW_CMPL_CB        tBTA_RAW_CMPL_CBACK;
++#endif
++
+ /* Callback for apps to check connection and inquiry filters.
+ ** Parameters are the BD Address of remote and the Dev Class of remote.
+ ** If the app returns none zero, the connection or inquiry result will be dropped.
+@@ -4514,6 +4534,21 @@
+ *******************************************************************************/
+ BTM_API extern tBTM_CONTRL_STATE BTM_PM_ReadControllerState(void);
+ 
++#if HCI_RAW_CMD_INCLUDED == TRUE
++/*******************************************************************************
++**
++** Function         BTM_Hci_Raw_Command
++**
++** Description      Send a HCI RAW started testingcommand to the controller.
++**
++*******************************************************************************/
++    BTM_API extern tBTM_STATUS BTM_Hci_Raw_Command(UINT16 opcode,
++                                                         UINT8 param_len,
++                                                         UINT8 *p_param_buf,
++                                                         tBTM_RAW_CMPL_CB *p_cb);
++
++#endif
++
+ #ifdef __cplusplus
+ }
+ #endif
+diff -uNar external_ori/bluetooth/bluedroid/stack/include/hcimsgs.h external/bluetooth/bluedroid/stack/include/hcimsgs.h
+--- external_ori/bluetooth/bluedroid/stack/include/hcimsgs.h	2015-05-27 18:54:21.000000000 +0800
++++ external/bluetooth/bluedroid/stack/include/hcimsgs.h	2015-10-08 19:31:02.000000000 +0800
+@@ -1345,6 +1345,13 @@
+ 
+ #endif /* BLE_INCLUDED */
+ 
++#if HCI_RAW_CMD_INCLUDED == TRUE
++HCI_API extern void btsnd_hcic_raw_cmd (void *buffer, UINT16 opcode, UINT8 len,
++                                 UINT8 *p_data, void *p_cmd_cplt_cback);
++
++#endif
++
++
+ #ifdef __cplusplus
+ }
+ #endif
+diff -uNar external_ori/bluetooth/bluedroid/test/bluedroidtest/bluedroidtest.c external/bluetooth/bluedroid/test/bluedroidtest/bluedroidtest.c
+--- external_ori/bluetooth/bluedroid/test/bluedroidtest/bluedroidtest.c	2015-05-27 18:54:21.000000000 +0800
++++ external/bluetooth/bluedroid/test/bluedroidtest/bluedroidtest.c	2015-10-08 19:31:01.000000000 +0800
+@@ -51,6 +51,8 @@
+ ************************************************************************************/
+ 
+ #define PID_FILE "/data/.bdt_pid"
++#define HCI_SEND_CMD
++#define MAX_PARAM_LEN 6
+ 
+ #ifndef MAX
+ #define MAX(x, y) ((x) > (y) ? (x) : (y))
+@@ -480,7 +482,18 @@
+ {
+     bdt_log("LE TEST MODE END status:%s number_of_packets:%d", dump_bt_status(status), packet_count);
+ }
+-
++#ifdef HCI_SEND_CMD
++static void hci_event_recv(uint8_t opcode, uint8_t *buf, uint8_t len)
++{
++    int i = 0;
++    bdt_log("%s: RECVD. EVENT MODE : 0x%x", __func__, opcode);
++    if(len){
++        bdt_log("%s: RECVD. EVENT MODE : parameter=", __func__);
++	for(i = 0;i<len;i++)
++	    bdt_log("%02x", buf[i]);
++    }
++}
++#endif
+ static bt_callbacks_t bt_callbacks = {
+     sizeof(bt_callbacks_t),
+     adapter_state_changed,
+@@ -499,6 +512,9 @@
+ #else
+     NULL, /* le_test_mode_cb */
+ #endif
++	#ifdef HCI_SEND_CMD
++	hci_event_recv, /* hci_event_recv_cb */
++	#endif
+     NULL /* energy_info_cb */
+ };
+ 
+@@ -653,6 +669,55 @@
+     sBtInterface->cleanup();
+ }
+ 
++#ifdef HCI_SEND_CMD
++void bdt_hci_send_cmd(char *p)
++{
++	uint16_t opcode;
++	uint8_t param_len = 0;
++
++	bdt_log("SEND BT RAW HCI CMD");
++
++	/* Extract the command opcode */
++	opcode =(uint16_t) get_hex(&p, 0);
++	if (!opcode) {
++		bdt_log("Invalid opcode!!!");
++		return;
++	}
++
++	/* Extract the command params if any */
++	param_len = (uint8_t) get_int(&p, 0);
++	if (param_len)
++		bdt_log("%s: No. of Cmd-params: %d", __func__, param_len);
++	else
++		goto send_cmd;
++
++	/* Extract the command params if any */
++	if (param_len > MAX_PARAM_LEN) {
++		bdt_log("%s: Max. supported parameter length is %d", __func__, MAX_PARAM_LEN);
++		return;
++	}
++
++	/* Allocate memory for the command params */
++	if (param_len)
++	{
++		uint8_t cmd_param[param_len];
++		int i;
++
++		for (i = 0; i < param_len; i++) {
++			cmd_param[i] = (uint8_t) get_hex(&p, 0);
++			bdt_log("%s: cmd_params[%d]: 0x%x", __func__, i, cmd_param[i]);
++	   }
++
++		bdt_log("%s: Sending CMD: 0x%x of param_len: %d", __func__, opcode, param_len);
++		status = sBtInterface->hci_cmd_send(opcode, cmd_param, param_len);
++	} else {
++send_cmd:
++		bdt_log("%s: Sending CMD: 0x%x ", __func__, opcode);
++		status = sBtInterface->hci_cmd_send(opcode, NULL, param_len);
++	}
++}
++#endif
++
+ /*******************************************************************************
+  ** Console commands
+  *******************************************************************************/
+@@ -714,6 +779,12 @@
+     bdt_cleanup();
+ }
+ 
++#ifdef HCI_SEND_CMD
++void do_hci_send_cmd(char *p)
++{
++    bdt_hci_send_cmd(p);
++}
++#endif
+ /*******************************************************************
+  *
+  *  CONSOLE COMMAND TABLE
+@@ -741,7 +812,9 @@
+                       TxTest - 2 <tx_freq> <test_data_len> <payload_pattern>, \n\t \
+                       End Test - 3 <no_args>", 0 },
+     /* add here */
+-
++	#ifdef HCI_SEND_CMD
++	{ "hci_send_cmd", do_hci_send_cmd, "::Sends HCI RAW CMD", 0 },
++	#endif
+     /* last entry */
+     {NULL, NULL, "", 0},
+ };

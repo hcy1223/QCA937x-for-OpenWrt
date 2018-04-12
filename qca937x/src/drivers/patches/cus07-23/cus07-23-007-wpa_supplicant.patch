@@ -1,0 +1,42 @@
+diff -uNr hostap_2_4/src/eap_server/eap_server.c wpa_supplicant_8/src/eap_server/eap_server.c
+--- hostap_2_4/src/eap_server/eap_server.c	2015-09-11 17:14:07.863163710 +0800
++++ wpa_supplicant_8/src/eap_server/eap_server.c	2015-09-11 17:13:55.363163787 +0800
+@@ -1553,7 +1553,8 @@
+ 	if (id < 0) {
+ 		/* RFC 3748 Ch 4.1: recommended to initialize Identifier with a
+ 		 * random number */
+-		id = rand_r(&seedp) & 0xff; /* Prevent fix for thread safe */
++		//id = rand_r(&seedp) & 0xff; /* Prevent fix for thread safe */
++		id = rand() & 0xff;
+ 		if (id != sm->lastId)
+ 			return id;
+ 	}
+diff -uNr hostap_2_4/src/utils/os.h wpa_supplicant_8/src/utils/os.h
+--- hostap_2_4/src/utils/os.h	2015-09-11 17:14:07.871163710 +0800
++++ wpa_supplicant_8/src/utils/os.h	2015-09-11 17:13:55.367163787 +0800
+@@ -436,6 +436,15 @@
+ int os_strncmp(const char *s1, const char *s2, size_t n);
+ 
+ /**
++ * os_strncpy - Copy a string
++ * @dest: Destination
++ * @src: Source
++ * @n: Maximum number of characters to copy
++ * Returns: dest
++ */
++char * os_strncpy(char *dest, const char *src, size_t n);
++
++/**
+  * os_strstr - Locate a substring
+  * @haystack: String (haystack) to search from
+  * @needle: Needle to search from haystack
+@@ -531,6 +540,9 @@
+ #ifndef os_strncmp
+ #define os_strncmp(s1, s2, n) strncmp((s1), (s2), (n))
+ #endif
++#ifndef os_strncpy
++#define os_strncpy(d, s, n) strncpy((d), (s), (n))
++#endif
+ #ifndef os_strrchr
+ #define os_strrchr(s, c) strrchr((s), (c))
+ #endif

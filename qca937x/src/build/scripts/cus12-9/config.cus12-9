@@ -1,0 +1,49 @@
+############################################################################################
+# Please modify KERNELPATH, TOOLCHAIN, KERNALARCH, and CROSS_COMPILE for your environment
+############################################################################################
+export KERNELPATH=<path of kernel header>
+export TOOLCHAIN=<path of toolchain>
+export KERNELARCH=arm
+export CROSS_COMPILE=${TOOLCHAIN}/arm-none-linux-gnueabi-
+export TOOLPREFIX=${CROSS_COMPILE}
+
+# For backports
+export KLIB=${KERNELPATH}
+export KLIB_BUILD=${KERNELPATH}
+
+# Use local libnl library or not
+export BUILD_LIBNL=y
+export INCLUDE_LIBNL32_HEADER=${ATH_TOPDIR}/apps/libnl-3.2.25/include
+export INCLUDE_LIBNL32_LIB=-lm ${ATH_TOPDIR}/apps/libnl-3.2.25/lib/.libs/libnl-3.a 
+export INCLUDE_LIBNL32_GENL_LIB =-lm ${ATH_TOPDIR}/apps/libnl-3.2.25/lib/.libs/libnl-genl-3.a 
+
+
+#######################################################################################
+# Please add driver config in bellow
+# You could refer to config.x86-xxxx
+#######################################################################################
+
+# Put one copy of firmware to local PC or not. Need root privilege.
+export BUILD_DRIVERFW_TOLOCAL=y
+
+# Build regdb into cfg80211.ko
+export CONFIG_CFG80211_INTERNAL_REGDB=y
+
+# PMF (11W)
+export CONFIG_PMF_SUPPORT=y
+
+# SDIO interface
+export CONFIG_CLD_HL_SDIO_CORE=y
+export CONFIG_PRIMA_WLAN_11AC_HIGH_TP=n
+export SAP_AUTH_OFFLOAD=1
+
+# Support Qcmbr
+export CONFIG_LINUX_QCMBR=y
+# Support Qcmbr UART with QDART
+export CONFIG_QCMBR_UART=y
+
+# support FW recovery 
+export CONFIG_NON_QC_PLATFORM=y
+
+# use UART BT 
+export CONFIG_BT_USB=n

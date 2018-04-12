@@ -1,0 +1,391 @@
+#!/bin/sh
+
+cat <<-DESCRIPTION
+
+    This script is used as guide to help setup WoW pattern 
+    on AMBA A9! The wireless tool "iwpriv" is used to set 
+    WoW pattern.
+
+    Note that the packet to be comparied with the pattern is
+    Ethernet II format:
+            DA (6) + SA (6) + T/L (2) + data
+    For IP packet specifically, the format is:
+            DA (6) + SA (6) + T/L (2, type:0800) + IP data
+    The pattern also start from DA.
+    
+    Please add your test commands with sample function at the
+    end of script.
+
+    Also you could create your own function to match other 
+    field of packet as your need.
+
+DESCRIPTION
+
+
+# Change following variables per your need
+WLAN_INTERFACE=wlan0
+
+
+# Don't change below variables
+CMD=iwpriv
+SUBCMD=wowlAddPtrn
+PREFIX_CMD="$CMD $WLAN_INTERFACE $SUBCMD"
+
+CMD_SEQ=1 
+
+# debug info printed
+DEBUG=0
+
+# in bytes 
+MAC_PTRN_LEN=6
+IP_PTRN_LEN=34
+
+
+# generate a string of "0"
+# $1: the number of "0"
+GenZeroString ()
+{
+    i=1
+    while [ "$i" -le "$1" ]
+    do
+        echo -n "0"
+        let i=$i+1
+    done
+}
+
+
+# generate a string of "1"
+# $1: the number of "1"
+GenOneString ()
+{
+    i=1
+    while [ "$i" -le "$1" ]
+    do
+        echo -n "1"
+        let i=$i+1
+    done
+}
+
+# 60 zero
+IP_PTRN_ZERO_STR_LEN=60
+IP_PTRN_ZERO_STR=$(GenZeroString $IP_PTRN_ZERO_STR_LEN)
+
+# 48 zero
+MAC_IP_PTRN_ZERO_STR_LEN=48
+MAC_IP_PTRN_ZERO_STR=$(GenZeroString $MAC_IP_PTRN_ZERO_STR_LEN)
+
+PTRN_LEN_HEX=
+PTRN_MASK_LEN_HEX=
+
+PTRN_MASK=
+PTRN=
+
+MAC_PTRN_MASK="fc"
+IP_PTRN_MASK="00000003c0"
+MAC_IP_PTRN_MASK="fc000003c0"
+
+PTRN_STRING="$PTRN_LEN_HEX:$PTRN_MASK_LEN_HEX:$PTRN:$PTRN_MASK"
+
+
+# decimal printed as HEX format
+dec2hex ()
+{
+    printf "%02x" $1
+}
+
+# BIN format printed as HEX format
+# $1: the binary string
+bin2hex ()
+{
+    :
+    base=16
+    SHIFT_NUM=4
+
+    # /bin/sh don't support array
+    # we implement the array function on our own
+    s0=0000
+    s1=0001
+    s2=0010
+    s3=0011
+    s4=0100
+    s5=0101
+    s6=0110
+    s7=0111
+    s8=1000
+    s9=1001
+    s10=1010
+    s11=1011
+    s12=1100
+    s13=1101
+    s14=1110
+    s15=1111
+
+    # if possible, add zero string at the head of input string
+    BIN_STRING=$1
+    let Q=${#BIN_STRING}/$SHIFT_NUM
+    let R=${#BIN_STRING}%$SHIFT_NUM
+    if [ ! "$R" -eq 0 ]
+    then
+        let Q=$Q+1
+        let ZERO_NEED=$SHIFT_NUM-$R
+        BIN_STRING=$(GenZeroString $ZERO_NEED)$BIN_STRING
+    fi
+    
+
+    LOOP=$Q
+    I=1
+    
+    if [ "$DEBUG" -eq 1 ]
+    then
+        echo
+        echo "ZERO_NEED:$ZERO_NEED"
+        echo "#BIN_STRING:${#BIN_STRING}"
+        echo "BIN_STRING:${BIN_STRING}"
+        echo "LOOP:$LOOP"
+    fi
+
+    K=0
+    while [ $I -le "$LOOP" ]
+    do
+        # get substring every 4 from the start
+        let POS=$SHIFT_NUM*\($I-1\)+1
+        SUBSTR=$(expr substr "$BIN_STRING" "$POS" $SHIFT_NUM)
+        if [ "$DEBUG" -eq 1 ]
+        then
+            echo $I:$SUBSTR
+        fi
+        let I=$I+1
+
+        # find the matched string in sJ, J in [0-15]
+        J=0
+        while [ "$J" -lt "$base" ]
+        do
+            eval value=\$s$J
+            if [ "$SUBSTR" = "$value" ]
+            then
+                # save into rX, X=0,1,2,...
+                eval r$K=$(printf "%x" $J)
+                let K=$K+1
+                break
+            fi
+
+            let J=$J+1
+        done
+    done
+
+    if [ "$DEBUG" -eq 1 ]
+    then
+        # make sure K=LOOP
+        echo "K:$K"
+    fi
+
+    #print the HEX string from rX, X=0,1,2,...
+    L=0
+    while [ "$L" -lt "$K" ]
+    do
+        eval echo -n \$r"$L"
+        let L=$L+1
+    done
+}
+
+# strip ":"
+ConvertMacAddress()
+{
+    STRING=$1
+    echo ${STRING//:/}
+}
+
+# conver to hex and strip "."
+ConvertIpAddress()
+{
+    OLD_IFS=$IFS
+    IFS=.
+
+    for STRING in $1
+    do
+        dec2hex $STRING
+    done
+
+    IFS=$OLD_IFS
+}
+
+# generate pattern for MAC address
+# one parameters:
+# $1: Mac address: xx:xx:xx:xx:xx:xx
+SetPtrnForMac ()
+{
+    PTRN_LEN_HEX=$(dec2hex $MAC_PTRN_LEN)
+    PTRN_MASK_LEN_HEX=$(dec2hex 1)
+
+    PTRN=$(ConvertMacAddress $1)
+    PTRN_MASK=$MAC_PTRN_MASK
+
+    # sanity check for pattern length
+    let PTRN_REAL_LEN=${#PTRN}/2
+    if [ ! "$MAC_PTRN_LEN" -eq "$PTRN_REAL_LEN" ]
+    then
+        echo "MAC pattern len NOT equal! $MAC_PTRN_LEN:${#PTRN}"
+    fi
+
+    # run the command
+    echo "CMD $CMD_SEQ for MAC: $PREFIX_CMD $PTRN_LEN_HEX:$PTRN_MASK_LEN_HEX:$PTRN:$PTRN_MASK"
+    $PREFIX_CMD $PTRN_LEN_HEX:$PTRN_MASK_LEN_HEX:$PTRN:$PTRN_MASK
+
+    let CMD_SEQ=$CMD_SEQ+1
+}
+
+# generate pattern for IP address
+# one parameters:
+# $1: IP address: ddd:ddd:ddd:ddd
+SetPtrnForIp ()
+{
+    PTRN_LEN_HEX=$(dec2hex $IP_PTRN_LEN)
+    PTRN_MASK_LEN_HEX=$(dec2hex 5)
+
+    PTRN_part1=$(ConvertIpAddress $1)
+    PTRN=${IP_PTRN_ZERO_STR}${PTRN_part1}
+    PTRN_MASK=$IP_PTRN_MASK
+
+    # sanity check for pattern length
+    let PTRN_REAL_LEN=${#PTRN}/2
+    if [ ! "$IP_PTRN_LEN" -eq "$PTRN_REAL_LEN" ]
+    then
+        echo "IP pattern len NOT equal! $IP_PTRN_LEN:${#PTRN}"
+    fi
+
+    # run the command
+    echo "CMD $CMD_SEQ for IP: $PREFIX_CMD $PTRN_LEN_HEX:$PTRN_MASK_LEN_HEX:$PTRN:$PTRN_MASK"
+    $PREFIX_CMD $PTRN_LEN_HEX:$PTRN_MASK_LEN_HEX:$PTRN:$PTRN_MASK
+
+    let CMD_SEQ=$CMD_SEQ+1
+}
+
+# generate pattern for combination of MAC&IP address
+# two parameters:
+# $1: Mac address: xx:xx:xx:xx:xx:xx
+# $2: IP address: ddd:ddd:ddd:ddd
+SetPtrnForMacAndIp ()
+{
+    PTRN_LEN_HEX=$(dec2hex $IP_PTRN_LEN)
+    PTRN_MASK_LEN_HEX=$(dec2hex 5)
+
+    PTRN_part1=$(ConvertMacAddress $1)
+    PTRN_part2=$(ConvertIpAddress $2)
+    PTRN=${PTRN_part1}${MAC_IP_PTRN_ZERO_STR}${PTRN_part2}
+    PTRN_MASK=$MAC_IP_PTRN_MASK
+
+    # sanity check for pattern length
+    let PTRN_REAL_LEN=${#PTRN}/2
+    if [ ! "$IP_PTRN_LEN" -eq "$PTRN_REAL_LEN" ]
+    then
+        echo "MAC&IP pattern len NOT equal! $IP_PTRN_LEN:${#PTRN}"
+    fi
+
+    # run the command
+    echo "CMD $CMD_SEQ for MAC/IP: $PREFIX_CMD $PTRN_LEN_HEX:$PTRN_MASK_LEN_HEX:$PTRN:$PTRN_MASK"
+    $PREFIX_CMD $PTRN_LEN_HEX:$PTRN_MASK_LEN_HEX:$PTRN:$PTRN_MASK
+
+    let CMD_SEQ=$CMD_SEQ+1
+}
+
+# generte pattern for user defined data
+# two parameters
+# $1: offset in bytes from the 1st byte of MAC address
+# $2: data pattern
+# caller should make sure the correct parameters
+SetPtrnForData ()
+{
+    DATA_OFFSET=$1
+    DATA_PTRN=$2
+
+    # 1. get pattern length
+    let DATA_PTRN_LEN=${#DATA_PTRN}/2
+    let PTRN_LEN=$DATA_OFFSET+$DATA_PTRN_LEN
+    PTRN_LEN_HEX=$(dec2hex $PTRN_LEN)
+    if [ "$DEBUG" -eq 1 ]
+    then
+        echo "PTRN_LEN_HEX:$PTRN_LEN_HEX"
+    fi
+
+    # 2. get pattern mask length
+    let PTRN_MASK_LEN=$PTRN_LEN/8
+    let IS_REMAIN=$PTRN_LEN%8
+    if [ ! "$IS_REMAIN" -eq 0 ]
+    then
+        let PTRN_MASK_LEN=$PTRN_MASK_LEN+1
+    fi
+    PTRN_MASK_LEN_HEX=$(dec2hex $PTRN_MASK_LEN)
+    if [ "$DEBUG" -eq 1 ]
+    then
+        echo "PTRN_MASK_LEN_HEX:$PTRN_MASK_LEN_HEX"
+    fi
+
+
+    let Q=2*$DATA_OFFSET/8
+    let R=2*$DATA_OFFSET%8
+    
+    if [ "$DEBUG" -eq 1 ]
+    then
+        echo "Q:$Q, R:$R"
+    fi
+
+
+    # 3. get pattern string
+    let PREFIX_ZERO_PTRN=2*$DATA_OFFSET
+    if [ "$DEBUG" -eq 1 ]
+    then
+        echo "PREFIX_ZERO_PTRN:$PREFIX_ZERO_PTRN"
+    fi
+    PTRN=$(GenZeroString $PREFIX_ZERO_PTRN)$DATA_PTRN
+    if [ "$DEBUG" -eq 1 ]
+    then
+        echo "PTRN:$PTRN"
+    fi
+
+
+    # 4. get pattern mask string
+    let POSTFIX_ZERO_PTRN_MASK=\(8*$PTRN_MASK_LEN-$PTRN_LEN\)*2
+    if [ "$DEBUG" -eq 1 ]
+    then
+        echo "POSTFIX_ZERO_PTRN_MASK:$POSTFIX_ZERO_PTRN_MASK"
+    fi
+    let PREFIX_ZERO_PTRN_MASK_BIN=$DATA_OFFSET
+    let POST_ZERO_PTRN_MASK_BIN=$POSTFIX_ZERO_PTRN_MASK/2
+    PTRN_MASK_BIN=$(GenZeroString $PREFIX_ZERO_PTRN_MASK_BIN)$(GenOneString $DATA_PTRN_LEN)$(GenZeroString $POST_ZERO_PTRN_MASK_BIN)
+    # /bin/sh don't support the bin format "2#ddddddd"
+    # we implement "bin2hex" by ourselves
+    #let PTRN_MASK_BIN_FMT=2#$PTRN_MASK_BIN
+    #PTRN_MASK=$(printf "%x" $PTRN_MASK_BIN_FMT)
+    PTRN_MASK=$(bin2hex $PTRN_MASK_BIN)
+    if [ "$DEBUG" -eq 1 ]
+    then
+        echo "PTRN_MASK=$PTRN_MASK"
+    fi
+    let PREFIX_ZERO_PTRN_MASK=2*$PTRN_MASK_LEN-${#PTRN_MASK}
+    PTRN_MASK=$(GenZeroString $PREFIX_ZERO_PTRN_MASK)$PTRN_MASK
+    if [ "$DEBUG" -eq 1 ]
+    then
+        echo "PTRN_MASK=$PTRN_MASK"
+    fi
+
+
+    # run the command
+    echo "CMD $CMD_SEQ for Data: $PREFIX_CMD $PTRN_LEN_HEX:$PTRN_MASK_LEN_HEX:$PTRN:$PTRN_MASK"
+    $PREFIX_CMD $PTRN_LEN_HEX:$PTRN_MASK_LEN_HEX:$PTRN:$PTRN_MASK
+
+    let CMD_SEQ=$CMD_SEQ+1
+}
+
+
+##################################################
+# test code                                      #
+# add/update your command below per your need    #
+##################################################
+
+#SetPtrnForMac 00:03:7f:63:65:27
+#SetPtrnForIp 192.168.1.100
+#SetPtrnForMacAndIp 00:03:7f:63:65:27 192.168.1.100
+#SetPtrnForData 0 00037f636527
+#SetPtrnForData 30 c0a80164
+#SetPtrnForData 34 00112233445566778899
+

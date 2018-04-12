@@ -1,0 +1,77 @@
+From 5445e76b3e792db103d5e1157f1786b724af897b Mon Sep 17 00:00:00 2001
+From: Anantha Krishnan <ananthk@codeaurora.org>
+Date: Mon, 18 Aug 2014 08:24:00 +0530
+Subject: [PATCH 10/25] bluetooth: hci_ibs: disable irqs when spinlock is
+ acquired
+
+Deadlock is observed while performing bluetooth stress and
+stability tests. Since same lock is getting acquired from both irq
+and non-irq context, irqs should be disable while acquiring
+the spinlock always. Otherwise there is chance of deadlock
+observing while performing stability tests
+
+Change-Id: I6921e7ed70362e1cbdc3f90543e0c906bab8f385
+Signed-off-by: Anantha Krishnan <ananthk@codeaurora.org>
+---
+ drivers/bluetooth/hci_ibs.c |   13 +++++++++----
+ 1 file changed, 9 insertions(+), 4 deletions(-)
+
+diff --git a/drivers/bluetooth/hci_ibs.c b/drivers/bluetooth/hci_ibs.c
+index 06e797d..42a67ab 100644
+--- a/drivers/bluetooth/hci_ibs.c
++++ b/drivers/bluetooth/hci_ibs.c
+@@ -254,13 +254,14 @@ static void ibs_wq_awake_device(struct work_struct *work)
+ 	struct ibs_struct *ibs = container_of(work, struct ibs_struct,
+ 					ws_awake_device);
+ 	struct hci_uart *hu = (struct hci_uart *)ibs->ibs_hu;
++	unsigned long flags;
+ 
+ 	BT_DBG(" %p ", hu);
+ 
+ 	/* Vote for serial clock */
+ 	ibs_msm_serial_clock_vote(HCI_IBS_TX_VOTE_CLOCK_ON, hu);
+ 
+-	spin_lock(&ibs->hci_ibs_lock);
++	spin_lock_irqsave(&ibs->hci_ibs_lock, flags);
+ 
+ 	/* send wake indication to device */
+ 	if (send_hci_ibs_cmd(HCI_IBS_WAKE_IND, hu) < 0)
+@@ -271,7 +272,8 @@ static void ibs_wq_awake_device(struct work_struct *work)
+ 	/* start retransmit timer */
+ 	mod_timer(&ibs->wake_retrans_timer, jiffies + wake_retrans);
+ 
+-	spin_unlock(&ibs->hci_ibs_lock);
++	spin_unlock_irqrestore(&ibs->hci_ibs_lock, flags);
++
+ }
+ 
+ static void ibs_wq_awake_rx(struct work_struct *work)
+@@ -279,12 +281,14 @@ static void ibs_wq_awake_rx(struct work_struct *work)
+ 	struct ibs_struct *ibs = container_of(work, struct ibs_struct,
+ 					ws_awake_rx);
+ 	struct hci_uart *hu = (struct hci_uart *)ibs->ibs_hu;
++	unsigned long flags;
+ 
+ 	BT_DBG(" %p ", hu);
+ 
+ 	ibs_msm_serial_clock_vote(HCI_IBS_RX_VOTE_CLOCK_ON, hu);
+ 
+-	spin_lock(&ibs->hci_ibs_lock);
++	spin_lock_irqsave(&ibs->hci_ibs_lock, flags);
++
+ 	ibs->rx_ibs_state = HCI_IBS_RX_AWAKE;
+ 	/* Always acknowledge device wake up,
+ 	 * sending IBS message doesn't count as TX ON
+@@ -294,7 +298,8 @@ static void ibs_wq_awake_rx(struct work_struct *work)
+ 
+ 	ibs->ibs_sent_wacks++; /* debug */
+ 
+-	spin_unlock(&ibs->hci_ibs_lock);
++	spin_unlock_irqrestore(&ibs->hci_ibs_lock, flags);
++
+ 	/* actually send the packets */
+ 	hci_uart_tx_wakeup(hu);
+ 
+-- 
+1.7.9.5
+

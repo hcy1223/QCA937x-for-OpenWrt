@@ -1,0 +1,30 @@
+From 7d1c8f9df49a6e1f5b84bf4034c72ad9964a7ee0 Mon Sep 17 00:00:00 2001
+From: Anantha Krishnan <ananthk@codeaurora.org>
+Date: Mon, 7 Jul 2014 16:46:34 +0530
+Subject: [PATCH 05/25] bluetooth: Rename BT Firmware files
+
+Rename the bluetooth firmware files to be in sync with the
+firmware release.
+
+Change-Id: I5dd0623829e40921fc00d73f69d7cebc0f80ddc4
+Signed-off-by: Anantha Krishnan <ananthk@codeaurora.org>
+---
+ drivers/bluetooth/ath3k.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/bluetooth/ath3k.c b/drivers/bluetooth/ath3k.c
+index b870544..8ea8614 100644
+--- a/drivers/bluetooth/ath3k.c
++++ b/drivers/bluetooth/ath3k.c
+@@ -33,7 +33,7 @@
+ #define VERSION "1.0"
+ #define ATH3K_FIRMWARE	"ath3k-1.fw"
+ 
+-#define ROME2_1_USB_RAMPATCH_FILE	"ar3k/rampatch_2.1.tlv"
++#define ROME2_1_USB_RAMPATCH_FILE	"ar3k/rampatch_tlv_usb_2.1.tlv"
+ #define ROME2_1_USB_NVM_FILE		"ar3k/nvm_tlv_usb_2.1.bin"
+ 
+ #define ROME1_1_USB_RAMPATCH_FILE	"ar3k/rampatch_1.1.img"
+-- 
+1.7.9.5
+

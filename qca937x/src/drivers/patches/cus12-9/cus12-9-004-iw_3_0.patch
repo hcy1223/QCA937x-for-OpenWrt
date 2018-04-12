@@ -1,0 +1,113 @@
+diff -urN iw-3.0/iw.c iw-3.0.new/iw.c
+--- iw-3.0/iw.c	2011-07-20 19:33:10.000000000 +0800
++++ iw-3.0.new/iw.c	2015-07-31 15:15:26.892382645 +0800
+@@ -23,7 +23,7 @@
+ #include "nl80211.h"
+ #include "iw.h"
+ 
+-#ifndef CONFIG_LIBNL20
++#if !defined(CONFIG_LIBNL20) && !defined(CONFIG_LIBNL30)
+ /* libnl 2.0 compatibility code */
+ 
+ static inline struct nl_handle *nl_socket_alloc(void)
+diff -urN iw-3.0/Makefile iw-3.0.new/Makefile
+--- iw-3.0/Makefile	2011-07-20 19:33:10.000000000 +0800
++++ iw-3.0.new/Makefile	2015-07-31 15:15:26.892382645 +0800
+@@ -24,6 +24,8 @@
+ 
+ NL1FOUND := $(shell $(PKG_CONFIG) --atleast-version=1 libnl-1 && echo Y)
+ NL2FOUND := $(shell $(PKG_CONFIG) --atleast-version=2 libnl-2.0 && echo Y)
++NL3FOUND := $(shell $(PKG_CONFIG) --atleast-version=3 libnl-3.0 && echo Y)
++NL32FOUND := Y
+ 
+ ifeq ($(NL1FOUND),Y)
+ NLLIBNAME = libnl-1
+@@ -35,12 +37,20 @@
+ NLLIBNAME = libnl-2.0
+ endif
+ 
++ifeq ($(NL32FOUND), Y)
++LIBS += ${INCLUDE_LIBNL32_LIB}
++LIBS += ${INCLUDE_LIBNL32_GENL_LIB}
++LIBS += -lpthread
++CFLAGS += -DCONFIG_LIBNL30 -I${INCLUDE_LIBNL32_HEADER}
++NLLIBNAME = libnl-3.2.25
++endif
++
+ ifeq ($(NLLIBNAME),)
+ $(error Cannot find development files for any supported version of libnl)
+ endif
+ 
+-LIBS += $(shell $(PKG_CONFIG) --libs $(NLLIBNAME))
+-CFLAGS += $(shell $(PKG_CONFIG) --cflags $(NLLIBNAME))
++#LIBS += $(shell $(PKG_CONFIG) --libs $(NLLIBNAME))
++#CFLAGS += $(shell $(PKG_CONFIG) --cflags $(NLLIBNAME))
+ 
+ ifeq ($(V),1)
+ Q=
+@@ -53,6 +63,8 @@
+ all: version_check $(ALL)
+ 
+ version_check:
++ifeq ($(NL32FOUND),Y)
++else
+ ifeq ($(NL2FOUND),Y)
+ else
+ ifeq ($(NL1FOUND),Y)
+@@ -60,6 +72,7 @@
+ 	$(error No libnl found)
+ endif
+ endif
++endif
+ 
+ 
+ VERSION_OBJS := $(filter-out version.o, $(OBJS))
+diff -urN iw-3.0/version.sh iw-3.0.new/version.sh
+--- iw-3.0/version.sh	2011-07-20 19:33:10.000000000 +0800
++++ iw-3.0.new/version.sh	2015-07-31 15:15:26.892382645 +0800
+@@ -3,6 +3,9 @@
+ VERSION="3.0"
+ OUT="$1"
+ 
++v="$VERSION"
++
++if 0; then
+ if head=`git rev-parse --verify HEAD 2>/dev/null`; then
+ 	git update-index --refresh --unmerged > /dev/null
+ 	descr=$(git describe)
+@@ -18,6 +21,7 @@
+ else
+ 	v="$VERSION"
+ fi
++fi
+ 
+ echo '#include "iw.h"' > "$OUT"
+ echo "const char iw_version[] = \"$v\";" >> "$OUT"
+diff -urN iw-3.0/wowlan.c iw-3.0.new/wowlan.c
+--- iw-3.0/wowlan.c	2011-07-20 19:33:10.000000000 +0800
++++ iw-3.0.new/wowlan.c	2015-07-31 15:15:26.892382645 +0800
+@@ -82,7 +82,7 @@
+ 	return err;
+ }
+ COMMAND(wowlan, enable, "[any] [disconnect] [magic-packet] [patterns <pattern>*]",
+-	NL80211_CMD_SET_WOWLAN, 0, CIB_PHY, handle_wowlan_enable,
++	NL80211_CMD_SET_WOWLAN, 0, CIB_NETDEV, handle_wowlan_enable,
+ 	"Enable WoWLAN with the given triggers.\n"
+ 	"Each pattern is given as a bytestring with '-' in places where any byte\n"
+ 	"may be present, e.g. 00:11:22:-:44 will match 00:11:22:33:44 and\n"
+@@ -95,7 +95,7 @@
+ 	/* just a set w/o wowlan attribute */
+ 	return 0;
+ }
+-COMMAND(wowlan, disable, "", NL80211_CMD_SET_WOWLAN, 0, CIB_PHY, handle_wowlan_disable,
++COMMAND(wowlan, disable, "", NL80211_CMD_SET_WOWLAN, 0, CIB_NETDEV, handle_wowlan_disable,
+ 	"Disable WoWLAN.");
+ 
+ 
+@@ -175,5 +175,5 @@
+ 
+ 	return 0;
+ }
+-COMMAND(wowlan, show, "", NL80211_CMD_GET_WOWLAN, 0, CIB_PHY, handle_wowlan_show,
++COMMAND(wowlan, show, "", NL80211_CMD_GET_WOWLAN, 0, CIB_NETDEV, handle_wowlan_show,
+ 	"Show WoWLAN status.");

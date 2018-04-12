@@ -1,0 +1,136 @@
+# Build list
+
+targetList := drivers drivers_firmware
+targetList += wpa_supplicant hostapd rootfs_build 
+
+default: ${targetList}
+
+#################################################################################################################################
+export SIGMADUT_TOPDIR=${ATH_TOPDIR}/apps/sigma-dut
+export BE_TEST_TOPDIR=${ATH_TOPDIR}/build/scripts/x86-android
+export ROOTFS_PATH=${ATH_TOPDIR}/rootfs-x86-android.build
+export WLAN_DRIVER_TOPDIR=$(ATH_TOPDIR)/drivers
+export BSP_PATCH_FILE_TOPDIR=${WLAN_DRIVER_TOPDIR}/patches/android_bsp_patch
+export ATHDIAG_TOPDIR=${ATH_TOPDIR}/drivers/qcacld-new/tools/athdiag
+
+#################################################################################################################################
+#
+# driver patch
+#
+rome_usb_fw_to_h:
+	@echo Transforming Rome usb firmware binaries to header files
+	@cd ${ATH_TOPDIR}/build/tools && sudo chmod +x ./bin2hex.sh
+	@cd ${ATH_TOPDIR}/build/tools && ./bin2hex.sh ${WLAN_DRIVER_TOPDIR}/firmware/WLAN-firmware/athsetup.bin ${WLAN_DRIVER_TOPDIR}/qcacld-new/CORE/SERVICES/BMI/athsetup.h athsetup_bin
+	@cd ${ATH_TOPDIR}/build/tools && ./bin2hex.sh ${WLAN_DRIVER_TOPDIR}/firmware/WLAN-firmware/athwlan.bin ${WLAN_DRIVER_TOPDIR}/qcacld-new/CORE/SERVICES/BMI/athwlan.h athwlan_bin
+	@cd ${ATH_TOPDIR}/build/tools && ./bin2hex.sh ${WLAN_DRIVER_TOPDIR}/firmware/WLAN-firmware/fakeboar.bin ${WLAN_DRIVER_TOPDIR}/qcacld-new/CORE/SERVICES/BMI/fakeboar.h fakeboar_bin
+	@cd ${ATH_TOPDIR}/build/tools && ./bin2hex.sh ${WLAN_DRIVER_TOPDIR}/firmware/WLAN-firmwareotp.bin ${WLAN_DRIVER_TOPDIR}/qcacld-new/CORE/SERVICES/BMI/otp.h otp_bin
+	@cd ${ATH_TOPDIR}/build/tools && ./bin2hex.sh ${WLAN_DRIVER_TOPDIR}/firmware/WLAN-firmware/qca61x4.bin ${WLAN_DRIVER_TOPDIR}/qcacld-new/CORE/SERVICES/BMI/qca61x4.h qca61x4_bin
+	@cd ${ATH_TOPDIR}/build/tools && ./bin2hex.sh ${WLAN_DRIVER_TOPDIR}/firmware/WLAN-firmware/utf.bin ${WLAN_DRIVER_TOPDIR}/qcacld-new/CORE/SERVICES/BMI/utf.h utf_bin
+	@cd ${ATH_TOPDIR}/build/tools && ./bin2hex.sh ${WLAN_DRIVER_TOPDIR}/qcacld-new/firmware_bin/WCNSS_cfg.dat ${WLAN_DRIVER_TOPDIR}/qcacld-new/CORE/SERVICES/BMI/cfg.h cfg_dat
+	@cd ${ATH_TOPDIR}/build/tools && ./bin2hex.sh ${WLAN_DRIVER_TOPDIR}/qcacld-new/firmware_bin/WCNSS_qcom_cfg.usb.ini ${WLAN_DRIVER_TOPDIR}/qcacld-new/CORE/SERVICES/BMI/qcom_cfg.h qcom_cfg_ini
+	@cd ${ATH_TOPDIR}/build/tools && ./bin2hex.sh ${WLAN_DRIVER_TOPDIR}/qcacld-new/firmware_bin/WCNSS_qcom_wlan_nv.bin ${WLAN_DRIVER_TOPDIR}/qcacld-new/CORE/SERVICES/BMI/qcom_wlan_nv.h qcom_wlan_nv_bin
+	
+
+drivers_patch:
+	@echo Patch drivers
+	@cd ${WLAN_DRIVER_TOPDIR} && patch -s -p0 < patches/003-cfg80211-backports-3.16.2-1.patch
+	@echo Patch wpa_supplicant_8
+	@cd ${WLAN_DRIVER_TOPDIR}/../apps/ && patch -s -p0 < ${WLAN_DRIVER_TOPDIR}/patches/002-wpa_supplicant-for-aio.patch
+	@cd ${WPA_SUPPLICANT_TOPDIR} && cp wpa_supplicant/android.config wpa_supplicant/.config
+	@cd ${WPA_SUPPLICANT_TOPDIR} && cp hostapd/android.config hostapd/.config
+drivers_patch_R:
+	@echo Revert drivers patch
+	@cd ${WLAN_DRIVER_TOPDIR} && patch -R -p0 < patches/003-cfg80211-backports-3.16.2-1.patch
+	@echo Revert wpa_supplicant_8 patch
+	@cd ${WLAN_DRIVER_TOPDIR}/../apps/ && patch -R -p0 < ${WLAN_DRIVER_TOPDIR}/patches/002-wpa_supplicant-for-aio.patch
+	@cd ${WPA_SUPPLICANT_TOPDIR} && rm wpa_supplicant/.config
+	@cd ${WPA_SUPPLICANT_TOPDIR} && rm hostapd/.config
+
+
+custom_patch_rome_usb: common_patch
+	@echo Patch CLD driver
+	@cd ${WLAN_DRIVER_TOPDIR} && patch -s -p0 < ${WLAN_DRIVER_TOPDIR}/patches/910-werror.patch
+	@cd ${WLAN_DRIVER_TOPDIR} && patch -s -p0 < ${WLAN_DRIVER_TOPDIR}/patches/918-cld-PMF-fix.patch
+	@cd ${WLAN_DRIVER_TOPDIR} && patch -s -p0 < ${WLAN_DRIVER_TOPDIR}/patches/919-cld-cfgini.patch
+	@echo End of Patch CLD driver
+
+custom_patch_tf_sdio: common_patch
+	@echo Patch CLD driver
+	@cd ${WLAN_DRIVER_TOPDIR} && patch -s -p0 < ${WLAN_DRIVER_TOPDIR}/patches/900-cld-kernel3.8.patch
+	@cd ${WLAN_DRIVER_TOPDIR} && patch -s -p0 < ${WLAN_DRIVER_TOPDIR}/patches/910-werror.patch
+	@cd ${WLAN_DRIVER_TOPDIR} && patch -s -p0 < ${WLAN_DRIVER_TOPDIR}/patches/913-compat_dma_sgtable.patch
+	@cd ${WLAN_DRIVER_TOPDIR} && patch -s -p0 < ${WLAN_DRIVER_TOPDIR}/patches/914-register_inet6addr.patch
+	@cd ${WLAN_DRIVER_TOPDIR} && patch -s -p0 < ${WLAN_DRIVER_TOPDIR}/patches/918-cld-PMF-fix.patch
+	@cd ${WLAN_DRIVER_TOPDIR} && patch -s -p0 < ${WLAN_DRIVER_TOPDIR}/patches/919-cld-cfgini.patch
+	@echo End of Patch CLD driver
+
+#################################################################################################################################
+#
+# Sigma-DUT package
+#
+sigmadut_build: rootfs_prep sigmadut_clean
+	@echo Build Sigma-DUT
+	cd $(SIGMADUT_TOPDIR) && \
+	${MAKEARCH} && \
+	cp $(SIGMADUT_TOPDIR)/sigma_dut $(INSTALL_ROOT)/sbin
+
+sigmadut_clean:
+	@echo Clean Sigma-DUT
+	cd $(SIGMADUT_TOPDIR) && \
+	${MAKEARCH} clean
+
+#################################################################################################################################
+#
+# athdiag
+#
+athdiag_build: rootfs_prep athdiag_clean
+	@echo Build athdiag tool
+	cd $(ATHDIAG_TOPDIR) && \
+	${MAKEARCH} && \
+	cp $(ATHDIAG_TOPDIR)/athdiag $(INSTALL_ROOT)/sbin
+
+athdiag_clean:
+	@echo Clean athdiag tool
+	cd $(ATHDIAG_TOPDIR) && \
+	${MAKEARCH} clean
+
+#
+# SPE_BE_TEST package
+#
+spe_package:
+	@echo Build SPE_BE_TEST
+	cd ${BE_TEST_TOPDIR} && \
+	./gen_spe_package.sh
+	
+	
+#
+# strip wlan module
+#
+strip_wlan:
+	@echo Strip Unneeded For Module
+	cd ${ROOTFS_PATH}/lib/modules && ${TOOLCHAIN}/i686-linux-android-strip --strip-unneeded wlan.ko
+
+#
+# strip wlan module & copy binary files to Android-x86 project
+#
+copy_binary:
+	@echo Strip Unneeded for WLAN Module first
+	cd ${ROOTFS_PATH}/lib/modules && ${CROSS_COMPILE}strip --strip-unneeded wlan.ko
+	@echo Copy BINARY to Android-x86 project
+	cd ${BE_TEST_TOPDIR} && mkdir -p ${ANDROID_X86_PROJ_WLAN_PATH} && \
+	mkdir -p ${ANDROID_X86_PROJ_BTFW_PATH} && \
+	cp ${ROOTFS_PATH}/lib/modules/* ${ANDROID_X86_PROJ_VENDOR_PATH} && \
+	cp ${ROOTFS_PATH}/lib/firmware/WLAN-firmware/athsetup.bin ${ANDROID_X86_PROJ_WLANFW_PATH}/athsetup.bin && \
+	cp ${ROOTFS_PATH}/lib/firmware/WLAN-firmware/athwlan.bin ${ANDROID_X86_PROJ_WLANFW_PATH}/athwlan.bin && \
+	cp ${ROOTFS_PATH}/lib/firmware/WLAN-firmware/fakeboar.bin ${ANDROID_X86_PROJ_WLANFW_PATH}/fakeboar.bin && \
+	cp ${ROOTFS_PATH}/lib/firmware/WLAN-firmware/otp.bin ${ANDROID_X86_PROJ_WLANFW_PATH}/otp.bin && \
+	cp ${ROOTFS_PATH}/lib/firmware/WLAN-firmware/utf.bin ${ANDROID_X86_PROJ_WLANFW_PATH}/utf.bin && \
+	cp ${ROOTFS_PATH}/lib/firmware/wlan/* ${ANDROID_X86_PROJ_WLAN_PATH} && \
+	cp ${ROOTFS_PATH}/lib/firmware/BT-firmware/* ${ANDROID_X86_PROJ_BTFW_PATH}
+	@echo Copy BINARY DONE!
+
+copy_bsp_patch:
+	@echo Copy PATCH files to Android-x86 BSP
+	cp ${BSP_PATCH_FILE_TOPDIR}/${ANDROID_BSP_VERSION}/BT/* ${ANDROID_X86_PROJ_PATH}
+	cp ${BSP_PATCH_FILE_TOPDIR}/${ANDROID_BSP_VERSION}/WLAN/* ${ANDROID_X86_PROJ_PATH}
+	@echo Copy PATCH DONE!

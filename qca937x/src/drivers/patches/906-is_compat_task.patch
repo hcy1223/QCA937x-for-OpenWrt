@@ -1,0 +1,99 @@
+/*
+* Copyright (c) 2014 Linux Foundation
+* All Rights Reserved.
+*
+* Permission to use, copy, modify, and/or distribute this software for any purpose with or without fee is hereby granted, provided that the above copyright notice and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+*/
+
+diff -Naur qcacld-new.old/CORE/HDD/src/wlan_hdd_ftm.c qcacld-new/CORE/HDD/src/wlan_hdd_ftm.c
+--- qcacld-new.old/CORE/HDD/src/wlan_hdd_ftm.c	2014-09-11 09:57:55.755470225 +0800
++++ qcacld-new/CORE/HDD/src/wlan_hdd_ftm.c	2014-09-11 15:19:42.095205194 +0800
+@@ -1041,12 +1041,6 @@
+     kfree(qcmbr_data);
+     return ret;
+ }
+-#else /* CONFIG_COMPAT */
+-static int wlan_hdd_qcmbr_compat_ioctl(hdd_adapter_t *pAdapter,
+-                                       struct ifreq *ifr)
+-{
+-   return 0;
+-}
+ #endif /* CONFIG_COMPAT */
+ 
+ static int wlan_hdd_qcmbr_ioctl(hdd_adapter_t *pAdapter, struct ifreq *ifr)
+@@ -1078,11 +1072,15 @@
+ {
+     int ret = 0;
+ 
++#ifdef CONFIG_COMPAT
+     if (is_compat_task()) {
+         ret = wlan_hdd_qcmbr_compat_ioctl(pAdapter, ifr);
+     } else {
+         ret = wlan_hdd_qcmbr_ioctl(pAdapter, ifr);
+     }
++#else
++    ret = wlan_hdd_qcmbr_ioctl(pAdapter, ifr);
++#endif
+ 
+     return ret;
+ }
+diff -Naur qcacld-new.old/CORE/HDD/src/wlan_hdd_hostapd.c qcacld-new/CORE/HDD/src/wlan_hdd_hostapd.c
+--- qcacld-new.old/CORE/HDD/src/wlan_hdd_hostapd.c	2014-09-11 09:57:55.759470245 +0800
++++ qcacld-new/CORE/HDD/src/wlan_hdd_hostapd.c	2014-09-11 15:20:58.971586403 +0800
+@@ -448,13 +448,6 @@
+  exit:
+    return ret;
+ }
+-#else /* CONFIG_COMPAT */
+-static int hdd_hostapd_driver_compat_ioctl(hdd_adapter_t *pAdapter,
+-                                           struct ifreq *ifr)
+-{
+-   /* will never be invoked */
+-   return 0;
+-}
+ #endif /* CONFIG_COMPAT */
+ 
+ static int hdd_hostapd_driver_ioctl(hdd_adapter_t *pAdapter, struct ifreq *ifr)
+@@ -506,9 +499,11 @@
+ 
+    switch (cmd) {
+    case (SIOCDEVPRIVATE + 1):
++#ifdef CONFIG_COMPAT
+       if (is_compat_task())
+          ret = hdd_hostapd_driver_compat_ioctl(pAdapter, ifr);
+       else
++#endif
+          ret = hdd_hostapd_driver_ioctl(pAdapter, ifr);
+       break;
+    default:
+diff -Naur qcacld-new.old/CORE/HDD/src/wlan_hdd_main.c qcacld-new/CORE/HDD/src/wlan_hdd_main.c
+--- qcacld-new.old/CORE/HDD/src/wlan_hdd_main.c	2014-09-11 09:57:55.755470225 +0800
++++ qcacld-new/CORE/HDD/src/wlan_hdd_main.c	2014-09-11 15:19:24.243116670 +0800
+@@ -7051,12 +7051,6 @@
+  exit:
+    return ret;
+ }
+-#else /* CONFIG_COMPAT */
+-static int hdd_driver_compat_ioctl(hdd_adapter_t *pAdapter, struct ifreq *ifr)
+-{
+-   /* will never be invoked */
+-   return 0;
+-}
+ #endif /* CONFIG_COMPAT */
+ 
+ static int hdd_driver_ioctl(hdd_adapter_t *pAdapter, struct ifreq *ifr)
+@@ -7117,9 +7111,11 @@
+ 
+    switch (cmd) {
+    case (SIOCDEVPRIVATE + 1):
++#ifdef CONFIG_COMPAT
+       if (is_compat_task())
+          ret = hdd_driver_compat_ioctl(pAdapter, ifr);
+       else
++#endif
+          ret = hdd_driver_ioctl(pAdapter, ifr);
+       break;
+    default:

@@ -1,0 +1,1180 @@
+diff -Naur btusb_oss/Makefile btusb_qcom/Makefile
+--- btusb_oss/Makefile	2015-03-26 02:37:44.000000000 -0700
++++ btusb_qcom/Makefile	2015-08-24 05:51:40.420614678 -0700
+@@ -1,4 +1,5 @@
+-SUBDIRS = drivers/brcm/btusb
++#SUBDIRS = drivers/brcm/btusb
++SUBDIRS = drivers/bluetooth/btusb/
+ 
+ ifeq ($(CONFIG_BT_AUDIOLITE),m)
+ LITE ?= TRUE
+@@ -13,6 +14,7 @@
+ EXTRA_CFLAGS += -I$(SUBDIRS)/src/gki
+ EXTRA_CFLAGS += -DEXPORT_SYMTAB
+ 
++LITE = TRUE
+ LITE ?= FALSE
+ ifeq ($(strip $(LITE)),TRUE)
+ EXTRA_CFLAGS += -DBUILDCFG
+diff -Naur btusb_oss/inc/btusb.h btusb_qcom/inc/btusb.h
+--- btusb_oss/inc/btusb.h	2015-03-26 02:37:44.000000000 -0700
++++ btusb_qcom/inc/btusb.h	2015-08-24 05:51:40.420614678 -0700
+@@ -341,6 +341,9 @@
+ #ifdef BTUSB_LITE
+     struct btusb_lite_cb lite_cb;
+ #endif
++    struct semaphore av_remove;
++    struct semaphore sync1;
++    int internal_state;
+ };
+ 
+ /* Function prototypes */
+diff -Naur btusb_oss/src/btusb.c btusb_qcom/src/btusb.c
+--- btusb_oss/src/btusb.c	2015-03-26 02:37:44.000000000 -0700
++++ btusb_qcom/src/btusb.c	2015-08-24 05:51:40.420614678 -0700
+@@ -26,7 +26,10 @@
+ #include "btusb.h"
+ #include <linux/module.h>
+ #include <linux/slab.h>
+-
++#if 1 //qualcomm
++#include <linux/string.h>  /* for memcpy() */
++#include <linux/firmware.h>
++#endif
+ #include "hcidefs.h"
+ #include "btusb_proc.h"
+ 
+@@ -35,8 +38,12 @@
+ 
+ #include <asm-generic/param.h>
+ 
+-
++#if 0 // qualcomm
+ #define BTUSB_VID_BRCM 0x0A5C
++#else
++#define BTUSB_VID_QCOM 0x0cf3
++#define BTUSB_PID_QCOM 0x3004
++#endif
+ 
+ /*for debug of state change*/
+ //#define BTSTATE_DEBUG
+@@ -64,10 +71,19 @@
+ /* table of devices that work with this driver */
+ static struct usb_device_id btusb_table [] =
+ {
++    { USB_DEVICE_INFO(0xE0, 0x01, 0x01)},
++    { USB_DEVICE(0x0CF3, 0x3004) },
++    {}
++};
++
++MODULE_DEVICE_TABLE(usb, btusb_table);
++
++#if 0
+ #if defined(BTUSB_VID) && defined(BTUSB_PID)
+     /* If a specific Vid/Pid is specified at compilation time */
+     { USB_DEVICE(BTUSB_VID, BTUSB_PID) },
+ #else
++#if 0 // qualcomm
+     /* all BT devices */
+     { .match_flags = USB_DEVICE_ID_MATCH_DEV_CLASS | USB_DEVICE_ID_MATCH_DEV_SUBCLASS |
+             USB_DEVICE_ID_MATCH_DEV_PROTOCOL,
+@@ -94,11 +110,17 @@
+       .bDeviceSubClass = 0x01,
+       .bDeviceProtocol = 0x01
+     },
++#else
++    { .match_flags = USB_DEVICE_ID_MATCH_VENDOR | USB_DEVICE_ID_MATCH_PRODUCT,
++      .idVendor = BTUSB_VID_QCOM,
++      .idProduct = BTUSB_PID_QCOM
++    },
++#endif
+ #endif
+     { } /* Terminating entry */
+ };
++#endif
+ 
+-MODULE_DEVICE_TABLE(usb, btusb_table);
+ 
+ static struct file_operations btusb_fops =
+ {
+@@ -379,6 +401,438 @@
+     return;
+ }
+ 
++#if 1 // Qualcomm
++struct ath3k_version {
++	unsigned int	rom_version;
++	unsigned int	build_version;
++	unsigned int	ram_version;
++	unsigned char	ref_clock;
++	unsigned char	reserved[0x07];
++};
++struct __packed rome1_1_version {
++	u8	type;
++	u8	length[3];
++	u8	sign_ver;
++	u8	sign_algo;
++	u8	resv1[2];
++	u16	product_id;
++	u16	build_ver;
++	u16	patch_ver;
++	u8	resv2[2];
++	u32	entry_addr;
++};
++struct __packed rome2_1_version {
++	u8	type;
++	u8	length[3];
++	u32	total_len;
++	u32	patch_len;
++	u8	sign_ver;
++	u8	sign_algo;
++	u8	resv1[2];
++	u16	product_id;
++	u16	build_ver;
++	u16	patch_ver;
++	u8	resv2[2];
++	u32	entry_addr;
++};
++
++#define BT_INFO(fmt, arg...)		printk(KERN_ERR "Bluetooth: " fmt "\n" , ## arg)
++#define BT_ERR(fmt, arg...)		printk(KERN_ERR "%s: " fmt "\n" , __func__ , ## arg)
++#define BT_DBG				BTUSB_TEST
++
++#define ROME1_1_USB_CHIP_VERSION		0x101
++#define ROME2_1_USB_CHIP_VERSION		0x200
++#define ROME3_0_USB_CHIP_VERSION		0x300
++#define ROME3_2_USB_CHIP_VERSION		0x302
++
++#define ROME1_1_USB_RAMPATCH_FILE	"ar3k/rampatch_1.1.img"
++#define ROME1_1_USB_NVM_FILE		"ar3k/nvm_tlv_usb_1.1.bin"
++
++#define ROME2_1_USB_RAMPATCH_FILE	"ar3k/rampatch_tlv_usb_2.1.tlv"
++#define ROME2_1_USB_NVM_FILE		"ar3k/nvm_tlv_usb_2.1.bin"
++
++#define ROME3_0_USB_RAMPATCH_FILE	"ar3k/rampatch_tlv_usb_3.0.tlv"
++#define ROME3_0_USB_NVM_FILE		"ar3k/nvm_tlv_usb_3.0.bin"
++
++#define TF1_1_USB_RAMPATCH_FILE	"ar3k/rampatch_tlv_usb_tf_1.1.tlv"
++#define TF1_1_USB_NVM_FILE		"ar3k/nvm_tlv_usb_tf_1.1.bin"
++
++#define ROME2_1_USB_RAMPATCH_HEADER	sizeof(struct rome2_1_version)
++#define ROME1_1_USB_RAMPATCH_HEADER	sizeof(struct rome1_1_version)
++
++#define ROME1_1_USB_NVM_HEADER			0x04
++#define ROME2_1_USB_NVM_HEADER			0x04
++
++#define TF1_1_USB_PRODUCT_ID			0xe500
++#define ATH3K_DNLOAD				0x01
++#define ATH3K_GETSTATE				0x05
++#define ATH3K_GETVERSION			0x09
++
++/* 0xA2 : RAMPATCH ALONE DOWNLOADED FROM FLASH */
++#define ATH3K_PATCH_UPDATE			0xA2
++
++/* 0x61 : NVM ALONE DOWNLOADED FROM FLASH */
++#define ATH3K_SYSCFG_UPDATE			0x61
++
++/* 0xE3 : RAMPATCH & NVM BOTH DOWNLOADED FROM FLASH */
++#define ATH3K_PATCH_SYSCFG_UPDATE		(ATH3K_PATCH_UPDATE | ATH3K_SYSCFG_UPDATE)
++
++/* 0x20 : NO FW DOWNLOADED */
++
++#define ATH3K_XTAL_FREQ_26M			0x00
++#define ATH3K_XTAL_FREQ_40M			0x01
++#define ATH3K_XTAL_FREQ_19P2			0x02
++#define ATH3K_NAME_LEN 0xFF
++
++#define BULK_SIZE		4096
++#define FW_HDR_SIZE		20
++
++extern int request_firmware(const struct firmware **firmware_p, const char *name, struct device *device);
++extern void release_firmware(const struct firmware *fw);
++
++static int ath3k_get_version(struct usb_device *udev,
++			struct ath3k_version *version)
++{
++	int ret, pipe = 0;
++	struct ath3k_version *buf;
++	const int size = sizeof(*buf);
++
++	buf = kmalloc(size, GFP_KERNEL);
++	if (!buf)
++		return -ENOMEM;
++
++	pipe = usb_rcvctrlpipe(udev, 0);
++	ret = usb_control_msg(udev, pipe, ATH3K_GETVERSION,
++			      USB_TYPE_VENDOR | USB_DIR_IN, 0, 0,
++			      buf, size, USB_CTRL_SET_TIMEOUT);
++
++	memcpy(version, buf, size);
++	kfree(buf);
++
++	return ret;
++}
++
++
++int get_rome_version(struct usb_device *udev, struct ath3k_version *version)
++{
++	struct ath3k_version fw_version;
++	int ret = -1;
++
++	if (!version) {
++		BT_ERR("NULL output parameters");
++		return ret;
++	}
++
++	ret = ath3k_get_version(udev, &fw_version);
++	if (ret < 0) {
++		BT_ERR("Failed to get Rome Firmware version");
++		return ret;
++	}
++
++	memcpy(version, &fw_version, sizeof(struct ath3k_version));
++	return 0;
++}
++
++static int ath3k_get_state(struct usb_device *udev, unsigned char *state)
++{
++	int ret, pipe = 0;
++	char *buf;
++
++	buf = kmalloc(sizeof(*buf), GFP_KERNEL);
++	if (!buf)
++		return -ENOMEM;
++
++	pipe = usb_rcvctrlpipe(udev, 0);
++	ret = usb_control_msg(udev, pipe, ATH3K_GETSTATE,
++			      USB_TYPE_VENDOR | USB_DIR_IN, 0, 0,
++			      buf, sizeof(*buf), USB_CTRL_SET_TIMEOUT);
++
++	*state = *buf;
++	kfree(buf);
++
++	return ret;
++}
++
++static int ath3k_load_fwfile(struct usb_device *udev,
++		const struct firmware *firmware, int header_h)
++{
++	u8 *send_buf;
++	int err, pipe, len, size, count, sent = 0;
++	int ret;
++
++	count = firmware->size;
++
++	send_buf = kmalloc(BULK_SIZE, GFP_KERNEL);
++	if (!send_buf) {
++		BT_ERR("Can't allocate memory chunk for firmware");
++		return -ENOMEM;
++	}
++
++	size = min_t(uint, count, header_h);
++	memcpy(send_buf, firmware->data, size);
++
++	pipe = usb_sndctrlpipe(udev, 0);
++	ret = usb_control_msg(udev, pipe, ATH3K_DNLOAD,
++			USB_TYPE_VENDOR, 0, 0, send_buf,
++			size, USB_CTRL_SET_TIMEOUT);
++	if (ret < 0) {
++		BT_ERR("Can't change to loading configuration err");
++		kfree(send_buf);
++		return ret;
++	}
++
++	sent += size;
++	count -= size;
++
++	while (count) {
++		size = min_t(uint, count, BULK_SIZE);
++		pipe = usb_sndbulkpipe(udev, 0x02);
++
++		memcpy(send_buf, firmware->data + sent, size);
++
++		err = usb_bulk_msg(udev, pipe, send_buf, size,
++					&len, 3000);
++		if (err || (len != size)) {
++			BT_ERR("Error in firmware loading err = %d,"
++				"len = %d, size = %d", err, len, size);
++			kfree(send_buf);
++			return err;
++		}
++		sent  += size;
++		count -= size;
++	}
++
++	kfree(send_buf);
++	return 0;
++}
++
++
++
++static int ath3k_load_patch(struct usb_device *udev,
++						struct ath3k_version *version)
++{
++	unsigned char fw_state;
++	char filename[ATH3K_NAME_LEN] = {0};
++	const struct firmware *firmware;
++	struct ath3k_version pt_version;
++	struct rome2_1_version *rome2_1_version;
++	struct rome1_1_version *rome1_1_version;
++	int ret;
++
++        BT_INFO("%s: Get FW STATE prior to downloading the RAMAPCTH\n", __func__);
++	ret = ath3k_get_state(udev, &fw_state);
++	if (ret < 0) {
++		BT_ERR("Can't get state to change to load ram patch err");
++		return ret;
++	}
++
++	if ((fw_state == ATH3K_PATCH_UPDATE) ||
++		(fw_state == ATH3K_PATCH_SYSCFG_UPDATE)) {
++		BT_INFO("%s: Patch already downloaded(fw_state: %d)", __func__,
++			fw_state);
++		return 0;
++	} else
++		BT_INFO("%s: Downloading RamPatch(fw_state: %d)\n", __func__,
++			fw_state);
++
++	switch (version->rom_version) {
++	case ROME1_1_USB_CHIP_VERSION:
++		BT_DBG("Chip Detected as ROME1.1");
++		snprintf(filename, ATH3K_NAME_LEN, ROME1_1_USB_RAMPATCH_FILE);
++		break;
++	case ROME2_1_USB_CHIP_VERSION:
++		BT_DBG("Chip Detected as ROME2.1");
++		snprintf(filename, ATH3K_NAME_LEN, ROME2_1_USB_RAMPATCH_FILE);
++		break;
++	case ROME3_0_USB_CHIP_VERSION:
++		BT_DBG("Chip Detected as ROME3.0");
++		snprintf(filename, ATH3K_NAME_LEN, ROME3_0_USB_RAMPATCH_FILE);
++		break;
++	case ROME3_2_USB_CHIP_VERSION:
++		if (udev->descriptor.idProduct == TF1_1_USB_PRODUCT_ID) {
++			BT_DBG("Chip Detected as TF1.1");
++			snprintf(filename, ATH3K_NAME_LEN,
++						TF1_1_USB_RAMPATCH_FILE);
++		} else {
++			BT_INFO("Unsupported Chip");
++			return -ENODEV;
++		}
++		break;
++	default:
++		BT_DBG("Chip Detected as Ath3k");
++		snprintf(filename, ATH3K_NAME_LEN, "ar3k/AthrBT_0x%08x.dfu",
++		version->rom_version);
++		break;
++	}
++
++	ret = request_firmware(&firmware, filename, &udev->dev);
++	if (ret < 0) {
++		BT_ERR("Patch file not found %s", filename);
++		return ret;
++	}
++
++	if ((version->rom_version == ROME2_1_USB_CHIP_VERSION) ||
++		(version->rom_version == ROME3_0_USB_CHIP_VERSION) ||
++		(version->rom_version == ROME3_2_USB_CHIP_VERSION)) {
++		rome2_1_version = (struct rome2_1_version *) firmware->data;
++		pt_version.rom_version = rome2_1_version->build_ver;
++		pt_version.build_version = rome2_1_version->patch_ver;
++		BT_DBG("pt_ver.rome_ver : 0x%x\n", pt_version.rom_version);
++		BT_DBG("pt_ver.build_ver: 0x%x\n", pt_version.build_version);
++		BT_DBG("fw_ver.rom_ver: 0x%x\n", version->rom_version);
++		BT_DBG("fw_ver.build_ver: 0x%x\n", version->build_version);
++	} else if (version->rom_version == ROME1_1_USB_CHIP_VERSION) {
++		rome1_1_version = (struct rome1_1_version *) firmware->data;
++		pt_version.build_version = rome1_1_version->build_ver;
++		pt_version.rom_version = rome1_1_version->patch_ver;
++		BT_DBG("pt_ver.rom1.1_ver : 0x%x", pt_version.rom_version);
++		BT_DBG("pt_ver.build1.1_ver: 0x%x", pt_version.build_version);
++		BT_DBG("fw_ver.rom1.1_ver: 0x%x", version->rom_version);
++		BT_DBG("fw_ver.build1.1_ver: 0x%x", version->build_version);
++	} else {
++		pt_version.rom_version = *(int *)(firmware->data +
++						firmware->size - 8);
++		pt_version.build_version = *(int *)
++		(firmware->data + firmware->size - 4);
++	}
++	if ((pt_version.rom_version != version->rom_version) ||
++		(pt_version.build_version <= version->build_version)) {
++		BT_ERR("Patch file version did not match with firmware\n");
++		release_firmware(firmware);
++		return -EINVAL;
++	}
++
++	if ((version->rom_version == ROME2_1_USB_CHIP_VERSION) ||
++		(version->rom_version == ROME3_0_USB_CHIP_VERSION) ||
++		(version->rom_version == ROME3_2_USB_CHIP_VERSION))
++		ret = ath3k_load_fwfile(udev, firmware,
++						ROME2_1_USB_RAMPATCH_HEADER);
++	else if (version->rom_version == ROME1_1_USB_CHIP_VERSION)
++		ret = ath3k_load_fwfile(udev, firmware,
++						 ROME1_1_USB_RAMPATCH_HEADER);
++	else
++		ret = ath3k_load_fwfile(udev, firmware, FW_HDR_SIZE);
++
++	release_firmware(firmware);
++
++	BT_DBG("%s: DONE Downloading RamPatch", __func__);
++
++	return ret;
++}
++
++static int ath3k_load_syscfg(struct usb_device *udev,
++						struct ath3k_version *version)
++{
++	unsigned char fw_state;
++	char filename[ATH3K_NAME_LEN] = {0};
++	const struct firmware *firmware;
++	int clk_value, ret;
++
++        BT_INFO("%s: Get FW STATE prior to downloading the NVM\n", __func__);
++	ret = ath3k_get_state(udev, &fw_state);
++	if (ret < 0) {
++		BT_ERR("Can't get state to change to load configuration err");
++		return -EBUSY;
++	}
++
++	if ((fw_state == ATH3K_SYSCFG_UPDATE) ||
++		(fw_state == ATH3K_PATCH_SYSCFG_UPDATE)) {
++		BT_INFO("%s: NVM already downloaded(fw_state: %d)\n", __func__,
++			fw_state);
++		return 0;
++	} else
++		BT_INFO("%s: Downloading NVM(fw_state: %d)\n", __func__, fw_state);
++
++	switch (version->ref_clock) {
++	case ATH3K_XTAL_FREQ_26M:
++		clk_value = 26;
++		break;
++	case ATH3K_XTAL_FREQ_40M:
++		clk_value = 40;
++		break;
++	case ATH3K_XTAL_FREQ_19P2:
++		clk_value = 19;
++		break;
++	default:
++		clk_value = 0;
++		break;
++	}
++
++	if (version->rom_version == ROME2_1_USB_CHIP_VERSION)
++		snprintf(filename, ATH3K_NAME_LEN, ROME2_1_USB_NVM_FILE);
++	else if (version->rom_version == ROME3_0_USB_CHIP_VERSION)
++		snprintf(filename, ATH3K_NAME_LEN, ROME3_0_USB_NVM_FILE);
++	else if (version->rom_version == ROME3_2_USB_CHIP_VERSION) {
++		if (udev->descriptor.idProduct == TF1_1_USB_PRODUCT_ID)
++			snprintf(filename, ATH3K_NAME_LEN, TF1_1_USB_NVM_FILE);
++		else {
++			BT_INFO("Unsupported Chip");
++			return -ENODEV;
++		}
++	}
++	else if (version->rom_version == ROME1_1_USB_CHIP_VERSION)
++		snprintf(filename, ATH3K_NAME_LEN, ROME1_1_USB_NVM_FILE);
++	else
++		snprintf(filename, ATH3K_NAME_LEN, "ar3k/ramps_0x%08x_%d%s",
++			version->rom_version, clk_value, ".dfu");
++
++	ret = request_firmware(&firmware, filename, &udev->dev);
++	if (ret < 0) {
++		BT_ERR("Configuration file not found %s", filename);
++		return ret;
++	}
++
++	if ((version->rom_version == ROME2_1_USB_CHIP_VERSION) ||
++		(version->rom_version == ROME3_0_USB_CHIP_VERSION) ||
++		(version->rom_version == ROME3_2_USB_CHIP_VERSION))
++		ret = ath3k_load_fwfile(udev, firmware, ROME2_1_USB_NVM_HEADER);
++	else if (version->rom_version == ROME1_1_USB_CHIP_VERSION)
++		ret = ath3k_load_fwfile(udev, firmware, ROME1_1_USB_NVM_HEADER);
++	else
++		ret = ath3k_load_fwfile(udev, firmware, FW_HDR_SIZE);
++
++	release_firmware(firmware);
++
++	BT_DBG("%s: DONE: Downloading NVM\n", __func__);
++
++	return ret;
++}
++
++
++int rome_download(struct usb_device *udev, struct ath3k_version *version)
++{
++	int ret;
++
++	ret = ath3k_load_patch(udev, version);
++	if (ret < 0) {
++		BT_ERR("Loading patch file failed");
++	}
++	ret = ath3k_load_syscfg(udev, version);
++	if (ret < 0) {
++		BT_ERR("Loading sysconfig file failed");
++	}
++
++	return 0;
++}
++#endif
++
++void btusb_firmware_upgrade(struct usb_device *udev)
++{
++
++	struct ath3k_version version;
++	int err;
++
++	printk(KERN_ERR "%s: Start Downloading Rampatch and NVM\n", __func__);
++	err = get_rome_version(udev, &version);
++	if (err < 0) {
++		BT_ERR("Failed to get ROME USB version");
++	}
++	BT_INFO("Rome Version: 0x%x\n", version.rom_version);
++	err = rome_download(udev, &version);
++	if (err < 0) {
++		BT_ERR("Failed to download ROME firmware");
++	}
++}
+ /*******************************************************************************
+  **
+  ** Function         btusb_probe
+@@ -423,9 +877,11 @@
+     struct btusb_tx_trans *p_tx_trans;
+     struct btusb_rx_trans *p_rx_trans;
+     int retval = -ENOMEM;
++    struct usb_device *udev = interface_to_usbdev(p_interface);
+ 
+     GKI_init();
+ 
++    printk(KERN_ERR "%s: Allocating the driver resources for interacting with USB Core...\n", __func__);
+     BTUSB_INFO("p_interface=%p, p_id=%p\n", p_interface, p_id);
+     BTUSB_INFO("p_interface->cur_altsetting->desc.bInterfaceNumber=%d\n", p_interface->cur_altsetting->desc.bInterfaceNumber);
+     BTUSB_DBG("match=0x%x VID=0x%x PID=0x%x class=0x%x subclass=0x%x protocol=0x%x\n",
+@@ -441,6 +897,8 @@
+     
+     BTUSB_TEST("Start Probe");
+ 
++    btusb_firmware_upgrade(udev);
++
+     /* allocate memory for our device */
+     p_dev = kzalloc(sizeof(struct btusb), GFP_KERNEL);
+     if (!p_dev)
+@@ -455,8 +913,6 @@
+         goto error;
+     }
+ 
+-
+-
+     // To allow the submission during probe
+ #ifdef SAMSUNG_PATCH_STATE_BTUSB
+     init_waitqueue_head(&bt_state.btusb_wait_q);
+@@ -474,7 +930,7 @@
+     for (idx = 0; idx < p_host_intf->desc.bNumEndpoints; ++idx)
+     {
+         p_ep_desc = &p_host_intf->endpoint[idx].desc;
+-        BTUSB_DBG("endpoint addr 0x%x attr 0x%x\n",
++        BTUSB_INFO("endpoint addr 0x%x attr 0x%x\n",
+                 p_ep_desc->bEndpointAddress, p_ep_desc->bmAttributes);
+         if ((!p_dev->p_acl_in) &&
+             BTUSB_EP_DIR_IN(p_ep_desc) &&
+@@ -623,6 +1079,7 @@
+ no_dfu:
+ 
+     spin_lock(&p_dev->cmd_array_lock);        
++    //for (idx = 0, p_tx_trans = &__a[0]; idx < ARRAY_SIZE(__a); idx++, p_tx_trans = &__a[idx])
+     BTUSB_ARRAY_FOR_EACH_TX_TRANS(p_dev->cmd_array)
+     {
+         p_tx_trans->p_dev = p_dev;
+@@ -636,7 +1093,7 @@
+             BTUSB_ERR("transaction allocation failed\n");
+             goto error_claim;
+         }
+-        BTUSB_DBG("cmd_array[%d]: b=%p\n", idx, p_tx_trans->dma_buffer);
++        BTUSB_INFO("%s: cmd_array[%d]: dma_buffer = %p", __func__, idx, p_tx_trans->dma_buffer);
+         p_dr = &p_dev->cmd_req_array[idx];
+         p_dr->bRequestType = USB_TYPE_CLASS;
+         p_dr->bRequest = 0;
+@@ -658,7 +1115,9 @@
+     spin_unlock(&p_dev->cmd_array_lock);        
+ 
+     /* initialize the USB data paths */
+-    spin_lock(&p_dev->event_array_lock);        
++    spin_lock(&p_dev->event_array_lock);
++
++    //for (idx = 0, p_rx_trans = &__a[0]; idx < ARRAY_SIZE(__a); idx++, p_rx_trans = &__a[idx])
+     BTUSB_ARRAY_FOR_EACH_RX_TRANS(p_dev->event_array)
+     {
+         p_rx_trans->gki_hdr.status = BUF_STATUS_UNLINKED;
+@@ -678,7 +1137,7 @@
+             BTUSB_ERR("transaction allocation failed\n");
+             goto error_claim;
+         }
+-        BTUSB_DBG("event_array[%d]: b=%p\n", idx, p_rx_trans->dma_buffer);
++        BTUSB_INFO("%s: event_array[%d]: dma_buffer = %p", __func__, idx, p_rx_trans->dma_buffer);
+         usb_fill_int_urb(p_urb,
+                 p_dev->p_udev,
+                 usb_rcvintpipe(p_dev->p_udev, p_dev->p_event_in->desc.bEndpointAddress),
+@@ -712,7 +1171,7 @@
+             BTUSB_ERR("transaction allocation failed\n");
+             goto error_claim;
+         }
+-        BTUSB_DBG("acl_rx_array[%d]: b=%p\n", idx, p_rx_trans->dma_buffer);
++        BTUSB_INFO("%s: acl_rx_array[%d]: dma_buffer = %p", __func__, idx, p_rx_trans->dma_buffer);
+         usb_fill_bulk_urb(p_urb,
+                 p_dev->p_udev,
+                 usb_rcvbulkpipe(p_dev->p_udev, p_dev->p_acl_in->desc.bEndpointAddress),
+@@ -725,7 +1184,9 @@
+     }
+     spin_unlock(&p_dev->acl_rx_array_lock);        
+ 
+-    spin_lock(&p_dev->acl_tx_array_lock);        
++    spin_lock(&p_dev->acl_tx_array_lock);
++
++    //for (idx = 0, p_tx_trans = &__a[0]; idx < ARRAY_SIZE(__a); idx++, p_tx_trans = &__a[idx])
+     BTUSB_ARRAY_FOR_EACH_TX_TRANS(p_dev->acl_tx_array)
+     {
+         p_tx_trans->p_dev = p_dev;
+@@ -739,7 +1200,7 @@
+             BTUSB_ERR("transaction allocation failed\n");
+             goto error_claim;
+         }
+-        BTUSB_DBG("acl_tx_array[%d]: b=%p\n", idx, p_tx_trans->dma_buffer);
++        BTUSB_INFO("%s: acl_tx_array[%d]: dma_buffer = %p\n", __func__, idx, p_tx_trans->dma_buffer);
+         usb_fill_bulk_urb(p_urb,
+                 p_dev->p_udev,
+                 usb_sndbulkpipe(p_dev->p_udev, p_dev->p_acl_out->desc.bEndpointAddress),
+@@ -949,7 +1410,7 @@
+ 	wake_up_interruptible(&bt_state.btusb_wait_q);
+ #endif
+ 
+-    BTUSB_TEST("Finished Probe");
++    BT_INFO("%s: ##### Finished Probe #####", __func__);
+ 	
+ #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 34)
+     if (autopm)
+@@ -970,6 +1431,7 @@
+ 
+ #ifdef BTUSB_LITE
+     /* must be called last because it uses the p_dev entries */
++    BT_INFO("%s: Creating BTUSB Lite I/F", __func__);
+     btusb_lite_create(p_dev, p_interface);
+ #endif
+     /* let the user know what node this device is now attached to */
+@@ -1133,16 +1595,18 @@
+ #ifdef BTSTATE_DEBUG
+ 	BTUSB_ERR("Wake up proc state\n");
+ #endif
+-    /* wake up rx_wait_q */
+-    wake_up_interruptible(&p_dev->rx_wait_q);
+ 
+-    BTUSB_INFO("p_dev=%p\n", p_dev);
++    BTUSB_INFO("BTUSB Device: p_dev = %p\n", p_dev);
+     if (!p_dev)
+     {
+         BTUSB_ERR("p_dev == NULL\n");
+         return;
+     }
+ 
++    /* wake up rx_wait_q */
++    BTUSB_ERR("%s: Waking up read process waiting on RX_WAIT_Q\n", __func__);
++    wake_up_interruptible(&p_dev->rx_wait_q);
++
+     if (p_interface != p_dev->p_main_intf)
+     {
+         BTUSB_DBG("not the main interface\n");
+@@ -1159,13 +1623,15 @@
+ 
+     btusb_proc_remove(p_dev, p_interface->usb_dev->kobj.name);
+ 
+-    BTUSB_DBG("shutting down HCI intf\n");
++    BTUSB_ERR("shutting down HCI intf\n");
+ 
+     /* prevent more I/O from starting */
+     p_dev->p_main_intf = NULL;
+ 
+     /* cancel pending requests */
+     btusb_cancel_voice(p_dev);
++
++    BTUSB_DBG("Cancelling pending URBs\n");
+     btusb_cancel_urbs(p_dev);
+ 
+     /* give back our minor */
+@@ -1209,7 +1675,7 @@
+     /* decrement the reference counter */
+     BTUSB_DBG("kref_put -> &p_dev->kref 0x%p \n", &p_dev->kref);
+     kref_put(&p_dev->kref, btusb_delete);
+-    BTUSB_TEST("Remove");
++    BTUSB_TEST("Remove\n");
+ }
+ 
+ /*******************************************************************************
+@@ -1379,7 +1845,7 @@
+         }
+     }
+ 
+-    while ((p_buf = (BT_HDR *) GKI_dequeue(&p_dev->rx_queue)) != NULL);
++    while ((p_buf = (BT_HDR *) GKI_dequeue(&p_dev->rx_queue)) != NULL)
+     {
+         BTUSB_INFO("GKI_dequeued !! %d\n", ++idx);
+     }
+@@ -1588,6 +2054,11 @@
+     spin_lock_init(&p_dev->voice_tx_array_lock);
+     pr_err("%s:all endpoint-buffers lock init done\n",__func__);
+ 
++    /* Used at av_remove*/
++    sema_init(&p_dev->av_remove, 1);
++    /* Used to sync wait events */
++    sema_init(&p_dev->sync1, 1);
++
+     /* save the USB information */
+     p_dev->p_udev = usb_get_dev(interface_to_usbdev(p_interface));
+     p_dev->p_id = p_id;
+@@ -1662,8 +2133,13 @@
+     BT_HDR *p_buf = NULL;
+     int idx;
+ 
+-    BTUSB_ERR("enter\n");
+-
++    BTUSB_ERR("Cleanup in-progress..\n");
++	if (!p_dev)
++    {
++        BTUSB_ERR("p_dev == NULL\n");
++        return;
++    }
++	
+ #ifdef BTUSB_LITE
+     btusb_lite_stop_all(p_dev);
+ #endif
+@@ -1679,12 +2155,14 @@
+     p_dev->write_msg_len = 0;
+ 
+     /* ensure that the process is not hanging on select()/poll() */
++    BTUSB_DBG("Waking up sleeping process on the RX_WAIT_Q\n");
+     wake_up_interruptible(&p_dev->rx_wait_q);
+ 
+     /* free allocated USB DMA space */
+     spin_lock(&p_dev->cmd_array_lock);        
+     BTUSB_ARRAY_FOR_EACH_TX_TRANS(p_dev->cmd_array)
+     {
++        BTUSB_DBG("Freeing up the CMD ARRAY DMA Buffers\n");
+         BTUSB_BUFFER_FREE(p_dev->p_udev, BTUSB_HCI_MAX_CMD_SIZE,
+                 p_tx_trans->dma_buffer,
+                 p_tx_trans->dma);
+@@ -1694,6 +2172,7 @@
+     spin_lock(&p_dev->event_array_lock);        
+     BTUSB_ARRAY_FOR_EACH_RX_TRANS(p_dev->event_array)
+     {
++        BTUSB_DBG("Freeing up the HCI Event DMA Buffers\n");
+         BTUSB_BUFFER_FREE(p_dev->p_udev, BTUSB_HCI_MAX_EVT_SIZE,
+                 p_rx_trans->dma_buffer,
+                 p_rx_trans->dma);
+@@ -1703,6 +2182,7 @@
+     spin_lock(&p_dev->acl_rx_array_lock);        
+     BTUSB_ARRAY_FOR_EACH_RX_TRANS(p_dev->acl_rx_array)
+     {
++        BTUSB_DBG("Freeing up the ACL Rx DATA DMA Buffers\n");
+         BTUSB_BUFFER_FREE(p_dev->p_udev, BTUSB_HCI_MAX_ACL_SIZE,
+                 p_rx_trans->dma_buffer,
+                 p_rx_trans->dma);
+@@ -1712,6 +2192,7 @@
+     spin_lock(&p_dev->acl_tx_array_lock);        
+     BTUSB_ARRAY_FOR_EACH_TX_TRANS(p_dev->acl_tx_array)
+     {
++        BTUSB_DBG("Freeing up the ACL Tx DATA DMA Buffers\n");
+         BTUSB_BUFFER_FREE(p_dev->p_udev, BTUSB_HCI_MAX_ACL_SIZE,
+                 p_tx_trans->dma_buffer,
+                 p_tx_trans->dma);
+@@ -1756,8 +2237,11 @@
+     spin_unlock(&p_dev->voice_tx_array_lock);        
+     usb_put_dev(p_dev->p_udev);
+ 
++    down_interruptible(&p_dev->sync1);
+     kfree(p_dev);
++    p_dev = NULL;
+ 
++    BTUSB_ERR("Cleanup complete!!!\n");
+     GKI_shutdown();
+ }
+ 
+@@ -1868,6 +2352,7 @@
+     int result;
+ 
+     BTUSB_INFO("built %s,%s\n", __DATE__, __TIME__);
++    printk(KERN_ERR "%s: Initializing the SS USB driver...\n", __func__);
+ 
+     btusb_proc_init();
+ 	btusb_state_proc_init();
+diff -Naur btusb_oss/src/btusb_dev.c btusb_qcom/src/btusb_dev.c
+--- btusb_oss/src/btusb_dev.c	2015-03-26 02:37:44.000000000 -0700
++++ btusb_qcom/src/btusb_dev.c	2015-08-24 05:51:40.420614678 -0700
+@@ -95,16 +95,16 @@
+ 
+     if (p_title)
+     {
+-        printk("---------------------- %s ----------------------\n", p_title);
++        printk(KERN_ERR "---------------------- %s ----------------------\n", p_title);
+     }
+ 
+     printk("%p: ", p);
+ 
+     for(idx = 0; idx < len; idx++)
+     {
+-        printk("%02x ", p[idx]);
++        printk(KERN_ERR "%02x ", p[idx]);
+     }
+-    printk("\n--------------------------------------------------------------------\n");
++    printk(KERN_ERR "\n--------------------------------------------------------------------\n");
+ }
+ 
+ /*******************************************************************************
+@@ -409,10 +409,12 @@
+     }
+ 
+ #ifdef BTUSB_LITE
++    BTUSB_ERR("Cleaning up BTUSB Lite clients\n");
+     btusb_lite_stop_all(p_dev);
+ #endif
+ 
+     /* ensure there is no process hanging on poll / select */
++    BTUSB_ERR("Notifying sleeping process about closing of driver!!!\n");
+     wake_up_interruptible(&p_dev->rx_wait_q);
+ 
+     for (idx = 0; idx < ARRAY_SIZE(p_dev->voice_rx.channels); idx++)
+@@ -451,11 +453,13 @@
+     /* If HCI is over IPC */
+     if (btusb_lite_is_hci_over_ipc(p_dev))
+     {
++        BTUSB_DBG("HCI is Over IPC: Returning...\n");
+         return NULL;
+     }
+ #endif
+ 
+     /* dequeue the next buffer and store its reference */
++    BTUSB_DBG("Dequeuing the data/event from the 'rx_queue'\n");
+     p_dev->p_rx_msg = GKI_dequeue(&p_dev->rx_queue);
+ 
+     return p_dev->p_rx_msg;
+@@ -533,7 +537,7 @@
+     retval = wait_event_interruptible(p_dev->rx_wait_q, btusb_get_rx_packet(p_dev));
+     if (unlikely(retval))
+     {
+-        BTUSB_DBG("read wait interrupted\n");
++        BTUSB_ERR("read wait interrupted\n");
+         return retval;
+     }
+ 
+@@ -612,7 +616,7 @@
+     struct btusb *p_dev;
+     unsigned char *p_data;
+     size_t remainder = count;
+-    int err;
++    int err = 0;
+     size_t appended, len;
+ 
+     p_dev = (struct btusb *)file->private_data;
+@@ -627,7 +631,7 @@
+ 
+     if (unlikely(!p_dev->p_main_intf))
+     {
+-        BTUSB_DBG("device unplugged\n");
++        BTUSB_ERR("device unplugged\n");
+         return -ENODEV;
+     }
+ 
+@@ -786,11 +790,12 @@
+     /* check if the device was disconnected */
+     if (unlikely(!p_dev->p_main_intf))
+     {
+-        BTUSB_DBG("device unplugged\n");
++        BTUSB_ERR("device probably got unplugged\n");
+         return -ENODEV;
+     }
+ 
+     /* indicate to the system on which queue it should poll (non blocking call) */
++    BTUSB_DBG("Wait on RX_WAIT_Q until data/event available from BT-SOC\n");
+     poll_wait(file, &p_dev->rx_wait_q, p_pt);
+ 
+     /* enable WRITE (select/poll is not write blocking) */
+@@ -800,8 +805,9 @@
+     if (btusb_get_rx_packet(p_dev))
+     {
+         mask |= POLLIN | POLLRDNORM;
++        BTUSB_DBG("Data/Event available on RX_QUEUE available from BT-SOC\n");
+     }
+-
++    BTUSB_DBG("mask: 0x%x\n", mask);
+     return mask;
+ }
+ 
+diff -Naur btusb_oss/src/btusb_lite.c btusb_qcom/src/btusb_lite.c
+--- btusb_oss/src/btusb_lite.c	2015-03-26 02:37:44.000000000 -0700
++++ btusb_qcom/src/btusb_lite.c	2015-08-24 05:51:40.420614678 -0700
+@@ -345,6 +345,7 @@
+     p_msg = p_dev->lite_cb.s.to_app.p_ipc_msg;
+     if (p_msg)
+     {
++        BTUSB_DBG("Returning the locally generated Event (IPC) message(p_ipc_msg) which is pending\n");
+         return p_msg;
+     }
+ 
+@@ -352,6 +353,7 @@
+     p_msg = p_dev->lite_cb.s.to_app.p_hdr_msg;
+     if (p_msg)
+     {
++        BTUSB_DBG("Returning the locally generated IPC Header message(p_hdr_msg) which is pending\n");
+         return p_msg;
+     }
+ 
+@@ -359,17 +361,20 @@
+     p_msg = p_dev->lite_cb.s.to_app.p_hci_msg;
+     if (p_msg)
+     {
++        BTUSB_DBG("Returning the HCI message(p_hci_msg) which is pending\n");
+         return p_msg;
+     }
+ 
+     /*
+      * No pending message. Check queues now
+      */
++    BTUSB_DBG("No pending IPC/HDR/HCI messages: Checking the IPC Queue...\n");
+ 
+     /* First, check if a locally generated Event (UIPC) message is enqueued */
+     p_msg = GKI_dequeue(&p_dev->lite_cb.s.to_app.ipc_queue);
+     if (p_msg)
+     {
++        BTUSB_DBG("Returning the locally generated Event (UIPC) message present in the IPC Queue(ipc_queue)\n");
+         p_dev->lite_cb.s.to_app.p_ipc_msg = p_msg;
+         return p_msg;
+     }
+@@ -377,6 +382,7 @@
+     /* If HCI is not over IPC */
+     if (!btusb_lite_is_hci_over_ipc(p_dev))
+     {
++        BTUSB_DBG("HCI is not over IPC: Returning...\n");
+         return NULL;    /* Nothing more to send on IPC */
+     }
+ 
+@@ -568,13 +574,16 @@
+         goto out;
+     }
+ 
++    /* Grab it so that delete cannot free p_dev*/
++    down_interruptible(&p_dev->sync1);
+     /* Sleep while nothing for the application */
+     rv = wait_event_interruptible(p_dev->rx_wait_q,
+             ((p_msg = btusb_lite_msg_to_app_get(p_dev)) != NULL));
+ 
+     if (unlikely(rv))
+     {
+-        BTUSB_DBG("read wait interrupted");
++        BTUSB_ERR("read wait interrupted");
++        up(&p_dev->sync1);
+         return rv;
+     }
+ 
+@@ -627,6 +636,7 @@
+     size = 0; /* should not happen */
+ 
+ out:
++	up(&p_dev->sync1);
+     return size;
+ }
+ 
+@@ -671,12 +681,14 @@
+     }
+ 
+     /* indicate to the system on which queue it should poll (non blocking call) */
++    BTUSB_DBG("Wait on the rx_wait_q for event/data\n");
+     poll_wait(file, &p_dev->rx_wait_q, p_pt);
+ 
+     /* enable WRITE (select/poll is not write blocking) */
+     mask = POLLOUT | POLLWRNORM;
+ 
+     /* enable READ only if data is queued from HCI */
++    BTUSB_DBG("Check if there is any IPC data/event in the IPC Queue\n");
+     if (btusb_lite_msg_to_app_get(p_dev))
+     {
+         mask |= POLLIN | POLLRDNORM;
+@@ -713,7 +725,7 @@
+         }
+         else
+         {
+-            BTUSB_INFO("Created proc lite entry\n");
++            printk(KERN_INFO "Created proc lite entry\n");
+             rv = 0;
+         }
+     }
+@@ -1500,7 +1512,7 @@
+ {
+     UINT8 cmd;
+     UINT8 *p = (UINT8 *)(p_msg + 1) + p_msg->offset;
+-    UINT8 response[3];
++    UINT8 response[6];     /// Changed from index 3 to 6 to avoid overrun error
+     UINT8 *p_response = response;
+     struct btusb_lite_l2c_cb *p_l2c = &p_dev->lite_cb.s.l2c;
+     int stream;
+diff -Naur btusb_oss/src/btusb_lite_av.c btusb_qcom/src/btusb_lite_av.c
+--- btusb_oss/src/btusb_lite_av.c	2015-03-26 02:37:44.000000000 -0700
++++ btusb_qcom/src/btusb_lite_av.c	2015-08-24 05:51:40.420614678 -0700
+@@ -188,6 +188,7 @@
+         }
+         p_av_cb->pcm.state = PCM_OPENED;
+         p_av_cb->pcm.frequency = -1;
++        p_dev->internal_state = PCM_OPENED;
+     }
+ }
+ 
+@@ -232,11 +233,14 @@
+     {
+         if (p_av_scb->hndl)
+         {
++        	BTUSB_ERR("Handle:%d\n", p_av_scb->hndl);
+             cleanup_needed = 0;
+             break;
+         }
+     }
+ 
++    BTUSB_ERR("PCM State:%d, sbc_state:%d,cleanup_needed:%d, internal_state:%d\n",
++    		p_av_cb->pcm.state, p_av_cb->encoder.opened, cleanup_needed, p_dev->internal_state);
+     if (cleanup_needed)
+     {
+         if (p_av_cb->pcm.state == PCM_STARTED)
+@@ -250,23 +254,27 @@
+             p_av_cb->pcm.state = PCM_CONFIGURED;
+         }
+ 
+-        if (p_av_cb->pcm.state != PCM_CLOSED)
++        /* States are maintained at every level so multiple calls have no harm*/
++        //if (p_av_cb->pcm.state != PCM_CLOSED)
++        if(p_dev->internal_state != PCM_CLOSED)
+         {
++        	p_dev->internal_state = PCM_CLOSED;
+             /* Close the PCM Channel */
+             rv = btpcm_close(p_dev->lite_cb.p_btpcm);
+             if (rv < 0)
+             {
+-                BTUSB_ERR("btpcm_close failed\n");
++                BTUSB_ERR("btpcm_close already closed\n");
+             }
+             p_av_cb->pcm.state = PCM_CLOSED;
+-        }
+ 
+-        if (p_av_cb->encoder.opened)
+-        {
++        //if (p_av_cb->encoder.opened)
+             switch(p_av_cb->encoder.type)
+             {
+             case A2D_MEDIA_CT_SBC:
++            	/*making atmoic to avoid worst cases*/
++            	down_interruptible(&p_dev->av_remove);
+                 btsbc_free(p_av_cb->encoder.channel);
++                up(&p_dev->av_remove);
+                 break;
+ #ifdef BTUSB_LITE_SEC
+             case A2D_MEDIA_CT_SEC:
+@@ -564,13 +572,13 @@
+     BTUSB_INFO("nb_sbc_frames=%d payload_len=%d\n", nb_sbc_frames, p_av_cb->payload_len);
+ 
+ 	/* Start the PCM stream */
+-	p_av_cb->pcm.state = PCM_STARTED;
+-    rv = btpcm_start(p_dev->lite_cb.p_btpcm, p_encoder->pcm_frame_size, nb_sbc_frames, 0);
+-    if (rv < 0)
+-    {
+-    	p_av_cb->pcm.state = PCM_CONFIGURED;
+-        BTUSB_ERR("btpcm_start failed\n");
+-        return -1;
++	p_av_cb->pcm.state = PCM_STARTED;
++    rv = btpcm_start(p_dev->lite_cb.p_btpcm, p_encoder->pcm_frame_size, nb_sbc_frames, 0);
++    if (rv < 0)
++    {
++    	p_av_cb->pcm.state = PCM_CONFIGURED;
++        BTUSB_ERR("btpcm_start failed\n");
++        return -1;
+     }
+     
+ 	return 0;
+@@ -1118,7 +1126,7 @@
+     struct btusb_lite_av_cb *p_av_cb;
+     int pcm_frame_size_byte;
+     void *p_dest;
+-    int written_enc_size;
++    int written_enc_size = 0;
+     struct btusb_lite_encoder_ccb *p_encoder;
+ 
+     if (!p_dev)
+diff -Naur btusb_oss/src/btusb_lite_hci.c btusb_qcom/src/btusb_lite_hci.c
+--- btusb_oss/src/btusb_lite_hci.c	2015-03-26 02:37:44.000000000 -0700
++++ btusb_qcom/src/btusb_lite_hci.c	2015-08-24 05:51:40.420614678 -0700
+@@ -204,14 +204,15 @@
+     UINT8 *p;
+     UINT16 size;
+ #endif
+-
++/* We are not using HCI over IPC but NOCP should be handled here for LITE A2DP */
++#if 0//We are not using HCI over IPC but NOCP should be handled here for A2DP
+     /* Check if HCI is over IPC */
+     if (btusb_lite_is_hci_over_ipc(p_dev) == 0)
+     {
+         /* If it is not, the event have to be sent through regular HCI */
+         return 1;
+     }
+-
++#endif
+     /* Check if the Event is a NumberOfCompletePacket Event */
+     if (btusb_lite_hci_nocp_event_hdlr(p_dev, p_data, length) == 0)
+     {
+diff -Naur btusb_oss/src/btusb_lite_l2c.c btusb_qcom/src/btusb_lite_l2c.c
+--- btusb_oss/src/btusb_lite_l2c.c	2015-03-26 02:37:44.000000000 -0700
++++ btusb_qcom/src/btusb_lite_l2c.c	2015-08-24 05:51:40.420614678 -0700
+@@ -258,7 +258,7 @@
+     /* Sanity */
+     if (p_msg_dup->offset < BTUSB_LITE_L2CAP_HDR_SIZE)
+     {
+-        BTUSB_ERR("offset too small=%d\n", p_msg->offset);
++        BTUSB_ERR("offset too small=%d\n", p_msg_dup->offset);
+         GKI_freebuf(p_msg_dup); /* Free this ACL buffer */
+         atomic_set(&lock, 0);
+         return-1;
+@@ -371,6 +371,7 @@
+ 	GKI_disable(); 
+ 
+     if (p_l2c_ccb->link_tx_jiffies)
++    {
+         delta = (int)jiffies_to_msecs(jiffies - p_l2c_ccb->link_tx_jiffies);
+         BTUSB_DBG("L2C NOCP jiffies:%ld tx_jif:%d delta:%d\n",
+                 jiffies, p_l2c_ccb->link_tx_jiffies, delta);
+@@ -385,7 +386,7 @@
+             btusb_lite_ipc_rsp_send(p_dev, BT_EVT_BTU_IPC_L2C_EVT, L2C_HARDWARE_ERROR_EVT, msg, 1);
+             return num_cplt_pck_caugth;
+         }
+-
++    }
+     BTUSB_DBG("L2C NOCP Tx Pending=%d\n", p_l2c_ccb->tx_pending);
+ 
+     GKI_enable();
+diff -Naur btusb_oss/src/gki/gki_buffer.c btusb_qcom/src/gki/gki_buffer.c
+--- btusb_oss/src/gki/gki_buffer.c	2015-03-26 02:37:44.000000000 -0700
++++ btusb_qcom/src/gki/gki_buffer.c	2015-08-24 05:51:40.420614678 -0700
+@@ -244,7 +244,7 @@
+ *******************************************************************************/
+ static void gki_add_to_pool_list(UINT8 pool_id)
+ {
+-    INT32 i, j;
++    INT32 i;
+ 
+      /* Find the position where the specified pool should be inserted into the list */
+     for (i = 0; i < gki_cb.curr_total_no_of_pools; i++) 
+@@ -253,11 +253,14 @@
+             break;
+     }
+ 
+-    /* Insert the new buffer pool ID into the list of pools */
++    /*  Insert the new buffer pool ID into the list of pools
++     * Since GKI_NUM_TOTAL_BUF_POOLS value is 1, this code was not needed */
++    /*
+     for (j = gki_cb.curr_total_no_of_pools; j > i; j--)
+     {
+         gki_cb.pool_list[j] = gki_cb.pool_list[j-1];
+     }
++	*/
+ 
+     /* Prevent warning */
+     if ( i < GKI_NUM_TOTAL_BUF_POOLS)

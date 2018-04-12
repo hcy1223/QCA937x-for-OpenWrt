@@ -1,0 +1,911 @@
+/*
+* Copyright (c) 2015 Qualcomm Atheros, Inc.
+* All Rights Reserved.
+* Qualcomm Atheros Confidential and Proprietary.
+* NOT A CONTRIBUTION
+*/
+
+diff -Nuar android-x86-kk-unpatched/hardware/qcom/bt/Android.mk android-x86-kk/hardware/qcom/bt/Android.mk
+--- android-x86-kk-unpatched/hardware/qcom/bt/Android.mk	2014-09-07 23:20:24.000000000 +0800
++++ android-x86-kk/hardware/qcom/bt/Android.mk	2015-05-06 17:47:56.566292521 +0800
+@@ -1,3 +1,3 @@
+-ifeq ($(call is-vendor-board-platform,QCOM),true)
++ifeq ($(BOARD_HAVE_BLUETOOTH_QCOM),true)
+ include $(call all-named-subdir-makefiles,libbt-vendor)
+-endif # is-vendor-board-platform
++endif # BOARD_HAVE_BLUETOOTH_QCOM
+diff -Nuar android-x86-kk-unpatched/hardware/qcom/bt/libbt-vendor/include/bt_nv.h android-x86-kk/hardware/qcom/bt/libbt-vendor/include/bt_nv.h
+--- android-x86-kk-unpatched/hardware/qcom/bt/libbt-vendor/include/bt_nv.h	1970-01-01 08:00:00.000000000 +0800
++++ android-x86-kk/hardware/qcom/bt/libbt-vendor/include/bt_nv.h	2015-05-06 17:47:56.566292521 +0800
+@@ -0,0 +1,109 @@
++#ifndef BT_NV_H
++#define BT_NV_H
++/*============================================================================
++  Copyright (c) 2011-2012 Qualcomm Technologies, Inc.  All Rights Reserved.
++  Qualcomm Technologies Proprietary and Confidential.
++
++  FILE: bt_nv.h
++
++  OVERVIEW: Public declarations for the NV parser module.
++
++*==============================================================================
++                        EDIT HISTORY FOR MODULE
++
++  This section contains comments describing changes made to the module.
++  Notice that changes are listed in reverse chronological order. Please
++  use ISO format for dates.
++
++when        who  what, where, why
++----------  ---  -----------------------------------------------------------
++2010-02-15   ss  Intial version
++2011-09-28  rrr  Moved the implementation to CPP, for having BD address being
++                 programmed twice if previous BD address was random generated.
++2012-02-22  rrr  Added macro related to persistent file path.
++============================================================================*/
++#ifdef __cplusplus
++extern "C" {
++#endif
++
++#include <linux/limits.h>
++
++/* To Enable the logging define the BTNV_DEBUG */
++//#define BTNV_DEBUG
++
++#define TRUE 1
++#define FALSE 0
++#define NV_BD_ADDR_SIZE 6
++#define PERSISTENCE_PATH "/persist"
++#define BT_NV_FILE_NAME ".bt_nv.bin"
++
++/* BTS Master Clock Reference Value */
++typedef long int nv_ps_bt_soc_refclock_enum_type;
++#define NV_PS_BT_SOC_REFCLOCK_32MHZ ((nv_ps_bt_soc_refclock_enum_type)0)
++#define NV_PS_BT_SOC_REFCLOCK_19P2MHZ ((nv_ps_bt_soc_refclock_enum_type)1)
++
++/* Provides Information of BTS clk sharing */
++typedef long int nv_ps_bt_soc_clock_sharing_enum_type;
++#define  NV_PS_BT_SOC_CLOCK_SHARING_DISABLED ((nv_ps_bt_soc_clock_sharing_enum_type)0)
++#define  NV_PS_BT_SOC_CLOCK_SHARING_ENABLED ((nv_ps_bt_soc_clock_sharing_enum_type)1)
++
++
++typedef union{
++  /* Provides the BT Address */
++  unsigned char bd_addr[NV_BD_ADDR_SIZE];
++  /* Provides the BTS Master Reference Clock */
++  nv_ps_bt_soc_refclock_enum_type bt_soc_refclock_type;
++  /* Provides Information of BTS Clk sharing  */
++  nv_ps_bt_soc_clock_sharing_enum_type bt_soc_clk_sharing_type;
++} nv_persist_item_type;
++
++typedef enum {
++  NV_BT_ITEM_MIN,
++  NV_BD_ADDR_I,
++  NV_BT_SOC_REFCLOCK_TYPE_I,
++  NV_BT_SOC_CLK_SHARING_TYPE_I,
++  NV_BT_ITEM_MAX
++} nv_persist_items_enum_type;
++
++
++/*  Command codes when command is issued to the NV task.                   */
++typedef enum {
++  NV_READ_F,          /* Read item */
++  NV_WRITE_F          /* Write item */
++} nv_persist_func_enum_type;
++
++/*  Returned status codes for requested operation.                         */
++typedef enum {
++  NV_SUCCESS=0,          /* Request completed okay */
++  NV_FAILURE,          /* Command failed, reason other than NVM was full */
++  NV_BADCMD,        /* Unrecognizable command field */
++  NV_READONLY,      /* Parameter is write-protected and thus read only */
++} nv_persist_stat_enum_type;
++
++
++/*==============================================================
++FUNCTION:  bt_nv_cmd
++==============================================================*/
++/**
++  This function is to do the read and write the NV item.
++
++  @see  nv_persist_func_enum_type -> For Read or Write (nv_persist_func_enum_type)
++    nv_persist_items_enum_type  -> NV ID number (refer the nv_persist_items_enum_type enum)
++    nv_persist_item_type    -> Structure which contains the variables to read or write.
++    bIsRandom -> Used only in case of BD address NV item being written.
++      bIsRandom = 1 implies that BD address programmed is random generated
++      bIsRandom = 0 (default) implies it to be user programmed
++
++  @return  Returns the nagative value on failure.
++
++  @sideeffects Undetermined.
++*/
++int bt_nv_cmd(nv_persist_func_enum_type nvReadWriteFunc,  nv_persist_items_enum_type nvitem,
++                nv_persist_item_type *my_nv_item, int bIsRandom = 0);
++
++
++#ifdef __cplusplus
++}
++#endif
++
++#endif
+diff -Nuar android-x86-kk-unpatched/hardware/qcom/bt/libbt-vendor/include/hci_uart.h android-x86-kk/hardware/qcom/bt/libbt-vendor/include/hci_uart.h
+--- android-x86-kk-unpatched/hardware/qcom/bt/libbt-vendor/include/hci_uart.h	2014-09-07 23:20:24.000000000 +0800
++++ android-x86-kk/hardware/qcom/bt/libbt-vendor/include/hci_uart.h	2015-05-06 17:47:56.570292521 +0800
+@@ -21,7 +21,7 @@
+ 
+ /* Variables to identify the platform */
+ /*BT HS UART TTY DEVICE */
+-#define BT_HS_UART_DEVICE "/dev/ttyHS0"
++#define BT_HS_UART_DEVICE "/dev/ttyUSB0"
+ 
+ /**** baud rates ****/
+ #define USERIAL_BAUD_300        0
+diff -Nuar android-x86-kk-unpatched/hardware/qcom/bt/libbt-vendor/include/hw_rome.h android-x86-kk/hardware/qcom/bt/libbt-vendor/include/hw_rome.h
+--- android-x86-kk-unpatched/hardware/qcom/bt/libbt-vendor/include/hw_rome.h	2014-09-07 23:20:24.000000000 +0800
++++ android-x86-kk/hardware/qcom/bt/libbt-vendor/include/hw_rome.h	2015-05-14 17:45:54.749847495 +0800
+@@ -76,7 +76,8 @@
+ /* VS Opcode */
+ #define HCI_PATCH_CMD_OCF                       (0)
+ #define EDL_SET_BAUDRATE_CMD_OCF        (0x48)
+-#define EDL_WIPOWER_VS_CMD_OCF          (0x0c)
++#define EDL_WIPOWER_VS_CMD_OCF          (0x1f)
++#define HCI_VS_GET_ADDON_FEATURES_SUPPORT   (0x1d)
+ 
+ /* VS Commands */
+ #define VSC_SET_BAUDRATE_REQ_LEN        (1)
+@@ -89,6 +90,7 @@
+ #define EDL_PATCH_SET_REQ_CMD               (0x16)
+ #define EDL_PATCH_ATCH_REQ_CMD            (0x17)
+ #define EDL_PATCH_VER_REQ_CMD               (0x19)
++#define EDL_GET_BUILD_INFO                  (0x20)
+ #define EDL_PATCH_TLV_REQ_CMD               (0x1E)
+ #define EDL_WIP_QUERY_CHARGING_STATUS_CMD   (0x1D)
+ #define EDL_WIP_START_HANDOFF_TO_HOST_CMD   (0x1E)
+@@ -102,7 +104,9 @@
+ #define EDL_APP_VER_RES_EVT                  (0x02)
+ #define EDL_WIP_QUERY_CHARGING_STATUS_EVT    (0x18)
+ #define EDL_WIP_START_HANDOFF_TO_HOST_EVENT  (0x19)
+-
++#define HCI_VS_GET_ADDON_FEATURES_EVENT      (0x1B)
++#define HCI_VS_GET_BUILD_VER_EVT             (0x05)
++#define HCI_VS_STRAY_EVT                (0x17)
+ 
+ /* Status Codes of HCI CMD execution*/
+ #define HCI_CMD_SUCCESS                     (0x0)
+@@ -118,6 +122,9 @@
+ #define WIPOWER_IN_EMBEDDED_MODE 0x01
+ #define NON_WIPOWER_MODE 0x02
+ 
++/* mask to validate support for wipower */
++#define ADDON_FEATURES_EVT_WIPOWER_MASK      (0x01)
++
+ /* TLV_TYPE */
+ #define TLV_TYPE_PATCH                  (1)
+ #define TLV_TYPE_NVM                      (2)
+@@ -150,9 +157,33 @@
+ #define ROME_NVM_TLV_1_0_3_PATH         "/system/etc/firmware/nvm_tlv_1.3.bin"
+ #define ROME_RAMPATCH_TLV_2_0_1_PATH    "/system/etc/firmware/rampatch_tlv_2.1.tlv"
+ #define ROME_NVM_TLV_2_0_1_PATH         "/system/etc/firmware/nvm_tlv_2.1.bin"
+-#define ROME_RAMPATCH_TLV_3_0_0_PATH    "/system/etc/firmware/rampatch_tlv_3.0.tlv"
+-#define ROME_NVM_TLV_3_0_0_PATH         "/system/etc/firmware/nvm_tlv_3.0.bin"
+-
++#define ROME_RAMPATCH_TLV_3_0_0_PATH    "/bt_firmware/image/btfw30.tlv"
++#define ROME_NVM_TLV_3_0_0_PATH         "/bt_firmware/image/btnv30.bin"
++//#define ROME_RAMPATCH_TLV_3_0_0_PATH    "/system/etc/firmware/rampatch_tlv_3.0.tlv"
++//#define ROME_NVM_TLV_3_0_0_PATH         "/system/etc/firmware/nvm_tlv_3.0.bin"
++#define ROME_RAMPATCH_TLV_3_0_2_PATH    "/bt_firmware/image/btfw32.tlv"
++#define ROME_NVM_TLV_3_0_2_PATH         "/bt_firmware/image/btnv32.bin"
++//#define ROME_RAMPATCH_TLV_3_0_2_PATH    "/system/etc/firmware/rampatch_tlv_3.2.tlv"
++//#define ROME_NVM_TLV_3_0_2_PATH         "/system/etc/firmware/nvm_tlv_3.2.bin"
++#define TF_RAMPATCH_TLV_1_0_1_PATH      "/lib/firmware/ar3k/rampatch_tlv_tf_1.1.tlv"
++#define TF_NVM_TLV_1_0_1_PATH           "/lib/firmware/ar3k/nvm_tlv_tf_1.1.bin"
++
++#define ROME_3_1_FW_SU  "bprm.cnss.3.1"
++#define ROME_3_2_FW_SU  "btfwp.cnss.3.2"
++
++/* Rome 3.1 FW SU release has been branched from rome 3.0 SU 224
++    So, rome 3.1 formula is SU = patch version -(0xE0 = 224) - 0x111 -1
++*/
++#define ROME_3_1_FW_SW_OFFSET   0x01F2
++
++/* Rome 3.2 FW SU formula is SU = patch version - 0x111 -1 */
++#define ROME_3_2_FW_SW_OFFSET   0x0112
++
++/* This header value in rampatch file decides event handling mechanism in the HOST */
++#define ROME_SKIP_EVT_NONE     0x00
++#define ROME_SKIP_EVT_VSE      0x01
++#define ROME_SKIP_EVT_CC       0x02
++#define ROME_SKIP_EVT_VSE_CC   0x03
+ 
+ /******************************************************************************
+ **  Local type definitions
+@@ -177,7 +208,8 @@
+     unsigned int  tlv_patch_data_len;
+     unsigned char sign_ver;
+     unsigned char sign_algorithm;
+-    unsigned short reserved1;
++    unsigned char dwnd_cfg;
++    unsigned char reserved1;
+     unsigned short prod_id;
+     unsigned short build_ver;
+     unsigned short patch_ver;
+@@ -233,13 +265,16 @@
+     ROME_PATCH_VER_0100 = 0x0100,
+     ROME_PATCH_VER_0101 = 0x0101,
+     ROME_PATCH_VER_0200 = 0x0200,
+-    ROME_PATCH_VER_0300 = 0x0300
++    ROME_PATCH_VER_0300 = 0x0300,
++    ROME_PATCH_VER_0302 = 0x0302
+  };
+ 
+ enum{
+     ROME_SOC_ID_00 = 0x00000000,
+     ROME_SOC_ID_11 = 0x00000011,
+     ROME_SOC_ID_22 = 0x00000022,
++    ROME_SOC_ID_23 = 0x00000023,
++    ROME_SOC_ID_44 = 0x00000044
+ };
+ 
+ enum{
+@@ -248,6 +283,8 @@
+     ROME_VER_1_1 = ((ROME_PATCH_VER_0101 << 16 ) | ROME_SOC_ID_00 ),
+     ROME_VER_1_3 = ((ROME_PATCH_VER_0200 << 16 ) | ROME_SOC_ID_00 ),
+     ROME_VER_2_1 = ((ROME_PATCH_VER_0200 << 16 ) | ROME_SOC_ID_11 ),
+-    ROME_VER_3_0 = ((ROME_PATCH_VER_0300 << 16 ) | ROME_SOC_ID_22 )
++    ROME_VER_3_0 = ((ROME_PATCH_VER_0300 << 16 ) | ROME_SOC_ID_22 ),
++    ROME_VER_3_2 = ((ROME_PATCH_VER_0302 << 16 ) | ROME_SOC_ID_44 ),
++    TUFELLO_VER_1_1 = ((ROME_PATCH_VER_0302 << 16 ) | ROME_SOC_ID_23 )
+ };
+ #endif /* HW_ROME_H */
+diff -Nuar android-x86-kk-unpatched/hardware/qcom/bt/libbt-vendor/src/bt_vendor_qcom.c android-x86-kk/hardware/qcom/bt/libbt-vendor/src/bt_vendor_qcom.c
+--- android-x86-kk-unpatched/hardware/qcom/bt/libbt-vendor/src/bt_vendor_qcom.c	2014-09-07 23:20:24.000000000 +0800
++++ android-x86-kk/hardware/qcom/bt/libbt-vendor/src/bt_vendor_qcom.c	2015-05-06 17:47:56.570292521 +0800
+@@ -728,9 +728,10 @@
+                                     } else {
+                                         ALOGV("rome_soc_init is completed");
+                                         property_set("wc_transport.soc_initialized", "1");
+-                                        userial_clock_operation(fd, USERIAL_OP_CLK_OFF);
++					//comment out close fd.
++					//userial_clock_operation(fd, USERIAL_OP_CLK_OFF);
+                                         /*Close the UART port*/
+-                                        close(fd);
++                                        //close(fd);
+                                     }
+                                 }
+                             }
+@@ -738,7 +739,8 @@
+                             property_set("wc_transport.clean_up","0");
+                             if (retval != -1) {
+ #ifdef BT_SOC_TYPE_ROME
+-                                 start_hci_filter();
++				 //comment out host sleep functiion, if we use USB-serial converter instead of REAL UART
++				 //start_hci_filter();
+                                  if (is_ant_req) {
+                                      ALOGV("connect to ant channel");
+                                      ant_fd = fd = connect_to_local_socket("ant_sock");
+@@ -747,7 +749,8 @@
+ #endif
+                                  {
+                                      ALOGV("connect to bt channel");
+-                                     vnd_userial.fd = fd = connect_to_local_socket("bt_sock");
++				     //comment out, we don't need this.
++				     //vnd_userial.fd = fd = connect_to_local_socket("bt_sock");
+                                  }
+ 
+                                  if (fd != -1) {
+diff -Nuar android-x86-kk-unpatched/hardware/qcom/bt/libbt-vendor/src/hw_rome.c android-x86-kk/hardware/qcom/bt/libbt-vendor/src/hw_rome.c
+--- android-x86-kk-unpatched/hardware/qcom/bt/libbt-vendor/src/hw_rome.c	2014-09-07 23:20:24.000000000 +0800
++++ android-x86-kk/hardware/qcom/bt/libbt-vendor/src/hw_rome.c	2015-05-15 10:28:37.503362599 +0800
+@@ -53,13 +53,7 @@
+ #include "hci_uart.h"
+ #include "hw_rome.h"
+ 
+-#define QBT_HOST_VERSION_MAJOR            3
+-#define QBT_HOST_VERSION_MINOR            0
+-#define QBT_HOST_VERSION_PATCH            0
+-#define QBT_HOST_VERSION_BUILD            001
+-#define QBT_HOST_VERSIONSTR               "3.0.0.001"
+-
+-#define BT_VERSION_FILEPATH "/data/misc/bluedroid/bt_version.info"
++#define BT_VERSION_FILEPATH "/data/misc/bluedroid/bt_fw_version.txt"
+ 
+ #ifdef __cplusplus
+ }
+@@ -74,12 +68,17 @@
+ patch_info rampatch_patch_info;
+ int rome_ver = ROME_VER_UNKNOWN;
+ unsigned char gTlv_type;
++unsigned char gTlv_dwndCfg;
+ static unsigned int wipower_flag = 0;
+ static unsigned int wipower_handoff_ready = 0;
+ char *rampatch_file_path;
+ char *nvm_file_path;
++char *fw_su_info = NULL;
++unsigned short fw_su_offset =0;
+ extern char enable_extldo;
+-
++unsigned char wait_vsc_evt = TRUE;
++unsigned char patch_dnld_pending = FALSE;
++int dnld_fd = -1;
+ /******************************************************************************
+ **  Extern variables
+ ******************************************************************************/
+@@ -88,6 +87,62 @@
+ /*****************************************************************************
+ **   Functions
+ *****************************************************************************/
++/*
++ * Read an VS HCI event from the given file descriptor.
++ */
++int read_vs_hci_event(int fd, unsigned char* buf, int size)
++{
++    int remain, r;
++    int count = 0, i;
++
++    if (size <= 0) {
++        ALOGE("Invalid size arguement!");
++        return -1;
++    }
++
++    ALOGI("%s: Wait for HCI-Vendor Specfic Event from SOC", __FUNCTION__);
++
++    /* The first byte identifies the packet type. For HCI event packets, it
++     * should be 0x04, so we read until we get to the 0x04. */
++    /* It will keep reading until find 0x04 byte */
++    while (1) {
++            r = read(fd, buf, 1);
++            if (r <= 0)
++                    return -1;
++            if (buf[0] == 0x04)
++                    break;
++    }
++    count++;
++
++    /* The next two bytes are the event code and parameter total length. */
++    while (count < 3) {
++            r = read(fd, buf + count, 3 - count);
++            if ((r <= 0) || (buf[1] != 0xFF )) {
++                ALOGE("It is not VS event !! ret: %d, EVT: %d", r, buf[1]);
++                return -1;
++            }
++            count += r;
++    }
++
++    /* Now we read the parameters. */
++    if (buf[2] < (size - 3))
++            remain = buf[2];
++    else
++            remain = size - 3;
++
++    while ((count - 3) < remain) {
++            r = read(fd, buf + count, remain - (count - 3));
++            if (r <= 0)
++                    return -1;
++            count += r;
++    }
++
++     /* Check if the set patch command is successful or not */
++    if(get_vs_hci_event(buf) != HCI_CMD_SUCCESS)
++        return -1;
++
++    return count;
++}
+ 
+ int get_vs_hci_event(unsigned char *rsp)
+ {
+@@ -98,6 +153,8 @@
+     unsigned int soc_id = 0;
+     unsigned int productid = 0;
+     unsigned short patchversion = 0;
++    char build_label[255];
++    int build_lbl_len;
+ 
+     if( (rsp[EVENTCODE_OFFSET] == VSEVENT_CODE) || (rsp[EVENTCODE_OFFSET] == EVT_CMD_COMPLETE))
+         ALOGI("%s: Received HCI-Vendor Specific event", __FUNCTION__);
+@@ -128,8 +185,8 @@
+ 
+                 /* Patch Version indicates FW patch version */
+                 ALOGI("\t Current Patch Version\t\t: 0x%04x",
+-                    (unsigned short)(rsp[PATCH_PATCH_VER_OFFSET + 1] << 8 |
+-                                            rsp[PATCH_PATCH_VER_OFFSET] ));
++                    (patchversion = (unsigned short)(rsp[PATCH_PATCH_VER_OFFSET + 1] << 8 |
++                                            rsp[PATCH_PATCH_VER_OFFSET] )));
+ 
+                 /* ROM Build Version indicates ROM build version like 1.0/1.1/2.0 */
+                 ALOGI("\t Current ROM Build Version\t: 0x%04x", rome_ver =
+@@ -151,7 +208,6 @@
+                     fprintf(btversionfile, "Bluetooth Controller Patch Version : 0x%04x\n", patchversion);
+                     fprintf(btversionfile, "Bluetooth Controller Build Version : 0x%04x\n", rome_ver);
+                     fprintf(btversionfile, "Bluetooth Controller SOC Version   : 0x%08x\n", soc_id);
+-                    fprintf(btversionfile, "Bluetooth Host Version             : %s\n", QBT_HOST_VERSIONSTR);
+                     fclose(btversionfile);
+                 }else {
+                     ALOGI("Failed to dump SOC version info. Errno:%d", errno);
+@@ -191,6 +247,19 @@
+                         break;
+                     }
+             break;
++            case HCI_VS_GET_BUILD_VER_EVT:
++                build_lbl_len = rsp[5];
++                memcpy (build_label, &rsp[6], build_lbl_len);
++                *(build_label+build_lbl_len) = '\0';
++
++                ALOGI("BT SoC FW SU Build info: %s, %d", build_label, build_lbl_len);
++                if (NULL != (btversionfile = fopen(BT_VERSION_FILEPATH, "a+b"))) {
++                    fprintf(btversionfile, "Bluetooth Contoller SU Build info  : %s\n", build_label);
++                    fclose(btversionfile);
++                } else {
++                    ALOGI("Failed to dump  FW SU build info. Errno:%d", errno);
++                }
++            break;
+         }
+         break;
+ 
+@@ -225,7 +294,28 @@
+                ALOGE("%s: WiPower Charging hand off not ready!!!", __FUNCTION__);
+             }
+             break;
+-
++        case HCI_VS_GET_ADDON_FEATURES_EVENT:
++            if ((rsp[4] & ADDON_FEATURES_EVT_WIPOWER_MASK))
++            {
++               ALOGD("%s: WiPower feature supported!!", __FUNCTION__);
++               property_set("persist.bluetooth.a4wp", "true");
++            }
++            break;
++        case HCI_VS_STRAY_EVT:
++            /* WAR to handle stray Power Apply EVT during patch download */
++            ALOGD("%s: Stray HCI VS EVENT", __FUNCTION__);
++            if (patch_dnld_pending && dnld_fd != -1)
++            {
++                unsigned char rsp[HCI_MAX_EVENT_SIZE];
++                memset(rsp, 0x00, HCI_MAX_EVENT_SIZE);
++                read_vs_hci_event(dnld_fd, rsp, HCI_MAX_EVENT_SIZE);
++            }
++            else
++            {
++                ALOGE("%s: Not a valid status!!!", __FUNCTION__);
++                err = -1;
++            }
++            break;
+         default:
+             ALOGE("%s: Not a valid status!!!", __FUNCTION__);
+             err = -1;
+@@ -237,62 +327,6 @@
+ }
+ 
+ 
+-/*
+- * Read an VS HCI event from the given file descriptor.
+- */
+-int read_vs_hci_event(int fd, unsigned char* buf, int size)
+-{
+-    int remain, r;
+-    int count = 0, i;
+-
+-    if (size <= 0) {
+-        ALOGE("Invalid size arguement!");
+-        return -1;
+-    }
+-
+-    ALOGI("%s: Wait for HCI-Vendor Specfic Event from SOC", __FUNCTION__);
+-
+-    /* The first byte identifies the packet type. For HCI event packets, it
+-     * should be 0x04, so we read until we get to the 0x04. */
+-    /* It will keep reading until find 0x04 byte */
+-    while (1) {
+-            r = read(fd, buf, 1);
+-            if (r <= 0)
+-                    return -1;
+-            if (buf[0] == 0x04)
+-                    break;
+-    }
+-    count++;
+-
+-    /* The next two bytes are the event code and parameter total length. */
+-    while (count < 3) {
+-            r = read(fd, buf + count, 3 - count);
+-            if ((r <= 0) || (buf[1] != 0xFF )) {
+-                ALOGE("It is not VS event !!");
+-                return -1;
+-            }
+-            count += r;
+-    }
+-
+-    /* Now we read the parameters. */
+-    if (buf[2] < (size - 3))
+-            remain = buf[2];
+-    else
+-            remain = size - 3;
+-
+-    while ((count - 3) < remain) {
+-            r = read(fd, buf + count, remain - (count - 3));
+-            if (r <= 0)
+-                    return -1;
+-            count += r;
+-    }
+-
+-     /* Check if the set patch command is successful or not */
+-    if(get_vs_hci_event(buf) != HCI_CMD_SUCCESS)
+-        return -1;
+-
+-    return count;
+-}
+ 
+ /*
+  * For Hand-Off related Wipower commands, Command complete arrives first and
+@@ -335,14 +369,16 @@
+         goto failed;
+     }
+ 
+-    /* Check for response from the Controller */
+-    if (read_vs_hci_event(fd, rsp, HCI_MAX_EVENT_SIZE) < 0) {
+-        ret = -ETIMEDOUT;
+-        ALOGI("%s: Failed to get HCI-VS Event from SOC", __FUNCTION__);
+-        goto failed;
++    if (wait_vsc_evt) {
++        /* Check for response from the Controller */
++        if (read_vs_hci_event(fd, rsp, HCI_MAX_EVENT_SIZE) < 0) {
++           ret = -ETIMEDOUT;
++           ALOGI("%s: Failed to get HCI-VS Event from SOC", __FUNCTION__);
++           goto failed;
++        }
++        ALOGI("%s: Received HCI-Vendor Specific Event from SOC", __FUNCTION__);
+     }
+ 
+-    ALOGI("%s: Received HCI-Vendor Specific Event from SOC", __FUNCTION__);
+ failed:
+     return ret;
+ }
+@@ -418,6 +454,11 @@
+             offset = (segtNo * MAX_SIZE_PER_TLV_SEGMENT);
+             memcpy(&cmd[6], (pdata_buffer + offset), size);
+             break;
++        case EDL_GET_BUILD_INFO:
++            ALOGD("%s: Sending EDL_GET_BUILD_INFO", __FUNCTION__);
++            ALOGD("HCI-CMD %d:\t0x%x \t0x%x \t0x%x \t0x%x \t0x%x",
++                segtNo, cmd[0], cmd[1], cmd[2], cmd[3], cmd[4]);
++            break;
+         default:
+             ALOGE("%s: Unknown EDL CMD !!!", __FUNCTION__);
+     }
+@@ -782,6 +823,7 @@
+ 
+     /* To handle different event between rampatch and NVM */
+     gTlv_type = ptlv_header->tlv_type;
++    gTlv_dwndCfg = ptlv_header->tlv.patch.dwnd_cfg;
+ 
+     if(ptlv_header->tlv_type == TLV_TYPE_PATCH){
+         ALOGI("====================================================");
+@@ -793,6 +835,7 @@
+         ALOGI("Patch Data Length\t\t\t : %d bytes",ptlv_header->tlv.patch.tlv_patch_data_len);
+         ALOGI("Signing Format Version\t : 0x%x", ptlv_header->tlv.patch.sign_ver);
+         ALOGI("Signature Algorithm\t\t : 0x%x", ptlv_header->tlv.patch.sign_algorithm);
++        ALOGI("Event Handling\t\t\t : 0x%x", ptlv_header->tlv.patch.dwnd_cfg);
+         ALOGI("Reserved\t\t\t : 0x%x", ptlv_header->tlv.patch.reserved1);
+         ALOGI("Product ID\t\t\t : 0x%04x\n", ptlv_header->tlv.patch.prod_id);
+         ALOGI("Rom Build Version\t\t : 0x%04x\n", ptlv_header->tlv.patch.build_ver);
+@@ -859,7 +902,7 @@
+     unsigned char cmd[HCI_MAX_CMD_SIZE];
+     unsigned char rsp[HCI_MAX_EVENT_SIZE];
+ 
+-    ALOGI("%s: Downloading TLV Patch segment no.%d, size:%d", __FUNCTION__, index, seg_size);
++    ALOGI("%s: Downloading TLV Patch segment no.%d, size:%d, wait_cc_evt:0x%x", __FUNCTION__, index, seg_size, wait_cc_evt);
+ 
+     /* Frame the HCI CMD PKT to be sent to Controller*/
+     frame_hci_cmd_pkt(cmd, EDL_PATCH_TLV_REQ_CMD, 0, index, seg_size);
+@@ -893,6 +936,7 @@
+ {
+     int  total_segment, remain_size, i, err = -1;
+     unsigned char wait_cc_evt;
++    unsigned int rom = rome_ver >> 16;
+ 
+     total_segment = tlv_size/MAX_SIZE_PER_TLV_SEGMENT;
+     remain_size = (tlv_size < MAX_SIZE_PER_TLV_SEGMENT)?\
+@@ -901,23 +945,88 @@
+     ALOGI("%s: TLV size: %d, Total Seg num: %d, remain size: %d",
+         __FUNCTION__,tlv_size, total_segment, remain_size);
+ 
++    if (gTlv_type == TLV_TYPE_PATCH) {
++       /* Prior to Rome version 3.2(including inital few rampatch release of Rome 3.2), the event
++        * handling mechanism is ROME_SKIP_EVT_NONE. After few release of rampatch for Rome 3.2, the
++        * mechamism is changed to ROME_SKIP_EVT_VSE_CC. Rest of the mechanism is not used for now
++        */
++       switch(gTlv_dwndCfg)
++       {
++           case ROME_SKIP_EVT_NONE:
++              wait_vsc_evt = TRUE;
++              wait_cc_evt = TRUE;
++              ALOGI("Event handling type: ROME_SKIP_EVT_NONE");
++              break;
++           case ROME_SKIP_EVT_VSE_CC:
++              wait_vsc_evt = FALSE;
++              wait_cc_evt = FALSE;
++              ALOGI(" Event handling type: ROME_SKIP_EVT_VSE_CC ");
++              break;
++           /* Not handled for now */
++           case ROME_SKIP_EVT_VSE:
++           case ROME_SKIP_EVT_CC:
++           default:
++              ALOGE("Unsupported Event handling: %d", gTlv_dwndCfg);
++              break;
++       }
++    } else {
++        wait_vsc_evt = TRUE;
++        wait_cc_evt = TRUE;
++    }
++
+     for(i=0;i<total_segment ;i++){
+-        /* In case of ROME 1.1, last rampatch segment command will not wait for
+-            command complete event */
+-        wait_cc_evt = ((rome_ver >= ROME_VER_1_1) && (gTlv_type == TLV_TYPE_PATCH )
+-             && !remain_size && ((i+1) == total_segment))? FALSE: TRUE;
++        if ((i+1) == total_segment) {
++             if ((rom >= ROME_PATCH_VER_0100) && (rom < ROME_PATCH_VER_0302) && (gTlv_type == TLV_TYPE_PATCH)) {
++               /* If the Rome version is from 1.1 to 3.1
++                * 1. No CCE for the last command segment but all other segment
++                * 2. All the command segments get VSE including the last one
++                */
++                wait_cc_evt = !remain_size ? FALSE: TRUE;
++             } else if ((rom == ROME_PATCH_VER_0302 ) && (gTlv_type == TLV_TYPE_PATCH)) {
++                /* If the Rome version is 3.2
++                 * 1. None of the command segments receive CCE
++                 * 2. No command segments receive VSE except the last one
++                 * 3. If gTlv_dwndCfg is ROME_SKIP_EVT_NONE then the logic is
++                 *    same as Rome 2.1, 2.2, 3.0
++                 */
++                 if (gTlv_dwndCfg == ROME_SKIP_EVT_NONE) {
++                    wait_cc_evt = !remain_size ? FALSE: TRUE;
++                 } else if (gTlv_dwndCfg == ROME_SKIP_EVT_VSE_CC) {
++                    wait_vsc_evt = !remain_size ? TRUE: FALSE;
++                 }
++             }
++        }
++
++        patch_dnld_pending = TRUE;
+         if((err = rome_tlv_dnld_segment(fd, i, MAX_SIZE_PER_TLV_SEGMENT, wait_cc_evt )) < 0)
+             goto error;
++        patch_dnld_pending = FALSE;
+     }
+ 
+-    /* In case remain data still remain, last rampatch segment command will not wait
+-        for command complete event here */
+-    wait_cc_evt = ((rome_ver >= ROME_VER_1_1) && (gTlv_type == TLV_TYPE_PATCH )
+-         && remain_size )? FALSE:TRUE;
+-
++    if ((rom >= ROME_PATCH_VER_0100) && (rom < ROME_PATCH_VER_0302) && (gTlv_type == TLV_TYPE_PATCH)) {
++       /* If the Rome version is from 1.1 to 3.1
++        * 1. No CCE for the last command segment but all other segment
++        * 2. All the command segments get VSE including the last one
++        */
++        wait_cc_evt = remain_size ? FALSE: TRUE;
++    } else if ((rom == ROME_PATCH_VER_0302) && (gTlv_type == TLV_TYPE_PATCH)) {
++        /* If the Rome version is 3.2
++         * 1. None of the command segments receive CCE
++         * 2. No command segments receive VSE except the last one
++         * 3. If gTlv_dwndCfg is ROME_SKIP_EVT_NONE then the logic is
++         *    same as Rome 2.1, 2.2, 3.0
++         */
++        if (gTlv_dwndCfg == ROME_SKIP_EVT_NONE) {
++           wait_cc_evt = remain_size ? FALSE: TRUE;
++        } else if (gTlv_dwndCfg == ROME_SKIP_EVT_VSE_CC) {
++           wait_vsc_evt = remain_size ? TRUE: FALSE;
++        }
++    }
++    patch_dnld_pending = TRUE;
+     if(remain_size) err =rome_tlv_dnld_segment(fd, i, remain_size, wait_cc_evt);
+-
++    patch_dnld_pending = FALSE;
+ error:
++    if(patch_dnld_pending) patch_dnld_pending = FALSE;
+     return err;
+ }
+ 
+@@ -1252,6 +1361,36 @@
+ 
+ }
+ 
++int rome_get_build_info_req(int fd)
++{
++    int size, err = 0;
++    unsigned char cmd[HCI_MAX_CMD_SIZE];
++    unsigned char rsp[HCI_MAX_EVENT_SIZE];
++
++    /* Frame the HCI CMD to be sent to the Controller */
++    frame_hci_cmd_pkt(cmd, EDL_GET_BUILD_INFO, 0,
++    -1, EDL_PATCH_CMD_LEN);
++
++    /* Total length of the packet to be sent to the Controller */
++    size = (HCI_CMD_IND + HCI_COMMAND_HDR_SIZE + EDL_PATCH_CMD_LEN);
++
++    /* Send HCI Command packet to Controller */
++    err = hci_send_vs_cmd(fd, (unsigned char *)cmd, rsp, size);
++    if ( err != size) {
++        ALOGE("Failed to send get build info cmd to the SoC!");
++        goto error;
++    }
++
++    err = read_hci_event(fd, rsp, HCI_MAX_EVENT_SIZE);
++    if ( err < 0) {
++        ALOGE("%s: Failed to get build info", __FUNCTION__);
++        goto error;
++    }
++error:
++    return err;
++
++}
++
+ 
+ int rome_set_baudrate_req(int fd)
+ {
+@@ -1448,10 +1587,55 @@
+         goto error;
+     }
+ 
++    /* Read Command Complete Event - This is extra routine for ROME 1.0. From ROM 2.0, it should be removed. */
++    if (rsp[4] >= NON_WIPOWER_MODE) {
++        err = read_hci_event(fd, rsp, HCI_MAX_EVENT_SIZE);
++        if (err < 0) {
++            ALOGE("%s: Failed to get charging status", __FUNCTION__);
++            goto error;
++        }
++    }
++
+ error:
+     return err;
+ }
+ 
++int addon_feature_req(int fd)
++{
++    int size, err = 0;
++    unsigned char cmd[HCI_MAX_CMD_SIZE];
++    unsigned char rsp[HCI_MAX_EVENT_SIZE];
++    hci_command_hdr *cmd_hdr;
++    int flags;
++
++    memset(cmd, 0x0, HCI_MAX_CMD_SIZE);
++
++    cmd_hdr = (void *) (cmd + 1);
++    cmd[0]  = HCI_COMMAND_PKT;
++    cmd_hdr->opcode = cmd_opcode_pack(HCI_VENDOR_CMD_OGF, HCI_VS_GET_ADDON_FEATURES_SUPPORT);
++    cmd_hdr->plen     = 0x00;
++
++    /* Total length of the packet to be sent to the Controller */
++    size = (HCI_CMD_IND + HCI_COMMAND_HDR_SIZE);
++
++    ALOGD("%s: Sending HCI_VS_GET_ADDON_FEATURES_SUPPORT", __FUNCTION__);
++    ALOGD("HCI-CMD: \t0x%x \t0x%x \t0x%x \t0x%x", cmd[0], cmd[1], cmd[2], cmd[3]);
++    err = hci_send_vs_cmd(fd, (unsigned char *)cmd, rsp, size);
++    if ( err != size) {
++        ALOGE("Failed to send HCI_VS_GET_ADDON_FEATURES_SUPPORT command!");
++        goto error;
++    }
++
++    err = read_hci_event(fd, rsp, HCI_MAX_EVENT_SIZE);
++    if (err < 0) {
++        ALOGE("%s: Failed to get feature request", __FUNCTION__);
++        goto error;
++    }
++error:
++    return err;
++}
++
++
+ int check_embedded_mode(int fd) {
+     int err = 0;
+ 
+@@ -1468,6 +1652,17 @@
+     return wipower_flag;
+ }
+ 
++int rome_get_addon_feature_list(fd) {
++    int err = 0;
++
++    /* Get addon features that are supported by FW */
++    if ((err = addon_feature_req(fd)) < 0)
++    {
++        ALOGE("%s: failed (0x%x)", __FUNCTION__, err);
++    }
++    return err;
++}
++
+ int rome_wipower_forward_handoff_req(int fd)
+ {
+     int size, err = 0;
+@@ -1507,25 +1702,30 @@
+ }
+ 
+ 
+-static void enable_controller_log (int fd)
++void enable_controller_log (int fd)
+ {
+    int ret = 0;
+-   /* VS command to enable controller logging to the HOST. By default it is enabled */
+-   unsigned char cmd[6] = {0x01, 0x17, 0xFC, 0x02, 0x00, 0x01};
++   /* VS command to enable controller logging to the HOST. By default it is disabled */
++   unsigned char cmd[6] = {0x01, 0x17, 0xFC, 0x02, 0x00, 0x00};
+    unsigned char rsp[HCI_MAX_EVENT_SIZE];
+    char value[PROPERTY_VALUE_MAX] = {'\0'};
+ 
+-   property_get("enablebtsoclog", value, "0");
+-   //value at cmd[5]: 1 - to enable, 0 - to disable
+-   ret = (strcmp(value, "false") == 0) ? (cmd[5] = 0): (cmd[5] = 1);
++   property_get("persist.service.bdroid.soclog", value, "false");
++
++   // value at cmd[5]: 1 - to enable, 0 - to disable
++   ret = (strcmp(value, "true") == 0) ? cmd[5] = 0x01: 0;
+    ALOGI("%s: %d", __func__, ret);
+-   if (ret) {
+-     property_set("enablebtsoclog", "true");
+-   }
++
+    ret = hci_send_vs_cmd(fd, (unsigned char *)cmd, rsp, 6);
+    if (ret != 6) {
+-     ALOGE("%s: command failed", __func__);
++       ALOGE("%s: command failed", __func__);
+    }
++
++   ret = read_hci_event(fd, rsp, HCI_MAX_EVENT_SIZE);
++   if (ret < 0) {
++       ALOGE("%s: Failed to get CC for enable SoC log", __FUNCTION__);
++   }
++   return;
+ }
+ 
+ 
+@@ -1555,7 +1755,7 @@
+ int rome_soc_init(int fd, char *bdaddr)
+ {
+     int err = -1, size = 0;
+-
++    dnld_fd = fd;
+     ALOGI(" %s ", __FUNCTION__);
+ 
+     /* If wipower charging is going on in embedded mode then start hand off req */
+@@ -1639,6 +1839,17 @@
+         case ROME_VER_3_0:
+             rampatch_file_path = ROME_RAMPATCH_TLV_3_0_0_PATH;
+             nvm_file_path = ROME_NVM_TLV_3_0_0_PATH;
++            fw_su_info = ROME_3_1_FW_SU;
++            fw_su_offset = ROME_3_1_FW_SW_OFFSET;
++            goto download;
++        case ROME_VER_3_2:
++            rampatch_file_path = ROME_RAMPATCH_TLV_3_0_2_PATH;
++            nvm_file_path = ROME_NVM_TLV_3_0_2_PATH;
++            fw_su_info = ROME_3_2_FW_SU;
++            fw_su_offset =  ROME_3_2_FW_SW_OFFSET;
++        case TUFELLO_VER_1_1:
++            rampatch_file_path = TF_RAMPATCH_TLV_1_0_1_PATH;
++            nvm_file_path = TF_NVM_TLV_1_0_1_PATH;
+ 
+ download:
+             /* Change baud rate 115.2 kbps to 3Mbps*/
+@@ -1655,6 +1866,7 @@
+                 goto error;
+             }
+             ALOGI("%s: Download TLV file successfully ", __FUNCTION__);
++
+             /* This function sends a vendor specific command to enable/disable
+              * controller logs on need. Once the command is received to the SOC,
+              * It would start sending cotroller's print strings and LMP RX/TX
+@@ -1662,7 +1874,13 @@
+              * The property 'enablebtsoclog' used to send this command on BT init
+              * sequence.
+              */
+-            enable_controller_log(fd);
++
++            /* Get SU FM label information */
++            if((err = rome_get_build_info_req(fd)) <0){
++                ALOGI("%s: Fail to get Rome FW SU Build info (0x%x)", __FUNCTION__, err);
++                //Ignore the failure of ROME FW SU label information
++                err = 0;
++            }
+ 
+             /* Disable internal LDO to use external LDO instead*/
+             err = disable_internal_ldo(fd);
+@@ -1685,5 +1903,6 @@
+     }
+ 
+ error:
++    dnld_fd = -1;
+     return err;
+ }

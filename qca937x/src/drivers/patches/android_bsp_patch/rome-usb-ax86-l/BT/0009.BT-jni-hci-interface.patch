@@ -1,0 +1,21 @@
+diff -uNr packages_ori/apps/Bluetooth/jni/com_android_bluetooth_btservice_AdapterService.cpp packages/apps/Bluetooth/jni/com_android_bluetooth_btservice_AdapterService.cpp
+--- packages_ori/apps/Bluetooth/jni/com_android_bluetooth_btservice_AdapterService.cpp	2015-10-09 09:13:07.877340595 +0800
++++ packages/apps/Bluetooth/jni/com_android_bluetooth_btservice_AdapterService.cpp	2015-09-22 12:29:14.065824838 +0800
+@@ -448,6 +448,9 @@
+     ALOGV("%s: status:%d packet_count:%d ", __FUNCTION__, status, packet_count);
+ }
+ 
++static void hci_event_recv_callback (uint8_t event_code, uint8_t *buf, uint8_t len) {
++    ALOGV("%s: event code:%d ", __FUNCTION__, event_code);
++}
+ static void energy_info_recv_callback(bt_activity_energy_info *p_energy_info)
+ {
+     if (!checkCallbackThread()) {
+@@ -477,6 +480,7 @@
+     dut_mode_recv_callback,
+ 
+     le_test_mode_recv_callback,
++    hci_event_recv_callback,
+     energy_info_recv_callback
+ };
+ 

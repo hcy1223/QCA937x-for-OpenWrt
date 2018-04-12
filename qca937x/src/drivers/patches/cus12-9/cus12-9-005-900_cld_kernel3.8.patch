@@ -1,0 +1,190 @@
+/*
+* Copyright (c) 2014 Linux Foundation
+* All Rights Reserved.
+*
+* Permission to use, copy, modify, and/or distribute this software for any purpose with or without fee is hereby granted, provided that the above copyright notice and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+*/
+
+diff -Naur qcacld-new.old/CORE/HDD/inc/wlan_hdd_cfg80211.h qcacld-new/CORE/HDD/inc/wlan_hdd_cfg80211.h
+--- qcacld-new.old/CORE/HDD/inc/wlan_hdd_cfg80211.h	2014-08-05 00:09:31.431749275 +0800
++++ qcacld-new/CORE/HDD/inc/wlan_hdd_cfg80211.h	2014-08-05 00:09:31.315748696 +0800
+@@ -28,6 +28,12 @@
+ #if !defined( HDD_CFG80211_H__ )
+ #define HDD_CFG80211_H__
+ 
++#ifdef LINUX_VERSION_CODE
++#undef LINUX_VERSION_CODE
++#endif
++
++#define LINUX_VERSION_CODE  KERNEL_VERSION(3, 12, 8)
++
+ 
+ /**===========================================================================
+ 
+@@ -850,4 +856,7 @@
+ struct cfg80211_bss* wlan_hdd_cfg80211_update_bss_list(
+    hdd_adapter_t *pAdapter, tCsrRoamInfo *pRoamInfo);
+ 
++#undef LINUX_VERSION_CODE
++#include <linux/version.h>
++
+ #endif
+diff -Naur qcacld-new.old/CORE/HDD/inc/wlan_hdd_p2p.h qcacld-new/CORE/HDD/inc/wlan_hdd_p2p.h
+--- qcacld-new.old/CORE/HDD/inc/wlan_hdd_p2p.h	2014-08-05 00:09:31.431749275 +0800
++++ qcacld-new/CORE/HDD/inc/wlan_hdd_p2p.h	2014-08-05 00:09:31.315748696 +0800
+@@ -34,6 +34,13 @@
+ \brief       Linux HDD P2P include file
+ 
+ ==========================================================================*/
++
++#ifdef LINUX_VERSION_CODE
++#undef LINUX_VERSION_CODE
++#endif
++
++#define LINUX_VERSION_CODE  KERNEL_VERSION(3, 12, 8)
++
+ #define ACTION_FRAME_TX_TIMEOUT 2000
+ #define WAIT_CANCEL_REM_CHAN    1000
+ #define WAIT_REM_CHAN_READY     1000
+@@ -191,3 +198,7 @@
+ 
+ void wlan_hdd_roc_request_dequeue(struct work_struct *work);
++
++#undef LINUX_VERSION_CODE
++#include <linux/version.h>
++
+ #endif // __P2P_H
+diff -Naur qcacld-new.old/CORE/HDD/inc/wlan_hdd_tdls.h qcacld-new/CORE/HDD/inc/wlan_hdd_tdls.h
+--- qcacld-new.old/CORE/HDD/inc/wlan_hdd_tdls.h	2014-08-05 00:09:31.431749275 +0800
++++ qcacld-new/CORE/HDD/inc/wlan_hdd_tdls.h	2014-08-05 00:09:31.315748696 +0800
+@@ -34,6 +34,12 @@
+ \brief       Linux HDD TDLS include file
+ ==========================================================================*/
+ 
++#ifdef LINUX_VERSION_CODE
++#undef LINUX_VERSION_CODE
++#endif
++
++#define LINUX_VERSION_CODE  KERNEL_VERSION(3, 12, 8)
++
+ #define MAX_NUM_TDLS_PEER           3
+ 
+ #define TDLS_SUB_DISCOVERY_PERIOD   100
+@@ -326,4 +332,7 @@
+ int wlan_hdd_tdls_set_force_peer(hdd_adapter_t *pAdapter, u8 *mac,
+                                  tANI_BOOLEAN forcePeer);
+ 
++#undef LINUX_VERSION_CODE
++#include <linux/version.h>
++
+ #endif // __HDD_TDSL_H
+diff -Naur qcacld-new.old/CORE/HDD/src/wlan_hdd_assoc.c qcacld-new/CORE/HDD/src/wlan_hdd_assoc.c
+--- qcacld-new.old/CORE/HDD/src/wlan_hdd_assoc.c	2014-08-05 00:09:31.435749296 +0800
++++ qcacld-new/CORE/HDD/src/wlan_hdd_assoc.c	2014-08-05 00:09:31.323748742 +0800
+@@ -67,6 +67,12 @@
+ #ifdef IPA_OFFLOAD
+ #include <wlan_hdd_ipa.h>
+ #endif
++
++#ifdef LINUX_VERSION_CODE
++#undef LINUX_VERSION_CODE
++#endif
++#define LINUX_VERSION_CODE  KERNEL_VERSION(3, 12, 8)
++
+ v_BOOL_t mibIsDot11DesiredBssTypeInfrastructure( hdd_adapter_t *pAdapter );
+ 
+ struct ether_addr
+diff -Naur qcacld-new.old/CORE/HDD/src/wlan_hdd_cfg80211.c qcacld-new/CORE/HDD/src/wlan_hdd_cfg80211.c
+--- qcacld-new.old/CORE/HDD/src/wlan_hdd_cfg80211.c	2014-08-05 00:09:31.435749296 +0800
++++ qcacld-new/CORE/HDD/src/wlan_hdd_cfg80211.c	2014-08-05 00:09:31.319748726 +0800
+@@ -108,6 +108,11 @@
+ #include "wlan_hdd_nan.h"
+ #endif
+ 
++#ifdef LINUX_VERSION_CODE
++#undef LINUX_VERSION_CODE
++#endif
++#define LINUX_VERSION_CODE  KERNEL_VERSION(3, 12, 8)
++
+ #define g_mode_rates_size (12)
+ #define a_mode_rates_size (8)
+ #define FREQ_BASE_80211G          (2407)
+diff -Naur qcacld-new.old/CORE/HDD/src/wlan_hdd_hostapd.c qcacld-new/CORE/HDD/src/wlan_hdd_hostapd.c
+--- qcacld-new.old/CORE/HDD/src/wlan_hdd_hostapd.c	2014-08-05 00:09:31.431749275 +0800
++++ qcacld-new/CORE/HDD/src/wlan_hdd_hostapd.c	2014-08-05 00:09:31.319748726 +0800
+@@ -98,6 +98,12 @@
+ #include "vos_trace.h"
+ #include "wlan_hdd_cfg.h"
+ 
++#ifdef LINUX_VERSION_CODE
++#undef LINUX_VERSION_CODE
++#endif
++#define LINUX_VERSION_CODE  KERNEL_VERSION(3, 12, 8)
++
++
+ #define    IS_UP(_dev) \
+     (((_dev)->flags & (IFF_RUNNING|IFF_UP)) == (IFF_RUNNING|IFF_UP))
+ #define    IS_UP_AUTO(_ic) \
+diff -Naur qcacld-new.old/CORE/HDD/src/wlan_hdd_main.c qcacld-new/CORE/HDD/src/wlan_hdd_main.c
+--- qcacld-new.old/CORE/HDD/src/wlan_hdd_main.c	2014-08-05 00:09:31.435749296 +0800
++++ qcacld-new/CORE/HDD/src/wlan_hdd_main.c	2014-08-05 00:09:31.323748742 +0800
+@@ -166,6 +166,11 @@
+ #define MEMORY_DEBUG_STR ""
+ #endif
+ 
++#ifdef LINUX_VERSION_CODE
++#undef LINUX_VERSION_CODE
++#endif
++#define LINUX_VERSION_CODE  KERNEL_VERSION(3, 12, 8)
++
+ /* the Android framework expects this param even though we don't use it */
+ #define BUF_LEN 20
+ static char fwpath_buffer[BUF_LEN];
+diff -Naur qcacld-new.old/CORE/HDD/src/wlan_hdd_p2p.c qcacld-new/CORE/HDD/src/wlan_hdd_p2p.c
+--- qcacld-new.old/CORE/HDD/src/wlan_hdd_p2p.c	2014-08-05 00:09:31.431749275 +0800
++++ qcacld-new/CORE/HDD/src/wlan_hdd_p2p.c	2014-08-05 00:09:31.319748726 +0800
+@@ -54,6 +54,11 @@
+ #include "vos_trace.h"
+ #include "vos_sched.h"
+ 
++#ifdef LINUX_VERSION_CODE
++#undef LINUX_VERSION_CODE
++#endif
++#define LINUX_VERSION_CODE  KERNEL_VERSION(3, 12, 8)
++
+ //Ms to Micro Sec
+ #define MS_TO_MUS(x)   ((x)*1000);
+ 
+diff -Naur qcacld-new.old/CORE/HDD/src/wlan_hdd_tdls.c qcacld-new/CORE/HDD/src/wlan_hdd_tdls.c
+--- qcacld-new.old/CORE/HDD/src/wlan_hdd_tdls.c	2014-08-05 00:09:31.435749296 +0800
++++ qcacld-new/CORE/HDD/src/wlan_hdd_tdls.c	2014-08-05 00:09:31.323748742 +0800
+@@ -45,6 +45,11 @@
+ #include "wlan_hdd_cfg80211.h"
+ #include "vos_sched.h"
+ 
++#ifdef LINUX_VERSION_CODE
++#undef LINUX_VERSION_CODE
++#endif
++#define LINUX_VERSION_CODE  KERNEL_VERSION(3, 12, 8)
++
+ #ifdef TDLS_USE_SEPARATE_DISCOVERY_TIMER
+ static tANI_S32 wlan_hdd_get_tdls_discovery_peer_cnt(tdlsCtx_t *pHddTdlsCtx);
+ #endif /* TDLS_USE_SEPARATE_DISCOVERY_TIMER */
+diff -Naur qcacld-new.old/CORE/VOSS/src/vos_nvitem.c qcacld-new/CORE/VOSS/src/vos_nvitem.c
+--- qcacld-new.old/CORE/VOSS/src/vos_nvitem.c	2014-08-05 00:09:31.439749325 +0800
++++ qcacld-new/CORE/VOSS/src/vos_nvitem.c	2014-08-05 00:09:31.327748764 +0800
+@@ -55,6 +55,11 @@
+ #include "regdomain.h"
+ #include "regdomain_common.h"
+ 
++#ifdef LINUX_VERSION_CODE
++#undef LINUX_VERSION_CODE
++#endif
++#define LINUX_VERSION_CODE  KERNEL_VERSION(3, 12, 8)
++
+ #if (LINUX_VERSION_CODE < KERNEL_VERSION(3,9,0))
+ #define IEEE80211_CHAN_NO_80MHZ		1<<7
+ #endif

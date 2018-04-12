@@ -1,0 +1,69 @@
+#
+# Please modify KERNELPATH, KERNELARCH and TOOLPREFIX to meet your environment
+#
+
+export CUST_PROJ_PATH=<path of Tizenworkspace>
+export ANDROID_X86_PATH=<path of android-x86>
+export CLEAN_BTUSB_PATH=<path of btusb>
+export SSVD_BTHAL_PATH=<path of ssvd bthal>
+export KERNELPATH=${CUST_PROJ_PATH}/Tizen_Kernel_build/vdkernel_header.0422.1
+export TOOLCHAIN=${CUST_PROJ_PATH}/Tizen_Kernel_build/armv7l-tizen-20140701/opt/cross/bin
+export KERNELARCH=arm
+export CROSS_COMPILE=${TOOLCHAIN}/armv7l-tizen-linux-gnueabi-
+
+export TOOLPREFIX=${CROSS_COMPILE}
+
+export ANDROID_X86_PROJ_VENDOR_PATH=${ANDROID_X86_PATH}/out/target/product/x86/system/vendor
+export ANDROID_X86_PROJ_WLANFW_PATH=${ANDROID_X86_PATH}/out/target/product/x86/system/lib/firmware
+export ANDROID_X86_PROJ_WLAN_PATH=${ANDROID_X86_PROJ_WLANFW_PATH}/wlan
+
+# for backports
+export KLIB=${KERNELPATH}
+export KLIB_BUILD=${KERNELPATH}
+
+# override the default wpa_supplicant
+export WPA_SUPPLICANT_TOPDIR=${ATH_TOPDIR}/apps/hostap_2_4
+
+# Use local libnl library or not
+export BUILD_LIBNL=y
+export INCLUDE_LIBNL32_HEADER=${ATH_TOPDIR}/apps/libnl-3.2.25/include
+export INCLUDE_LIBNL32_LIB=-lm ${ATH_TOPDIR}/apps/libnl-3.2.25/lib/.libs/libnl-3.a
+export INCLUDE_LIBNL32_GENL_LIB =-lm ${ATH_TOPDIR}/apps/libnl-3.2.25/lib/.libs/libnl-genl-3.a
+
+# Use local openssl library or not
+#export BUILD_OPENSSL=y
+#export INCLUDE_OPENSSL_HEADER=${ATH_TOPDIR}/apps/openssl-1.0.1f/include
+#export INCLUDE_OPENSSL_LIB=${ATH_TOPDIR}/apps/openssl-1.0.1f/ ${ATH_TOPDIR}/apps/openssl-1.0.1f/libssl.a -ldl
+#export INCLUDE_OPENSSL_LIB=${ATH_TOPDIR}/apps/openssl-1.0.1f/
+
+# Put one copy of firmware to local PC or not. Need root privilege.
+export BUILD_DRIVERFW_TOLOCAL=y
+
+# Build regdb into cfg80211.ko
+export CONFIG_CFG80211_INTERNAL_REGDB=y
+export CONFIG_DIRECT_AUDIO_SUPPORT=y
+export CONFIG_SWOW_SUPPORT=y
+# PMF (11W)
+export CONFIG_PMF_SUPPORT=y
+
+# Rome USB
+export CONFIG_ROME_IF=usb
+
+export CONFIG_DA=y
+
+ifeq ($(CONFIG_DA),y)
+	export CONFIG_DIRECT_AUDIO=y
+endif
+
+export CONFIG_TIZEN_PLATFORM=y          
+export CONFIG_FWCRASH_DUMP=y            
+export CONFIG_VOS_MEM_PRE_ALLOC=y       
+export CONFIG_USB_PRELOAD=y
+export CONFIG_SS_REGULATORY=y
+
+export CONFIG_NO_USE_BACKPORTS=y
+
+ifeq ($(CONFIG_NO_USE_BACKPORTS),y)
+    export CFG80211_DIR=${ATH_TOPDIR}/drivers/cfg80211
+endif
+

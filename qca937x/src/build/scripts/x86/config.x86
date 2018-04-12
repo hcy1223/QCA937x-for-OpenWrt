@@ -1,0 +1,36 @@
+# Please modify KERNELPATH, KERNELARCH and TOOLPREFIX to meet your environment
+#
+
+# X86-PC example ################################################################################################################
+export KERNELPATH=${LINUX_DIR}
+
+export KERNELARCH=x86
+#export TOOLPREFIX="x86_64-openwrt-linux-uclibc-"
+export TOOLPREFIX=
+
+# Use local libnl library or not
+
+# Put one copy of firmware to local PC or not. Need root privilege.
+export BUILD_DRIVERFW_TOLOCAL=y
+
+# Build regdb into cfg80211.ko
+export CONFIG_CFG80211_INTERNAL_REGDB=y
+
+# PMF (11W)
+export CONFIG_PMF_SUPPORT=y
+
+# Select interface type
+ifeq ($(IF_TYPE),PCIE)
+    export CONFIG_WLAN_FEATURE_11W=y
+	export CONFIG_PRIMA_WLAN_11AC_HIGH_TP=n
+else ifeq ($(IF_TYPE),USB)
+	export CONFIG_ROME_IF=usb
+    export CONFIG_HIF_USB_TASKLET=1
+else ifeq ($(IF_TYPE),SDIO)
+	export CONFIG_CLD_HL_SDIO_CORE=y 
+	export CONFIG_LINUX_QCMBR=y 
+    export SAP_AUTH_OFFLOAD=1
+    export CONFIG_PER_VDEV_TX_DESC_POOL=1
+else
+	export CONFIG_PRIMA_WLAN_11AC_HIGH_TP=n
+endif

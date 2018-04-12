@@ -1,0 +1,18 @@
+diff -Nuar qcacld-new.old/firmware_bin/WCNSS_qcom_cfg.usb.ini qcacld-new/firmware_bin/WCNSS_qcom_cfg.usb.ini
+--- qcacld-new.old/firmware_bin/WCNSS_qcom_cfg.usb.ini	2015-10-14 10:43:21.887701198 +0800
++++ qcacld-new/firmware_bin/WCNSS_qcom_cfg.usb.ini	2015-10-14 10:42:38.031701291 +0800
+@@ -510,12 +510,12 @@
+ 
+ # Enable or Disable Rx thread
+ # 1=Enable (default), 0=Disable
+-gEnableRxThread=0
++gEnableRxThread=1
+ 
+ # Enable or Disable FW self-recovery
+ # Currently, It's for USB only.
+ # 1=Enable, 0=Disable (default)
+-gEnableFwSelfRecovery=0
++gEnableFwSelfRecovery=1
+ 
+ # Enable or Disable SAP suspend
+ # 1=Enable (default), 0=Disable

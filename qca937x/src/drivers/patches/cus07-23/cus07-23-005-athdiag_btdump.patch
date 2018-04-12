@@ -1,0 +1,153 @@
+--- qcacld-new.orig/tools/athdiag/athdiag.c	2015-01-26 11:55:02.000000000 +0800
++++ qcacld-new/tools/athdiag/athdiag.c	2015-08-11 12:44:35.529089329 +0800
+@@ -75,6 +75,7 @@
+ #define DIAG_READ_WORD        3
+ #define DIAG_WRITE_WORD       4
+ #define DIAG_DUMP_TARGET      5
++#define DIAG_DUMP_BT_TARGET   6
+ 
+ 
+ #define ADDRESS_FLAG                    0x0001
+@@ -499,6 +500,99 @@
+ }
+ 
+ 
++void DumpBT_TargetMem(int dev, char *filename)
++{
++    A_UINT32 param;
++    int temp = 0;
++    int reg = 0;
++    int i =0;
++
++    FILE *fd; 
++    int size;
++    fd = fopen(filename, "w+");
++
++    if (fd == NULL) {
++        fprintf(stderr, "err %s cannot create/open output file (%s)\n",
++            __FUNCTION__, filename);
++        return;
++    }
++
++    ReadTargetWord(dev, 0xb18, &param);
++    if((param & 0x8) == 0)
++       fprintf(stderr, "BT is in DeepSleep, force to Read!\n");
++
++
++    ReadTargetWord(dev, 0x102c, &param);
++    param |= 0x1;
++    WriteTargetWord(dev, 0x102c, param);
++
++    ReadTargetWord(dev, 0x3a050, &param);
++    param |= 0x1;
++    WriteTargetWord(dev, 0x3a050, param);
++
++    ReadTargetWord(dev, 0x3a000, &param);
++    param &= ~0x40000000;
++    WriteTargetWord(dev, 0x3a000, param);
++
++    param |= 0x40000000;
++    WriteTargetWord(dev, 0x3a000, param);
++
++    for (i = 0; i < 192 * 1024; i += sizeof(unsigned int))
++    {
++        /* _WIFI2BT_SW_RST = 0 */
++        ReadTargetWord(dev, 0x3a000, &param);
++        param &= ~0x40000000;
++        WriteTargetWord(dev, 0x3a000, param);   
++
++        /* _WIFI2BT_SW_RST = 1 */
++        param |= 0x40000000;
++        WriteTargetWord(dev, 0x3a000, param);
++
++
++        /* AXI_ACCESS_TO_BT_RD_ADDR HIGH */
++        ReadTargetWord(dev, 0x0003a054, &param);
++        param &= ~0x3fff0000;
++        param |= (((reg + i) >> 18) << 16) & 0x3fff0000;
++        WriteTargetWord(dev, 0x0003a054, param);
++
++        ReadTargetWord(dev, (0x3 << 18) | ((reg + i) & 0x3FFFF), &temp);
++
++        //pbuf[i / sizeof(unsigned int)] = temp;
++        if( 1 != fwrite(&temp,4, 1, fd) )
++        {
++            fprintf(stderr, "err %s cannot write to file (%s)\n",
++                __FUNCTION__, filename);
++            break;
++        }
++
++        fprintf(stderr, "0x%08X=%08X\n", (reg + i), temp);
++    }
++
++    
++    /* DISAL WLAN SLEEP */
++    ReadTargetWord(dev, 0x0000102C, &param);
++    param &= ~0x1;
++    WriteTargetWord(dev, 0x0000102C, param);
++
++    /* WLAN2BT_BRIDGE_EN = 1 */
++    ReadTargetWord(dev, 0x0003a050, &param);
++    param &= ~0x1;
++    WriteTargetWord(dev, 0x0003a050, param);
++
++   /* _WIFI2BT_SW_RST = 0 */
++   ReadTargetWord(dev, 0x0003a000, &param);
++   param &= ~0x40000000;
++   WriteTargetWord(dev, 0x0003a000, param);
++
++   /* AXI_ACCESS_TO_BT_RD_ADDR HIGH */
++   ReadTargetWord(dev, 0x0003a054, &param);
++   param &= ~0x3fff0000;
++   WriteTargetWord(dev, 0x0003a054, param);
++   
++   fprintf(stderr,"DONE.\n");
++
++   fclose(fd);
++}
+ 
+ unsigned int
+ parse_address(char *optarg)
+@@ -558,6 +652,7 @@
+             {"and", 1, NULL, 'n'},
+             {"device", 1, NULL, 'D'},
+             {"dump", 0, NULL, 'd'},
++            {"btdump", 0, NULL, 'b'},
+             {"get", 0, NULL, 'g'},
+             {"file", 1, NULL, 'f'},
+             {"hex", 0, NULL, 'x'},
+@@ -575,7 +670,7 @@
+             {0, 0, 0, 0}
+         };
+ 
+-        c = getopt_long (argc, argv, "xrwgsqdOf:l:a:p:c:n:o:D:t:P:",
++        c = getopt_long (argc, argv, "xrwgsqdbOf:l:a:p:c:n:o:D:t:P:",
+                          long_options, &option_index);
+         if (c == -1)
+             break;
+@@ -601,6 +696,10 @@
+             cmd = DIAG_DUMP_TARGET;
+             break;
+ 
++        case 'b':
++            cmd = DIAG_DUMP_BT_TARGET;
++            break;
++
+         case 'f':
+             memset(filename, '\0', sizeof(filename));
+             snprintf(filename, sizeof(filename), "%s", optarg);
+@@ -989,6 +1088,14 @@
+         DumpTargetMem(dev, target_idx, pathname);
+         break;
+ 
++    case DIAG_DUMP_BT_TARGET:
++        if (!(flag & FILE_FLAG)) {
++            fprintf(stderr, "no target file specified.\n");
++            usage(); /* no target specified */
++        }
++        else DumpBT_TargetMem(dev, filename);
++        break;
++
+     default:
+         usage();
+     }

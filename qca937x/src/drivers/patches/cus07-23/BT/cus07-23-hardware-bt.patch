@@ -1,0 +1,869 @@
+diff -Naur '--exclude=.git' bt-orig/libbt-vendor/bt-vendor.pc.in bt/libbt-vendor/bt-vendor.pc.in
+--- bt-orig/libbt-vendor/bt-vendor.pc.in	1970-01-01 08:00:00.000000000 +0800
++++ bt/libbt-vendor/bt-vendor.pc.in	2015-09-14 13:28:55.085643242 +0800
+@@ -0,0 +1,11 @@
++prefix=@PREFIX@
++exec_prefix=@EXEC_PREFIX@
++libdir=@LIB_INSTALL_DIR@
++includedir=@INCLUDEDIR@
++
++Name: bt-vendor
++Description: Qualcomm Vendor Bluetooth library
++Version: @VERSION@
++Requires: dlog
++Libs: -L${libdir} 
++Cflags: -I${includedir}
+diff -Naur '--exclude=.git' bt-orig/libbt-vendor/CMakeLists.txt bt/libbt-vendor/CMakeLists.txt
+--- bt-orig/libbt-vendor/CMakeLists.txt	1970-01-01 08:00:00.000000000 +0800
++++ bt/libbt-vendor/CMakeLists.txt	2015-09-14 13:28:55.085643242 +0800
+@@ -0,0 +1,62 @@
++CMAKE_MINIMUM_REQUIRED(VERSION 2.6)
++PROJECT(bt-vendor C)
++
++ADD_DEFINITIONS("-DHAS_NO_BDROID_BUILDCFG -DX86_BUILD")
++
++SET(SRCS
++./src/bt_vendor_qcom.c
++./src/hardware.c
++./src/hci_uart.c
++./src/hci_smd.c
++./src/hw_rome.c
++./src/hw_ar3k.c
++./src/qcom_etc.c
++)
++
++SET(PREFIX ${CMAKE_INSTALL_PREFIX})
++SET(EXEC_PREFIX "\${prefix}")
++SET(LIBDIR "\${prefix}/lib")
++SET(INCLUDEDIR "\${prefix}/include")
++SET(VERSION_MAJOR 1)
++SET(VERSION ${VERSION_MAJOR}.0.0)
++
++
++set(LOCAL_C_INCLUDES 
++	./include 
++	../../../../system/core/include
++	../../../../external/bluetooth/bluedroid/hci/include
++	../../../../hardware/libhardware/include
++	../../../../bionic/libc/include
++	../../../../bionic/libc/kernel/common
++	)
++include_directories(${LOCAL_C_INCLUDES})
++
++LINK_DIRECTORIES(../../../../lib)
++
++FOREACH(flag ${packages_CFLAGS})
++	SET(EXTRA_CFLAGS "${EXTRA_CFLAGS} ${flag}")
++ENDFOREACH(flag)
++
++#SET(EXTRA_CFLAGS "${EXTRA_CFLAGS} -fvisibility=hidden -Wall")
++SET(EXTRA_CFLAGS "${EXTRA_CFLAGS} -g ")
++
++SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${EXTRA_CFLAGS}")
++
++FIND_PROGRAM(UNAME NAMES uname)
++EXEC_PROGRAM("${UNAME}" ARGS "-m" OUTPUT_VARIABLE "ARCH")
++IF("${ARCH}" STREQUAL "arm")
++	ADD_DEFINITIONS("-DTARGET")
++	MESSAGE("add -DTARGET")
++ENDIF("${ARCH}" STREQUAL "arm")
++
++ADD_LIBRARY(${PROJECT_NAME} SHARED ${SRCS})
++SET_TARGET_PROPERTIES(${PROJECT_NAME} PROPERTIES SOVERSION ${VERSION_MAJOR})
++SET_TARGET_PROPERTIES(${PROJECT_NAME} PROPERTIES VERSION ${VERSION})
++TARGET_LINK_LIBRARIES(${PROJECT_NAME} -ldlog)
++TARGET_LINK_LIBRARIES(${PROJECT_NAME} -lpthread)
++TARGET_LINK_LIBRARIES(${PROJECT_NAME} -ldl)
++TARGET_LINK_LIBRARIES(${PROJECT_NAME} -lrt)
++
++CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/${PROJECT_NAME}.pc.in ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.pc @ONLY)
++INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.pc DESTINATION lib/pkgconfig)
++INSTALL(TARGETS ${PROJECT_NAME} DESTINATION lib COMPONENT RuntimeLibraries)
+diff -Naur '--exclude=.git' bt-orig/libbt-vendor/include/bt_vendor_persist.h bt/libbt-vendor/include/bt_vendor_persist.h
+--- bt-orig/libbt-vendor/include/bt_vendor_persist.h	2015-09-14 13:28:41.953643324 +0800
++++ bt/libbt-vendor/include/bt_vendor_persist.h	2015-09-14 13:28:55.085643242 +0800
+@@ -37,6 +37,7 @@
+ #ifdef BT_NV_SUPPORT
+ 
+ #endif /* BT_NV_SUPPORT */
++typedef unsigned char uint8_t;
+ typedef unsigned char boolean;
+ /*===========================================================================
+ FUNCTION   bt_vendor_nv_read
+diff -Naur '--exclude=.git' bt-orig/libbt-vendor/include/bt_vendor_qcom.h bt/libbt-vendor/include/bt_vendor_qcom.h
+--- bt-orig/libbt-vendor/include/bt_vendor_qcom.h	2015-09-14 13:28:41.953643324 +0800
++++ bt/libbt-vendor/include/bt_vendor_qcom.h	2015-09-14 13:28:55.085643242 +0800
+@@ -18,7 +18,7 @@
+ #define BT_VENDOR_QCOM_H
+ 
+ #include "bt_vendor_lib.h"
+-#include "vnd_buildcfg.h"
++//#include "vnd_buildcfg.h"
+ #include "utils.h"
+ 
+ #ifndef FALSE
+@@ -32,7 +32,8 @@
+ typedef enum {
+     BT_SOC_DEFAULT = 0,
+     BT_SOC_SMD = BT_SOC_DEFAULT,
+-    BT_SOC_ROME,
++    BT_SOC_ROME_USB,
++    BT_SOC_ROME_UART,
+     BT_SOC_AR3K,
+     /* Add chipset type here */
+     BT_SOC_RESERVED
+diff -Naur '--exclude=.git' bt-orig/libbt-vendor/include/hci_uart.h bt/libbt-vendor/include/hci_uart.h
+--- bt-orig/libbt-vendor/include/hci_uart.h	2015-09-14 13:28:41.953643324 +0800
++++ bt/libbt-vendor/include/hci_uart.h	2015-09-14 13:28:55.085643242 +0800
+@@ -21,7 +21,7 @@
+ 
+ /* Variables to identify the platform */
+ /*BT HS UART TTY DEVICE */
+-#define BT_HS_UART_DEVICE "/dev/ttyHS0"
++#define BT_HS_UART_DEVICE "/dev/ttyUSB0"
+ 
+ /**** baud rates ****/
+ #define USERIAL_BAUD_300        0
+@@ -69,6 +69,8 @@
+ /* HCI Command/Event Opcode */
+ #define HCI_RESET                       0x0C03
+ #define EVT_CMD_COMPLETE       0x0E
++#define HCI_READ_BD_ADDR         0x1009
++#define HCIC_PARAM_SIZE_READ_CMD 0
+ 
+ /* Command opcode pack/unpack */
+ #define cmd_opcode_pack(ogf, ocf)   (uint16_t)((ocf & 0x03ff)|(ogf << 10))
+@@ -132,6 +134,7 @@
+ typedef struct
+ {
+     int fd;                     /* fd to Bluetooth device */
++    int fd_lite;                /* fd to Bluetooth Lite */
+     struct termios termios;     /* serial terminal of BT port */
+     char port_name[VND_PORT_NAME_MAXLEN];
+ } vnd_userial_cb_t;
+diff -Naur '--exclude=.git' bt-orig/libbt-vendor/include/hw_rome.h bt/libbt-vendor/include/hw_rome.h
+--- bt-orig/libbt-vendor/include/hw_rome.h	2015-09-14 13:28:41.953643324 +0800
++++ bt/libbt-vendor/include/hw_rome.h	2015-09-14 13:28:55.085643242 +0800
+@@ -76,7 +76,7 @@
+ /* VS Opcode */
+ #define HCI_PATCH_CMD_OCF                       (0)
+ #define EDL_SET_BAUDRATE_CMD_OCF        (0x48)
+-
++#define HCI_VS_WR_BT_ADDR               (0x14)
+ /* VS Commands */
+ #define VSC_SET_BAUDRATE_REQ_LEN        (1)
+ #define EDL_PATCH_CMD_LEN	                       (1)
+@@ -137,8 +137,13 @@
+ #define ROME_NVM_TLV_PATH         "/system/etc/firmware/nvm_tlv.bin"
+ #define ROME_RAMPATCH_TLV_1_0_3_PATH    "/system/etc/firmware/rampatch_tlv_1.3.tlv"
+ #define ROME_NVM_TLV_1_0_3_PATH         "/system/etc/firmware/nvm_tlv_1.3.bin"
++#ifndef X86_BUILD
+ #define ROME_RAMPATCH_TLV_2_0_1_PATH    "/system/etc/firmware/rampatch_tlv_2.1.tlv"
+ #define ROME_NVM_TLV_2_0_1_PATH         "/system/etc/firmware/nvm_tlv_2.1.bin"
++#else
++#define ROME_RAMPATCH_TLV_2_0_1_PATH    "/lib/firmware/rampatch_tlv_2.1.tlv"
++#define ROME_NVM_TLV_2_0_1_PATH         "/lib/firmware/nvm_tlv_2.1.bin"
++#endif
+ #define ROME_RAMPATCH_TLV_3_0_0_PATH    "/system/etc/firmware/rampatch_tlv_3.0.tlv"
+ #define ROME_NVM_TLV_3_0_0_PATH         "/system/etc/firmware/nvm_tlv_3.0.bin"
+ 
+diff -Naur '--exclude=.git' bt-orig/libbt-vendor/include/termios.h bt/libbt-vendor/include/termios.h
+--- bt-orig/libbt-vendor/include/termios.h	1970-01-01 08:00:00.000000000 +0800
++++ bt/libbt-vendor/include/termios.h	2015-09-14 13:28:55.085643242 +0800
+@@ -0,0 +1,3 @@
++#include <linux/termios.h>
++#include <errno.h>
++#include <stdbool.h>
+diff -Naur '--exclude=.git' bt-orig/libbt-vendor/src/bt_vendor_qcom.c bt/libbt-vendor/src/bt_vendor_qcom.c
+--- bt-orig/libbt-vendor/src/bt_vendor_qcom.c	2015-09-14 13:28:41.973643323 +0800
++++ bt/libbt-vendor/src/bt_vendor_qcom.c	2015-09-14 13:28:55.085643242 +0800
+@@ -51,7 +51,9 @@
+ **  Variables
+ ******************************************************************************/
+ int pFd[2] = {0,};
++#ifdef BT_SOC_TYPE_ROME
+ int ant_fd;
++#endif
+ bt_vendor_callbacks_t *bt_vendor_cbacks = NULL;
+ uint8_t vnd_local_bd_addr[6]={0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+ static int btSocType = BT_SOC_DEFAULT;
+@@ -178,6 +180,11 @@
+ 
+     ALOGI("bt-vendor : get_bt_soc_type");
+ 
++#if 0 //def X86_BUILD
++    printf("get_bt_soc_type : returning BT_SOC_ROME\n");
++    return BT_SOC_ROME;
++
++	
+     ret = property_get("qcom.bluetooth.soc", bt_soc_type, NULL);
+     if (ret != 0) {
+         ALOGI("qcom.bluetooth.soc set to %s\n", bt_soc_type);
+@@ -196,6 +203,7 @@
+         ALOGE("%s: Failed to get soc type", __FUNCTION__);
+         ret = BT_SOC_DEFAULT;
+     }
++#endif
+ 
+     return ret;
+ }
+@@ -294,6 +302,7 @@
+         ALOGV("%s: Exit ", __func__);
+ }
+ 
++#ifdef PLATFORM_ANDROID
+ /** Bluetooth Controller power up or shutdown */
+ static int bt_powerup(int en )
+ {
+@@ -455,6 +464,7 @@
+ 
+     return 0;
+ }
++#endif
+ 
+ /*****************************************************************************
+ **
+@@ -474,18 +484,25 @@
+         return -1;
+     }
+ 
++#ifdef PLATFORM_ANDROID
+     if ((btSocType = get_bt_soc_type()) < 0) {
+         ALOGE("%s: Failed to detect BT SOC Type", __FUNCTION__);
+         return -1;
+     }
++#else
++    btSocType = BT_SOC_ROME_USB;
++#endif
+ 
+     switch(btSocType)
+     {
+-        case BT_SOC_ROME:
++        case BT_SOC_ROME_UART:
+         case BT_SOC_AR3K:
+             ALOGI("bt-vendor : Initializing UART transport layer");
+             userial_vendor_init();
+             break;
++	 case BT_SOC_ROME_USB:			
++	 	ALOGI("bt-vendor : init: Initializing USB transport layer");
++		break;
+         case BT_SOC_DEFAULT:
+             break;
+         default:
+@@ -517,7 +534,7 @@
+ }
+ 
+ 
+-
++#ifndef X86_BUILD
+ int connect_to_local_socket(char* name) {
+        socklen_t len; int sk = -1;
+ 
+@@ -539,6 +556,7 @@
+         }
+         return sk;
+ }
++#endif
+ 
+ bool is_soc_initialized() {
+     bool init = false;
+@@ -593,10 +611,20 @@
+                             retval = -1;
+                         }
+                         break;
+-                    case BT_SOC_ROME:
++                    case BT_SOC_ROME_UART:
+                     case BT_SOC_AR3K:
+                         /* BT Chipset Power Control through Device Tree Node */
++#ifndef X86_BUILD						
+                         retval = bt_powerup(nState);
++#else
++                        retval = 0;
++#endif
++		      case BT_SOC_ROME_USB:
++                        if(nState == BT_VND_PWR_OFF) {
++                            ALOGI("##### bt-vendor : BT_VND_OP_POWER_CTRL (OFF): Powering OFF ROME-USB #####");
++                        } else
++                            ALOGI("##### bt-vendor : BT_VND_OP_POWER_CTRL (ON) : Powering ON  ROME-USB... #####");
++                        break;			  	
+                     default:
+                         break;
+                 }
+@@ -618,14 +646,18 @@
+ 
+         case BT_VND_OP_SCO_CFG:
+             {
+-                bt_vendor_cbacks->scocfg_cb(BT_VND_OP_RESULT_SUCCESS); //dummy
++                if (bt_vendor_cbacks)
++                    bt_vendor_cbacks->scocfg_cb(BT_VND_OP_RESULT_SUCCESS); //dummy            
+             }
+             break;
+ 
++#ifdef PLATFORM_ANDROID
+         case BT_VND_OP_ANT_USERIAL_OPEN:
+                 ALOGI("bt-vendor : BT_VND_OP_ANT_USERIAL_OPEN");
+                 is_ant_req = true;
+                 //fall through
++#endif
++
+         case BT_VND_OP_USERIAL_OPEN:
+             {
+                 int (*fd_array)[] = (int (*)[]) param;
+@@ -671,14 +703,52 @@
+                                 retval = -1;
+                         }
+                         break;
+-                    case BT_SOC_ROME:
++                    case BT_SOC_ROME_USB:
++                        {
++                            int local_fd[CH_MAX];
++                            int ret = 0;
++                            for (idx = 0; idx < CH_MAX; idx++)
++                                 local_fd[idx] = -1;
++                            ALOGI("bt-vendor : SOC type is ROME-USB");
++                            strlcpy(vnd_userial.port_name, "/dev/btusb0", sizeof(vnd_userial.port_name));
++                            ALOGI("userial vendor open: opening %s", vnd_userial.port_name);
++
++                            if ((vnd_userial.fd = open("/dev/btusb0", O_RDWR)) == -1) {
++                                ALOGE("bt-vendor : Failed to open the SS USB Character driver");
++                                return -1;
++                            } else
++                                ALOGI("bt-vendor : Succesfully opened handle to SS USB Driver. vnd_userial.fd = %d", vnd_userial.fd);
++                            fd = vnd_userial.fd;
++                            local_fd[0] = fd;
++                            if ((vnd_userial.fd_lite = open("/proc/driver/btusb/btusb0/lite", O_RDWR)) == -1) {
++                                ALOGE("bt-vendor : Failed to open SS USB LITE driver ");
++                            }
++                            else
++                                ALOGI("bt-vendor : Successfully opened handle for SS USB LITE Driver fd = %d", vnd_userial.fd_lite);
++                            local_fd[1] = vnd_userial.fd_lite;
++                            ret = update_local_bd_addr(fd,vnd_local_bd_addr);
++                            if (ret > 0)
++                                ALOGI("bt-vendo: BD ADDR updated successfully");
++                            if (fd != -1) {
++                                for (idx=0; idx < CH_MAX; idx++)
++                                    (*fd_array)[idx] = local_fd[idx];
++                                retval = 1;
++                            }
++                        }
++                        break;
++                    case BT_SOC_ROME_UART:
++#ifdef PLATFORM_ANDROID
+                         {
++#ifndef X86_BUIL
+                             if (!is_soc_initialized()) {
++#endif								
+                                 fd = userial_vendor_open((tUSERIAL_CFG *) &userial_init_cfg);
+                                 if (fd < 0) {
+                                     ALOGE("userial_vendor_open returns err");
+                                     retval = -1;
+-                                } else {
++                                } 
++#ifndef X86_BUILD								
++				    else {
+                                     ALOGV("rome_soc_init is started");
+                                     property_set("wc_transport.soc_initialized", "0");
+                                     /* Always read BD address from NV file */
+@@ -687,14 +757,22 @@
+                                        /* Since the BD address is configured in boot time We should not be here */
+                                        ALOGI("Failed to read BD address. Use the one from bluedroid stack/ftm");
+                                     }
++#endif									
+                                     if(rome_soc_init(fd,vnd_local_bd_addr)<0) {
+                                         retval = -1;
+                                     } else {
+                                         ALOGV("rome_soc_init is completed");
++#ifndef X86_BUILD										
+                                         property_set("wc_transport.soc_initialized", "1");
+                                         /*Close the UART port*/
+                                         close(fd);
++#endif
++					     for (idx=0; idx < CH_MAX; idx++) {
++                                              (*fd_array)[idx] = fd;
++					     }
++                                        retval = 1;
+                                     }
++#ifndef X86_BUILD									
+                                 }
+                             }
+ 
+@@ -720,8 +798,10 @@
+                                      retval = -1;
+                                  }
+                              }
++#endif							
+                         }
+                         break;
++#endif
+                     default:
+                         ALOGE("Unknown btSocType: 0x%x", btSocType);
+                         break;
+@@ -729,6 +809,7 @@
+             }
+             break;
+ 
++#ifdef PLATFORM_ANDROID
+         case BT_VND_OP_ANT_USERIAL_CLOSE:
+             {
+                 ALOGI("bt-vendor : BT_VND_OP_ANT_USERIAL_CLOSE");
+@@ -740,6 +821,7 @@
+                 }
+             }
+             break;
++#endif			
+         case BT_VND_OP_USERIAL_CLOSE:
+             {
+                 ALOGI("bt-vendor : BT_VND_OP_USERIAL_CLOSE btSocType: %d", btSocType);
+@@ -749,11 +831,27 @@
+                          bt_hci_deinit_transport(pFd);
+                          break;
+ 
+-                     case BT_SOC_ROME:
++                     case BT_SOC_ROME_UART:
+                      case BT_SOC_AR3K:
+                         property_set("wc_transport.clean_up","1");
+                         userial_vendor_close();
+                         break;
++                    case BT_SOC_ROME_USB:
++                        if (vnd_userial.fd == -1)
++                            ALOGE("%s: FD is already released", __func__);
++                        else {
++                            ALOGE("%s: Releasing the file handle to the BT USB driver", __func__);
++                            close(vnd_userial.fd);
++                            vnd_userial.fd = -1;
++                        }
++                        if (vnd_userial.fd_lite == -1)
++                            ALOGE("%s: FD Lite is already released", __func__);
++                        else {
++                            ALOGE("%s: Releasing the file handle: %d to the BT LITE driver", __func__, vnd_userial.fd_lite);
++                            close(vnd_userial.fd_lite);
++                            vnd_userial.fd_lite = -1;
++                        }
++                        break;
+                     default:
+                         ALOGE("Unknown btSocType: 0x%x", btSocType);
+                         break;
+@@ -779,10 +877,12 @@
+                     lpm_set_ar3k(UPIO_LPM_MODE, UPIO_DEASSERT, 0);
+                 }
+ 
+-                bt_vendor_cbacks->lpm_cb(BT_VND_OP_RESULT_SUCCESS);
++  		  if (bt_vendor_cbacks)
++		  	bt_vendor_cbacks->lpm_cb(BT_VND_OP_RESULT_SUCCESS);
+             }
+             else {
+-                bt_vendor_cbacks->lpm_cb(BT_VND_OP_RESULT_SUCCESS); //dummy
++ 		  if (bt_vendor_cbacks)
++                	bt_vendor_cbacks->lpm_cb(BT_VND_OP_RESULT_SUCCESS); //dummy
+             }
+             break;
+ 
+@@ -790,7 +890,8 @@
+             {
+                 switch(btSocType)
+                 {
+-                    case BT_SOC_ROME:
++                    case BT_SOC_ROME_UART:
++#ifdef PLATFORM_ANDROID						
+                         {
+                             uint8_t *state = (uint8_t *) param;
+                             uint8_t wake_assert = (*state == BT_VND_LPM_WAKE_ASSERT) ? \
+@@ -809,6 +910,10 @@
+ #endif
+                         }
+                         break;
++#endif						
++                    case BT_SOC_ROME_USB:
++                        ALOGI("bt-vendor : BT_VND_OP_LPM_WAKE_SET_STATE: ROME-USB already awake");
++                        break;
+                     case BT_SOC_AR3K:
+                         {
+                             uint8_t *state = (uint8_t *) param;
+@@ -817,6 +922,7 @@
+                             lpm_set_ar3k(UPIO_BT_WAKE, wake_assert, 0);
+                         }
+                     case BT_SOC_DEFAULT:
++ 			   ALOGE("btSocType: (default) 0x%x", btSocType);
+                         break;
+                     default:
+                         ALOGE("Unknown btSocType: 0x%x", btSocType);
+@@ -826,35 +932,26 @@
+             break;
+         case BT_VND_OP_EPILOG:
+             {
++	     ALOGE("Recvd. BT_VND_OP_EPILOG command");
+ #if (HW_NEED_END_WITH_HCI_RESET == FALSE)
+                 if (bt_vendor_cbacks)
+                 {
+                     bt_vendor_cbacks->epilog_cb(BT_VND_OP_RESULT_SUCCESS);
+                 }
++                    case BT_SOC_ROME_USB:
++                        ALOGI("bt-vendor : BT_VND_OP_LPM_WAKE_SET_STATE: ROME-USB already awake");
++                        break;+            ALOGE("BT_VND_OP_EPILOG: HW does not need to end with HCI RESET");
++            if (bt_vendor_cbacks)
++            {
++                bt_vendor_cbacks->epilog_cb(BT_VND_OP_RESULT_SUCCESS);
++            }				
+ #else
+                 hw_epilog_process();
++            ALOGE("BT_VND_OP_EPILOG: HW Needs to end with HCI RESET");
++            hw_epilog_process();
+ #endif
+             }
+             break;
+-        case BT_VND_OP_GET_LINESPEED:
+-            {
+-                retval = -1;
+-                switch(btSocType)
+-                {
+-                    case BT_SOC_ROME:
+-                        if(!is_soc_initialized()) {
+-                            ALOGE("BT_VND_OP_GET_LINESPEED: error"
+-                            " - transport driver not initialized!");
+-                        } else {
+-                            retval = 3000000;
+-                        }
+-                        break;
+-                    default:
+-                        retval = userial_vendor_get_baud();
+-                        break;
+-                 }
+-                break;
+-            }
+     }
+ 
+     return retval;
+@@ -865,15 +962,20 @@
+ 
+     ALOGI("ssr_cleanup");
+ 
++#ifdef PLATFORM_ANDROID
+     if ((btSocType = get_bt_soc_type()) < 0) {
+         ALOGE("%s: Failed to detect BT SOC Type", __FUNCTION__);
+         return -1;
+     }
++#else
++    btSocType = BT_SOC_ROME_USB;
++#endif
+ 
+-    if (btSocType == BT_SOC_ROME) {
+-
++    if (btSocType == BT_SOC_ROME_UART) {
++#ifdef BT_SOC_TYPE_ROME
+         /*Close both ANT and BT channels*/
+         op(BT_VND_OP_ANT_USERIAL_CLOSE, NULL);
++#endif
+         op(BT_VND_OP_USERIAL_CLOSE, NULL);
+         /*CTRL OFF twice to make sure hw
+          * turns off*/
+@@ -881,8 +983,10 @@
+ 
+     }
+ 
++#ifdef BT_SOC_TYPE_ROME
+     /*Generally switching of chip should be enough*/
+     op(BT_VND_OP_POWER_CTRL, &pwr_state);
++#endif
+ 
+     bt_vendor_cbacks = NULL;
+ }
+diff -Naur '--exclude=.git' bt-orig/libbt-vendor/src/hci_uart.c bt/libbt-vendor/src/hci_uart.c
+--- bt-orig/libbt-vendor/src/hci_uart.c	2015-09-14 13:28:41.953643324 +0800
++++ bt/libbt-vendor/src/hci_uart.c	2015-09-14 13:28:55.085643242 +0800
+@@ -106,70 +106,6 @@
+     return TRUE;
+ }
+ 
+-/*******************************************************************************
+-**
+-** Function        userial_to_baud_tcio
+-**
+-** Description     helper function converts TCIO baud rate into integer
+-**
+-** Returns         uint32_t
+-**
+-*******************************************************************************/
+-int userial_tcio_baud_to_int(uint32_t baud)
+-{
+-    int baud_rate =0;
+-
+-    switch (baud)
+-    {
+-        case B600:
+-            baud_rate = 600;
+-            break;
+-        case B1200:
+-            baud_rate = 1200;
+-            break;
+-        case B9600:
+-            baud_rate = 9600;
+-            break;
+-        case B19200:
+-            baud_rate = 19200;
+-            break;
+-        case B57600:
+-            baud_rate = 57600;
+-            break;
+-        case B115200:
+-            baud_rate = 115200;
+-            break;
+-        case B230400:
+-            baud_rate = 230400;
+-            break;
+-        case B460800:
+-            baud_rate = 460800;
+-            break;
+-        case B921600:
+-            baud_rate = 921600;
+-            break;
+-        case B1000000:
+-            baud_rate = 1000000;
+-            break;
+-        case B2000000:
+-            baud_rate = 2000000;
+-            break;
+-        case B3000000:
+-            baud_rate = 3000000;
+-            break;
+-        case B4000000:
+-            baud_rate = 4000000;
+-            break;
+-        default:
+-            ALOGE( "%s: unsupported baud %d", __FUNCTION__, baud);
+-            break;
+-    }
+-
+-    ALOGI( "%s: Current Baudrate = %d bps", __FUNCTION__, baud_rate);
+-    return baud_rate;
+-}
+-
+-
+ #if (BT_WAKE_VIA_USERIAL_IOCTL==TRUE)
+ /*******************************************************************************
+ **
+@@ -210,7 +146,7 @@
+ *******************************************************************************/
+ void userial_vendor_init(void)
+ {
+-    vnd_userial.fd = -1;
++    vnd_userial.fd = vnd_userial.fd_lite = -1;
+     snprintf(vnd_userial.port_name, VND_PORT_NAME_MAXLEN, "%s", BT_HS_UART_DEVICE);
+ }
+ 
+@@ -357,26 +293,7 @@
+     cfsetospeed(&vnd_userial.termios, tcio_baud);
+     cfsetispeed(&vnd_userial.termios, tcio_baud);
+     tcsetattr(vnd_userial.fd, TCSADRAIN, &vnd_userial.termios); /* don't change speed until last write done */
+-}
+-
+-/*******************************************************************************
+-**
+-** Function        userial_vendor_get_baud
+-**
+-** Description     Get current baud rate
+-**
+-** Returns         int
+-**
+-*******************************************************************************/
+-int userial_vendor_get_baud(void)
+-{
+-    if (vnd_userial.fd == -1)
+-    {
+-        ALOGE( "%s: uart port(%s) has not been opened", __FUNCTION__, BT_HS_UART_DEVICE );
+-        return -1;
+-    }
+ 
+-    return userial_tcio_baud_to_int(cfgetispeed(&vnd_userial.termios));
+ }
+ 
+ /*******************************************************************************
+diff -Naur '--exclude=.git' bt-orig/libbt-vendor/src/hw_rome.c bt/libbt-vendor/src/hw_rome.c
+--- bt-orig/libbt-vendor/src/hw_rome.c	2015-09-14 13:28:41.953643324 +0800
++++ bt/libbt-vendor/src/hw_rome.c	2015-09-14 13:28:55.085643242 +0800
+@@ -70,6 +70,7 @@
+ char *nvm_file_path;
+ extern char enable_extldo;
+ 
++uint8_t soc_bd_addr[6]={0x00,0x00,0x00,0x00,0x00,0x00};//To check BD ADDR is programed
+ /******************************************************************************
+ **  Extern variables
+ ******************************************************************************/
+@@ -1200,12 +1201,14 @@
+     /* Total length of the packet to be sent to the Controller */
+     size = (HCI_CMD_IND + HCI_COMMAND_HDR_SIZE + VSC_SET_BAUDRATE_REQ_LEN);
+ 
++#ifndef X86_BUILD
+     /* Flow off during baudrate change */
+     if ((err = userial_vendor_ioctl(USERIAL_OP_FLOW_OFF , &flags)) < 0)
+     {
+       ALOGE("%s: HW Flow-off error: 0x%x\n", __FUNCTION__, err);
+       goto error;
+     }
++#endif
+ 
+     /* Send the HCI command packet to UART for transmission */
+     err = write(fd, cmd, size);
+@@ -1214,8 +1217,10 @@
+         goto error;
+     }
+ 
++#ifndef X86_BUILD
+     /* Change Local UART baudrate to high speed UART */
+     userial_vendor_set_baud(USERIAL_BAUD_3M);
++#endif 
+ 
+     /* Flow on after changing local uart baudrate */
+     if ((err = userial_vendor_ioctl(USERIAL_OP_FLOW_ON , &flags)) < 0)
+@@ -1387,6 +1392,105 @@
+     return ret;
+ }
+ 
++bool is_default_addr()
++{
++    ALOGV("is_default_addr");
++    if (soc_bd_addr[0] == 0x00 &&
++        soc_bd_addr[1] == 0x00 &&
++        soc_bd_addr[2] == 0x00 &&
++        soc_bd_addr[3] == 0x00 &&
++        soc_bd_addr[4] == 0x5a &&
++        soc_bd_addr[5] == 0xad )
++    {
++        ALOGE("BD ADDR read from SoC is default");
++        return TRUE;
++    }
++    else
++        return FALSE;
++}
++
++bool check_current_bdaddr(int fd)
++{
++    int size, err = 0,i;
++    unsigned char cmd[HCI_MAX_CMD_SIZE];
++    unsigned char rsp[HCI_MAX_EVENT_SIZE];
++    ALOGD("check_current_bdaddr");
++    hci_command_hdr *cmd_hdr;
++
++    memset(cmd, 0x0, HCI_MAX_CMD_SIZE);
++    rome_hci_reset(fd);
++
++    cmd_hdr = (void *) (cmd + 1);
++    cmd[0]  = HCI_COMMAND_PKT;
++    cmd_hdr->opcode = HCI_READ_BD_ADDR;
++    cmd_hdr->plen = HCIC_PARAM_SIZE_READ_CMD;
++    size = (HCI_CMD_IND + HCI_COMMAND_HDR_SIZE);
++    err = write(fd,cmd,size);
++    if (err != size)
++    {
++        ALOGE("Failed to send HCI_READ_BD_ADDR cmd");
++        return FALSE;
++    }
++    err = read_hci_event(fd, rsp, HCI_MAX_EVENT_SIZE);
++    if (err < 0)
++    {
++        ALOGE("Failed to get response");
++        return FALSE;
++    }
++    for (i = 0;i < 6; i++)
++         soc_bd_addr[5-i] = rsp[7+i];
++    return (!is_default_addr());
++}
++int update_local_bd_addr(int fd, char *bdaddr)
++{
++    int size, err = 0,i;
++    unsigned char cmd[HCI_MAX_CMD_SIZE];
++    unsigned char rsp[HCI_MAX_EVENT_SIZE];
++    hci_command_hdr *cmd_hdr;
++
++    memset(cmd, 0x0, HCI_MAX_CMD_SIZE);
++    err = check_current_bdaddr(fd);
++    if (err)
++    {
++        ALOGD("BD ADDR is programmed");
++        return 0;
++    }
++    cmd_hdr = (void *) (cmd + 1);
++    cmd[0]  = HCI_COMMAND_PKT;
++    cmd_hdr->opcode = cmd_opcode_pack(HCI_VENDOR_CMD_OGF, HCI_VS_WR_BT_ADDR);
++    cmd_hdr->plen = 0x06;
++    cmd[9] = *bdaddr;
++    cmd[8] = *(bdaddr+1);
++    cmd[7] = *(bdaddr+2);
++    cmd[6] = *(bdaddr+3);
++    cmd[5] = *(bdaddr+4);
++    cmd[4] = *(bdaddr+5);
++    /* Total length of the packet to be sent to the Controller */
++    size = (HCI_CMD_IND + HCI_COMMAND_HDR_SIZE + cmd_hdr->plen);
++    ALOGD("%s: Sending HCI_VS_WR_BT_ADDR_CMD", __FUNCTION__);
++    ALOGD("HCI-CMD: \t0x%x \t0x%x \t0x%x \t0x%x \t0x%x \t0x%x \t0x%x \t0x%x \t0x%x \t0x%x",
++          cmd[0], cmd[1], cmd[2], cmd[3], cmd[4], cmd[5], cmd[6], cmd[7], cmd[8], cmd[9]);
++
++    err = write(fd,cmd,size);
++    if (err != size) {
++        ALOGE("Failed to send HCI_VS_WR_BT_ADDR_CMD command!");
++        goto error;
++    }
++
++    err = read_hci_event(fd, rsp, HCI_MAX_EVENT_SIZE);
++    if ( err < 0) {
++        ALOGE("Failed to set BD address!");
++        goto error;
++    }
++
++    err = read_hci_event(fd, rsp, HCI_MAX_EVENT_SIZE);
++    if (err < 0) {
++        ALOGE("%s: Failed to get command complete", __FUNCTION__);
++        goto error;
++    }
++error:
++    return err;
++}
+ int rome_soc_init(int fd, char *bdaddr)
+ {
+     int err = -1, size = 0;
+@@ -1465,6 +1569,7 @@
+             nvm_file_path = ROME_NVM_TLV_3_0_0_PATH;
+ 
+ download:
++#ifndef X86_BUILD	
+             /* Change baud rate 115.2 kbps to 3Mbps*/
+             err = rome_set_baudrate_req(fd);
+             if (err < 0) {
+@@ -1472,7 +1577,7 @@
+                 goto error;
+             }
+             ALOGI("%s: Baud rate changed successfully ", __FUNCTION__);
+-
++#endif
+             /* Donwload TLV files (rampatch, NVM) */
+             err = rome_download_tlv_file(fd);
+             if (err < 0) {
+diff -Naur '--exclude=.git' bt-orig/libbt-vendor/src/qcom_etc.c bt/libbt-vendor/src/qcom_etc.c
+--- bt-orig/libbt-vendor/src/qcom_etc.c	1970-01-01 08:00:00.000000000 +0800
++++ bt/libbt-vendor/src/qcom_etc.c	2015-09-14 13:28:55.085643242 +0800
+@@ -0,0 +1,26 @@
++#include <stdio.h>
++#include <cutils/properties.h>
++
++void strlcpy(char *a,char *b,size_t n){
++    strncpy(a,b,n);
++}
++
++int property_set(const char *key, const char *value){
++    return 0;
++}
++
++int property_get(const char *key, char *value, const char *default_value){
++    int len;
++    if(default_value)
++    {
++       len = strlen(default_value);
++	if(len >= PROPERTY_VALUE_MAX)
++	{
++		len = PROPERTY_VALUE_MAX -1 ;
++	}
++    	memcpy(value, default_value, len);
++	value[len]='\0';
++    }
++    return 0;
++}
++

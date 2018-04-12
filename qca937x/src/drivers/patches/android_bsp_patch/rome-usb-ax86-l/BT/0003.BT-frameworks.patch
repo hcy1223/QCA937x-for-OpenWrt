@@ -1,0 +1,34 @@
+/*
+* Copyright (c) 2015 Qualcomm Atheros, Inc.
+* All Rights Reserved.
+* Qualcomm Atheros Confidential and Proprietary.
+* NOT A CONTRIBUTION
+*/
+
+diff -Nuar l-bt-orig/frameworks/base/services/core/java/com/android/server/BluetoothManagerService.java l-bt-work/frameworks/base/services/core/java/com/android/server/BluetoothManagerService.java
+--- l-bt-orig/frameworks/base/services/core/java/com/android/server/BluetoothManagerService.java	2015-04-01 22:20:50.687517339 +0800
++++ l-bt-work/frameworks/base/services/core/java/com/android/server/BluetoothManagerService.java	2015-04-01 22:24:36.711525953 +0800
+@@ -178,15 +178,15 @@
+                 synchronized(mReceiver) {
+                     if (mEnableExternal && isBluetoothPersistedStateOnBluetooth()) {
+                         //Enable
+-                        if (DBG) Log.d(TAG, "Auto-enabling Bluetooth.");
++                        if (DBG) Log.e(TAG, "Auto-enabling Bluetooth.");
+                         sendEnableMsg(mQuietEnableExternal);
+-                    }
+-                }
+-
+-                if (!isNameAndAddressSet()) {
+-                    //Sync the Bluetooth name and address from the Bluetooth Adapter
+-                    if (DBG) Log.d(TAG,"Retrieving Bluetooth Adapter name and address...");
+-                    getNameAndAddress();
++                        if (!isNameAndAddressSet()) {
++                            //Sync the Bluetooth name and address from the Bluetooth Adapter
++                            if (DBG) Log.e(TAG,"Retrieving Bluetooth Adapter name and address...");
++                            getNameAndAddress();
++                        }
++                    } else
++                        Log.e(TAG, "*****NOT Turning Bluetooth ON during bootup*****");
+                 }
+             }
+         }

@@ -1,0 +1,109 @@
+diff -Naur '--exclude=.git' bt.ssvd/Android.mk bt.ss2kk/Android.mk
+--- bt.ssvd/Android.mk	2015-08-25 11:06:15.000000000 +0800
++++ bt.ss2kk/Android.mk	2015-08-27 11:18:57.624798001 +0800
+@@ -1,3 +1,3 @@
+-ifeq ($(call is-vendor-board-platform,QCOM),true)
++#ifeq ($(call is-vendor-board-platform,QCOM),true)
+ include $(call all-named-subdir-makefiles,libbt-vendor)
+-endif # is-vendor-board-platform
++#endif # is-vendor-board-platform
+diff -Naur '--exclude=.git' bt.ssvd/libbt-vendor/Android.mk bt.ss2kk/libbt-vendor/Android.mk
+--- bt.ssvd/libbt-vendor/Android.mk	2015-08-25 11:06:15.000000000 +0800
++++ bt.ss2kk/libbt-vendor/Android.mk	2015-08-27 11:18:57.708798000 +0800
+@@ -16,7 +16,7 @@
+ 
+ LOCAL_PATH := $(call my-dir)
+ 
+-ifeq ($(BOARD_HAVE_BLUETOOTH_QCOM),true)
++#ifeq ($(BOARD_HAVE_BLUETOOTH_QCOM),true)
+ 
+ include $(CLEAR_VARS)
+ 
+@@ -29,7 +29,8 @@
+         src/hci_smd.c \
+         src/hw_rome.c \
+         src/hw_ar3k.c \
+-        src/bt_vendor_persist.cpp
++        src/qcom_etc.c
++#        src/bt_vendor_persist.cpp
+ 
+ ifeq ($(QCOM_BT_USE_SIBS),true)
+ LOCAL_CFLAGS += -DQCOM_BT_SIBS_ENABLE
+@@ -51,8 +52,8 @@
+ 
+ LOCAL_SHARED_LIBRARIES := \
+         libcutils \
+-        liblog \
+-        libbtnv
++        liblog
++#        libbtnv
+ 
+ LOCAL_MODULE := libbt-vendor
+ LOCAL_MODULE_TAGS := optional
+@@ -66,4 +67,4 @@
+ 
+ include $(BUILD_SHARED_LIBRARY)
+ 
+-endif # BOARD_HAVE_BLUETOOTH_QCOM
++#endif # BOARD_HAVE_BLUETOOTH_QCOM
+diff -Naur '--exclude=.git' bt.ssvd/libbt-vendor/include/hci_uart.h bt.ss2kk/libbt-vendor/include/hci_uart.h
+--- bt.ssvd/libbt-vendor/include/hci_uart.h	2015-08-25 11:06:15.000000000 +0800
++++ bt.ss2kk/libbt-vendor/include/hci_uart.h	2015-08-27 11:18:57.708798000 +0800
+@@ -19,6 +19,8 @@
+ #ifndef HCI_UART_H
+ #define HCI_UART_H
+ 
++#include <../../../../../bionic/libc/include/termios.h>
++
+ /* Variables to identify the platform */
+ /*BT HS UART TTY DEVICE */
+ #define BT_HS_UART_DEVICE "/dev/ttyUSB0"
+diff -Naur '--exclude=.git' bt.ssvd/libbt-vendor/src/bt_vendor_qcom.c bt.ss2kk/libbt-vendor/src/bt_vendor_qcom.c
+--- bt.ssvd/libbt-vendor/src/bt_vendor_qcom.c	2015-08-25 11:06:15.000000000 +0800
++++ bt.ss2kk/libbt-vendor/src/bt_vendor_qcom.c	2015-08-27 11:18:57.708798000 +0800
+@@ -302,7 +302,7 @@
+         ALOGV("%s: Exit ", __func__);
+ }
+ 
+-#ifdef PLATFORM_ANDROID
++//#ifdef PLATFORM_ANDROID
+ /** Bluetooth Controller power up or shutdown */
+ static int bt_powerup(int en )
+ {
+@@ -464,7 +464,7 @@
+ 
+     return 0;
+ }
+-#endif
++//#endif
+ 
+ /*****************************************************************************
+ **
+diff -Naur '--exclude=.git' bt.ssvd/libbt-vendor/src/hci_smd.c bt.ss2kk/libbt-vendor/src/hci_smd.c
+--- bt.ssvd/libbt-vendor/src/hci_smd.c	2015-08-25 11:06:15.000000000 +0800
++++ bt.ss2kk/libbt-vendor/src/hci_smd.c	2015-08-27 11:18:57.708798000 +0800
+@@ -25,12 +25,12 @@
+ #define LOG_TAG "bt_vendor"
+ 
+ #include <utils/Log.h>
+-#include <termios.h>
+ #include <fcntl.h>
+ #include <errno.h>
+ #include <stdio.h>
+ #include "bt_vendor_qcom.h"
+ #include "hci_smd.h"
++#include <../../../../../bionic/libc/include/termios.h>
+ 
+ /*****************************************************************************
+ **   Macros & Constants
+diff -Naur '--exclude=.git' bt.ssvd/libbt-vendor/src/hci_uart.c bt.ss2kk/libbt-vendor/src/hci_uart.c
+--- bt.ssvd/libbt-vendor/src/hci_uart.c	2015-08-25 11:06:15.000000000 +0800
++++ bt.ss2kk/libbt-vendor/src/hci_uart.c	2015-08-27 12:06:11.144762178 +0800
+@@ -27,7 +27,6 @@
+ #define LOG_TAG "bt_vendor"
+ 
+ #include <utils/Log.h>
+-#include <termios.h>
+ #include <fcntl.h>
+ #include <errno.h>
+ #include <stdio.h>

@@ -1,0 +1,47 @@
+From 1f50cb0499ae4360d9887eb5cbbdbd87679be893 Mon Sep 17 00:00:00 2001
+From: Luiz Augusto von Dentz <luiz.von.dentz@intel.com>
+Date: Fri, 5 Sep 2014 15:49:12 +0300
+Subject: [PATCH 13/14] core: Fix concurrent authorizations
+
+In case multiple authorizations happen it can trigger a second call to
+agent_authorize_service while the first is still ongoing causing all
+authorization to fail.
+---
+ src/adapter.c |   14 ++++++++++++++
+ 1 file changed, 14 insertions(+)
+
+diff --git a/src/adapter.c b/src/adapter.c
+index f5f8c8c..86c7aef 100644
+--- a/src/adapter.c
++++ b/src/adapter.c
+@@ -4605,6 +4605,16 @@ static void agent_auth_cb(struct agent *agent, DBusError *derr,
+ 
+ 	g_free(auth);
+ 
++	/* Stop processing if queue is empty */
++	if (g_queue_is_empty(adapter->auths)) {
++		if (adapter->auth_idle_id > 0)
++			g_source_remove(adapter->auth_idle_id);
++		return;
++	}
++
++	if (adapter->auth_idle_id > 0)
++		return;
++
+ 	adapter->auth_idle_id = g_idle_add(process_auth_queue, adapter);
+ }
+ 
+@@ -4632,6 +4642,10 @@ static gboolean process_auth_queue(gpointer user_data)
+ 			goto next;
+ 		}
+ 
++		/* If agent is set authorization is already ongoing */
++		if (auth->agent)
++			return FALSE;
++
+ 		auth->agent = agent_get(NULL);
+ 		if (auth->agent == NULL) {
+ 			warn("Authentication attempt without agent");
+-- 
+1.7.9.5
+

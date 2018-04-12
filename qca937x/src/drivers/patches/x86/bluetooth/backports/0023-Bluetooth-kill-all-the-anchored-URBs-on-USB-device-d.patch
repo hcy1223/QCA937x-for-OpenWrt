@@ -1,0 +1,36 @@
+From ecd86aab4f57d5f101986ab2a7d4f43e57b5c61d Mon Sep 17 00:00:00 2001
+From: Rupesh Tatiya <rtatiya@codeaurora.org>
+Date: Fri, 23 Jan 2015 18:29:46 +0530
+Subject: [PATCH 23/25] Bluetooth: kill all the anchored URBs on USB device
+ disconnect
+
+When USB driver is unloaded (rmmod), kill all the URBs before
+freeing up various data structs. If not done, URB callback might
+lead to NULL pointer dereference or page fault.
+
+Change-Id: Id719f090ae96845fac50b2d97dc7e698f39b5ce5
+Signed-off-by: Rupesh Tatiya <rtatiya@codeaurora.org>
+---
+ drivers/bluetooth/btusb.c |    6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/drivers/bluetooth/btusb.c b/drivers/bluetooth/btusb.c
+index 07d6a42c..3d4ce68 100644
+--- a/drivers/bluetooth/btusb.c
++++ b/drivers/bluetooth/btusb.c
+@@ -1509,6 +1509,12 @@ static void btusb_disconnect(struct usb_interface *intf)
+ 	if (!data)
+ 		return;
+ 
++	/* kill all the anchored urbs on USB disconnect */
++	usb_kill_anchored_urbs(&data->intr_anchor);
++	usb_kill_anchored_urbs(&data->bulk_anchor);
++	usb_kill_anchored_urbs(&data->isoc_anchor);
++	usb_kill_anchored_urbs(&data->tx_anchor);
++
+ 	hdev = data->hdev;
+ 	usb_set_intfdata(data->intf, NULL);
+ 
+-- 
+1.7.9.5
+

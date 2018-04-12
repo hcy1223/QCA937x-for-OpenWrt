@@ -1,0 +1,1167 @@
+/*
+* Copyright (c) 2015 Qualcomm Atheros, Inc.
+* All Rights Reserved.
+* Qualcomm Atheros Confidential and Proprietary.
+* NOT A CONTRIBUTION
+*/
+
+diff -Nuar a/external/bluetooth/bluedroid/hci/Android.mk b/external/bluetooth/bluedroid/hci/Android.mk
+--- a/external/bluetooth/bluedroid/hci/Android.mk	2015-06-23 13:03:25.483350225 +0800
++++ b/external/bluetooth/bluedroid/hci/Android.mk	2015-06-23 13:04:40.747350066 +0800
+@@ -25,7 +25,8 @@
+ else
+ LOCAL_SRC_FILES += \
+ 	src/hci_h4.c \
+-	src/userial.c
++	src/userial.c \
++	src/userial_usb.c
+ endif
+ 
+ LOCAL_CFLAGS += -std=c99
+@@ -36,6 +37,9 @@
+ 	$(LOCAL_PATH)/../utils/include \
+         $(bdroid_C_INCLUDES)
+ 
++LOCAL_SHARED_LIBRARIES := \
++        libcutils
++
+ LOCAL_MODULE := libbt-hci
+ LOCAL_MODULE_TAGS := optional
+ LOCAL_MODULE_CLASS := STATIC_LIBRARIES
+diff -Nuar a/external/bluetooth/bluedroid/hci/include/bt_hci_bdroid.h b/external/bluetooth/bluedroid/hci/include/bt_hci_bdroid.h
+--- a/external/bluetooth/bluedroid/hci/include/bt_hci_bdroid.h	2015-06-23 13:03:25.483350225 +0800
++++ b/external/bluetooth/bluedroid/hci/include/bt_hci_bdroid.h	2015-06-23 13:04:40.747350066 +0800
+@@ -56,6 +56,10 @@
+ #  endif
+ #endif
+ 
++#ifndef BTHC_USERIAL_READ_MEM_SIZE
++#define BTHC_USERIAL_READ_MEM_SIZE (1024)
++#endif
++
+ #define HCI_ACL_MAX_SIZE 1024
+ #define HCI_MAX_FRAME_SIZE (HCI_ACL_MAX_SIZE + 4)
+ 
+@@ -133,3 +137,9 @@
+ void bthc_rx_ready(void);
+ void bthc_tx(HC_BT_HDR *buf);
+ void bthc_idle_timeout(void);
++
++#define HCI_PRONTO_SMD                  0
++#define HCI_ROME_USB                    1
++#define HCI_ROME_UART                   2
++#define HCI_AR3K_UART                   3
++
+diff -Nuar a/external/bluetooth/bluedroid/hci/include/bt_vendor_lib.h b/external/bluetooth/bluedroid/hci/include/bt_vendor_lib.h
+--- a/external/bluetooth/bluedroid/hci/include/bt_vendor_lib.h	2015-06-23 13:03:25.483350225 +0800
++++ b/external/bluetooth/bluedroid/hci/include/bt_vendor_lib.h	2015-06-23 13:04:40.747350066 +0800
+@@ -167,6 +167,9 @@
+  *      specific epilog process once it has been done.
+  */
+     BT_VND_OP_EPILOG,
++    BT_VND_OP_ANT_USERIAL_OPEN,
++    BT_VND_OP_ANT_USERIAL_CLOSE,
++    BT_VND_OP_GET_LINESPEED,
+ } bt_vendor_opcode_t;
+ 
+ /** Power on/off control states */
+diff -Nuar a/external/bluetooth/bluedroid/hci/src/bt_hci_bdroid.c b/external/bluetooth/bluedroid/hci/src/bt_hci_bdroid.c
+--- a/external/bluetooth/bluedroid/hci/src/bt_hci_bdroid.c	2015-06-23 13:03:25.483350225 +0800
++++ b/external/bluetooth/bluedroid/hci/src/bt_hci_bdroid.c	2015-06-23 13:04:40.751350066 +0800
+@@ -103,7 +103,7 @@
+ ******************************************************************************/
+ 
+ static void event_preload(UNUSED_ATTR void *context) {
+-  userial_open(USERIAL_PORT_1);
++  userial_usb_open(USERIAL_PORT_1);
+   vendor_send_command(BT_VND_OP_FW_CFG, NULL);
+ }
+ 
+@@ -313,9 +313,61 @@
+ **
+ *****************************************************************************/
+ 
++int is_bt_transport_smd()
++{
++    int ret = 0;
++    char bt_transport_type[20];
++
++    ret = property_get("ro.qualcomm.bt.hci_transport", bt_transport_type, NULL);
++    if (ret != 0)
++    {
++        ALOGI("ro.qualcomm.hci_transport set to %s\n", bt_transport_type);
++        if (!strncasecmp(bt_transport_type, "smd", sizeof("smd")))
++            return 1;
++    }
++    else
++    {
++        ALOGI("ro.qualcomm.bt.hci_transport not set, so using default.\n");
++    }
++    return 0;
++}
++
++int get_bt_transport_type()
++{
++    int ret = 0;
++    char bt_soc_type[255];
++
++    ret = property_get("qcom.bluetooth.soc", bt_soc_type, NULL);
++    if (ret != 0) {
++        ALOGI("qcom.bluetooth.soc set to %s\n", bt_soc_type);
++        if (!strncasecmp(bt_soc_type, "rome_uart", sizeof("rome_uart"))) {
++            ALOGI("qcom.bluetooth.soc to ROME-UART\n");
++            return HCI_ROME_UART;
++        }
++        else if (!strncasecmp(bt_soc_type, "rome_usb", sizeof("rome_usb"))) {
++            ALOGI("qcom.bluetooth.soc to ROME-USB\n");
++            return HCI_ROME_USB;
++        }
++        else if (!strncasecmp(bt_soc_type, "ath3k", sizeof("ath3k"))) {
++            ALOGI("qcom.bluetooth.soc to ATH3K-UART\n");
++            return HCI_AR3K_UART;
++        }
++        else {
++            ALOGI("qcom.bluetooth.soc not set, so using default.\n");
++            return HCI_PRONTO_SMD;
++        }
++    }
++    else {
++        ALOGI("Failed to retrieve property: qcom.bluetooth.soc, so using default.\n");
++        return -1;
++    }
++    return ret;
++}
++
++
+ static int init(const bt_hc_callbacks_t* p_cb, unsigned char *local_bdaddr)
+ {
+-    int result;
++    int result, hci_type;
+ 
+     ALOGI("init");
+ 
+@@ -337,17 +389,22 @@
+     vendor_open(local_bdaddr);
+ 
+     utils_init();
+-#ifdef HCI_USE_MCT
+-    extern tHCI_IF hci_mct_func_table;
+-    p_hci_if = &hci_mct_func_table;
+-#else
+-    extern tHCI_IF hci_h4_func_table;
+-    p_hci_if = &hci_h4_func_table;
+-#endif
++
++   hci_type = get_bt_transport_type();
++   if ((hci_type == HCI_ROME_UART) || (hci_type == HCI_AR3K_UART))
++   {
++       extern tHCI_IF hci_h4_func_table;
++       p_hci_if = &hci_h4_func_table;
++   }
++   else if (hci_type == HCI_ROME_USB)
++   {
++       extern tHCI_IF hci_h4_func_table;
++       p_hci_if = &hci_h4_func_table;
++   }
+ 
+     p_hci_if->init();
+ 
+-    userial_init();
++    userial_usb_init();
+     lpm_init();
+ 
+     utils_queue_init(&tx_q);
+diff -Nuar a/external/bluetooth/bluedroid/hci/src/hci_h4.c b/external/bluetooth/bluedroid/hci/src/hci_h4.c
+--- a/external/bluetooth/bluedroid/hci/src/hci_h4.c	2015-06-23 13:03:25.483350225 +0800
++++ b/external/bluetooth/bluedroid/hci/src/hci_h4.c	2015-06-23 13:04:40.751350066 +0800
+@@ -215,7 +215,7 @@
+         if ((status = hci_h4_send_int_cmd(HCI_LE_READ_BUFFER_SIZE, p_buf, \
+                                            get_acl_data_length_cback)) == FALSE)
+         {
+-            bt_hc_cbacks->dealloc(p_buf);
++            bt_hc_cbacks->dealloc(p_buf + 1);
+             bt_hc_cbacks->postload_cb(NULL, BT_HC_POSTLOAD_SUCCESS);
+         }
+     }
+@@ -226,7 +226,7 @@
+ 
+         if (bt_hc_cbacks)
+         {
+-            bt_hc_cbacks->dealloc(p_buf);
++            bt_hc_cbacks->dealloc(p_buf + 1);
+             ALOGE("vendor lib postload completed");
+             bt_hc_cbacks->postload_cb(NULL, BT_HC_POSTLOAD_SUCCESS);
+         }
+@@ -631,7 +631,7 @@
+             *p = type;
+             bytes_to_send = acl_pkt_size + 1; /* packet_size + message type */
+ 
+-            bytes_sent = userial_write(event,(uint8_t *) p,bytes_to_send);
++            bytes_sent = userial_usb_write(event,(uint8_t *) p,bytes_to_send);
+ 
+             /* generate snoop trace message */
+             btsnoop_capture(p_msg, false);
+@@ -683,9 +683,9 @@
+     /* Put the HCI Transport packet type 1 byte before the message */
+     p = ((uint8_t *)(p_msg + 1)) + p_msg->offset - 1;
+     *p = type;
+-    bytes_to_send = p_msg->len + 1;     /* message_size + message type */
++    bytes_to_send = p_msg->len;     /* No need to add the HCI PKT type */
+ 
+-    bytes_sent = userial_write(event,(uint8_t *) p, bytes_to_send);
++    bytes_sent = userial_usb_write(event,(uint8_t *) p, bytes_to_send);
+ 
+     p_msg->layer_specific = lay_spec;
+ 
+@@ -711,7 +711,7 @@
+             (p_msg->layer_specific == lay_spec))
+         {
+             /* dealloc buffer of internal command */
+-            bt_hc_cbacks->dealloc(p_msg);
++            bt_hc_cbacks->dealloc(p_msg + 1);
+         }
+         else
+         {
+@@ -747,7 +747,7 @@
+     while (TRUE)
+     {
+         /* Read one byte to see if there is anything waiting to be read */
+-        if (userial_read(0 /*dummy*/, &byte, 1) == 0)
++        if (userial_usb_read(0 /*dummy*/, &byte, 1) == 0)
+         {
+             break;
+         }
+@@ -892,7 +892,7 @@
+             if (p_cb->rcv_len > 0)
+             {
+                 /* Read in the rest of the message */
+-                len = userial_read(0 /*dummy*/, \
++                len = userial_usb_read(0 /*dummy*/, \
+                       ((uint8_t *)(p_cb->p_rcv_msg+1) + p_cb->p_rcv_msg->len), \
+                       p_cb->rcv_len);
+                 p_cb->p_rcv_msg->len += len;
+diff -Nuar a/external/bluetooth/bluedroid/hci/src/userial.c b/external/bluetooth/bluedroid/hci/src/userial.c
+--- a/external/bluetooth/bluedroid/hci/src/userial.c	2015-06-23 13:03:25.483350225 +0800
++++ b/external/bluetooth/bluedroid/hci/src/userial.c	2015-06-23 13:04:40.751350066 +0800
+@@ -57,6 +57,7 @@
+ #define USERIALDBG(param, ...) {}
+ #endif
+ 
++#define READ_LIMIT (BTHC_USERIAL_READ_MEM_SIZE - BT_HC_HDR_SIZE)
+ #define MAX_SERIAL_PORT (USERIAL_PORT_3 + 1)
+ 
+ // The set of events one can send to the userial read thread.
+@@ -66,6 +67,12 @@
+     USERIAL_RX_EXIT     = 0x8000000000000000ULL
+ };
+ 
++#define PACKET_TYPE_ACL    2
++#define PACKET_TYPE_SCO    3
++#define PACKET_TYPE_EVENT  4
++
++#define ERESTARTSYS        512
++
+ /******************************************************************************
+ **  Externs
+ ******************************************************************************/
+@@ -130,6 +137,112 @@
+     return !!FD_ISSET(event_fd, set);
+ }
+ 
++#undef IS_HCI_USB
++#define IS_HCI_USB 1
++
++#ifdef IS_HCI_USB
++
++#define BTUSB_IOCTL_WAIT_DATA    0x18A
++#define BTUSB_IOCTL_READ_PACKET  0x18B
++#define BTUSB_IOCTL_SEND_PACKET  0x18C
++
++#define IS_PKT_TYPE(A, B)       ((B) & (1 << (A)))
++#define CLEAR_PKT_TYPE(A,B)     ( *A = ((*A) & ~((1) << (B))) )
++
++/* Used for for transferring data to/from the USB Driver */
++typedef struct USBPacketInfo
++{
++   unsigned int   pktType;
++   unsigned int   buffSize;
++   unsigned char *buffer;
++} USBPacketRequest;
++
++/* Frame the USB Packet Request for fetching the packet data from driver */
++static void fillPacketRequest(USBPacketRequest *pkt, uint8_t pktType, uint16_t buffSize, uint8_t *pbuf)
++{
++    pkt->pktType  = pktType;
++    pkt->buffSize = buffSize;
++    pkt->buffer   = pbuf;
++}
++
++/* Read the packet data from the driver */
++static int readPacket(int fd, int pkt_type, uint8_t *pbuf)
++{
++    int ret = 0;
++    USBPacketRequest readPacketrequest;
++
++    /* Fill in the corresponding packet request structure */
++    fillPacketRequest(&readPacketrequest, pkt_type, READ_LIMIT, pbuf);
++
++    /* Retrieve the PACKET from driver */
++    ret = ioctl(fd, BTUSB_IOCTL_READ_PACKET, &readPacketrequest);
++    if (ret <= 0)
++        ALOGE("%s: Failed to read packet(type: %d) with return value: %d",
++            __func__, pkt_type, ret);
++    else
++        ALOGI("%s: Successfully read %2d bytes of packet(type: %d)",
++            __func__, pkt_type, ret);
++
++    return ret;
++}
++
++static int read_usb_packet(int fd, int *pkt_type, uint8_t *pbuf)
++{
++    int ret = 0;
++
++    if (*pkt_type <= 0)
++    {
++        ALOGE("%s: Invalid Packet type: %d", __func__, *pkt_type);
++        return ret;
++    }
++    else if (IS_PKT_TYPE(PACKET_TYPE_EVENT, *pkt_type))
++    {
++        ALOGI("%s: HCI-EVENT PACKET AVAILABLE", __func__);
++        ret = readPacket(fd, PACKET_TYPE_EVENT, pbuf);
++        if (ret > 0)
++            /* Clear the EVENT packet type in the bit mask */
++            CLEAR_PKT_TYPE(pkt_type, PACKET_TYPE_EVENT);
++
++        /* Check if any pending packet to be read */
++        if (*pkt_type)
++            ALOGD("%s: bitMask post read: %d", __func__, *pkt_type);
++        else
++            ALOGD("%s: Read all available data in driver's queue", __func__);
++    }
++    else if (IS_PKT_TYPE(PACKET_TYPE_SCO, *pkt_type))
++    {
++        ALOGI("%s: BT-SCO PACKET AVAILABLE", __func__);
++        ret = readPacket(fd, PACKET_TYPE_SCO, pbuf);
++        if (ret > 0)
++            /* Clear the SCO packet type in the bit mask */
++            CLEAR_PKT_TYPE(pkt_type, PACKET_TYPE_SCO);
++
++        /* Check if any pending packet to be read */
++        if (*pkt_type)
++            ALOGD("%s: bitMask post read: %d", __func__, *pkt_type);
++        else
++            ALOGD("%s: Read all available data in driver's queue", __func__);
++    }
++    else if (IS_PKT_TYPE(PACKET_TYPE_ACL, *pkt_type))
++    {
++        ALOGI("%s: BT-ACL PACKET AVAILABLE", __func__);
++        ret = readPacket(fd, PACKET_TYPE_ACL, pbuf);
++        if (ret > 0)
++            CLEAR_PKT_TYPE(pkt_type, PACKET_TYPE_ACL);
++
++        /* Check if any pending packet to be read */
++        if (*pkt_type)
++            ALOGD("%s: bitMask post read: %d", __func__, *pkt_type);
++        else
++            ALOGD("%s: Read all available data in driver's queue", __func__);
++    }
++    else
++        ALOGE("%s: Unkown Packet type: %d", __func__, *pkt_type);
++
++    return ret;
++}
++#endif /* end-of: IS_HCI_USB */
++
+ /*******************************************************************************
+ **
+ ** Function        select_read
+@@ -145,10 +258,12 @@
+ static int select_read(int fd, uint8_t *pbuf, int len)
+ {
+     fd_set input;
++    static int pktBitMask = 0;
+     int n = 0, ret = -1;
+ 
+     while (userial_running)
+     {
++#ifdef IS_HCI_UART
+         /* Initialize the input fd set */
+         FD_ZERO(&input);
+         FD_SET(fd, &input);
+@@ -184,11 +299,49 @@
+         else if (n == 0)
+             ALOGW( "Got a select() TIMEOUT");
+ 
++#elif IS_HCI_USB
++        /* Check if packet is already availabile */
++        if (pktBitMask)
++            ret = read_usb_packet(fd, &pktBitMask, pbuf);
++        else
++        {
++            /* Wait for packet from device */
++            ALOGD("%s: Waiting for PACKET from device", __func__);
++            n = ioctl(fd, BTUSB_IOCTL_WAIT_DATA, pbuf);
++            if (n >= 0)
++            {
++                pktBitMask = *pbuf;
++                ALOGD("%s: readBitMask: %d", __func__, pktBitMask);
++
++                /* Read data from the driver */
++                ret = read_usb_packet(fd, &pktBitMask, pbuf);
++            }
++            else
++            {
++                /* -RESTARTSYS : sleep interrupted while waiting for data */
++                if (n == -ERESTARTSYS)
++                    ALOGE("%s: Interrupted while waiting for data", __func__);
++                else
++                    ALOGE("%s: ioctl() failed with ret. val: %d", __func__, n);
++
++                ret = n;
++            }
++        }
++#endif
+     }
+ 
+     return ret;
+ }
+ 
++/*******************************************************************************
++**
++** Function        userial_read_thread
++**
++** Description
++**
++** Returns         void *
++**
++*******************************************************************************/
+ static void *userial_read_thread(void *arg)
+ {
+     int rx_length = 0;
+@@ -359,12 +512,27 @@
+     return total_len;
+ }
+ 
++static int usb_write(int fd, uint8_t *p_data, uint16_t len)
++{
++    int ret = 0;
++    uint8_t pktType = 0;
++    USBPacketRequest sendPacketRequest;
++
++    pktType = *p_data;
++
++    fillPacketRequest(&sendPacketRequest, pktType, len, p_data+1);
++    ret = ioctl(fd, BTUSB_IOCTL_SEND_PACKET, &sendPacketRequest);
++    ALOGE("%s: actual_length: %d transferred_length: %d",
++        __func__, len, ret);
++    return ret;
++}
++
+ uint16_t userial_write(uint16_t msg_id, const uint8_t *p_data, uint16_t len) {
+     UNUSED(msg_id);
+ 
+     uint16_t total = 0;
+     while (len) {
+-        ssize_t ret = write(userial_cb.fd, p_data + total, len);
++        ssize_t ret = usb_write(userial_cb.fd, p_data + total, len);
+         switch (ret) {
+             case -1:
+                 ALOGE("%s error writing to serial port: %s", __func__, strerror(errno));
+diff -Nuar a/external/bluetooth/bluedroid/hci/src/userial_usb.c b/external/bluetooth/bluedroid/hci/src/userial_usb.c
+--- a/external/bluetooth/bluedroid/hci/src/userial_usb.c	1970-01-01 08:00:00.000000000 +0800
++++ b/external/bluetooth/bluedroid/hci/src/userial_usb.c	2015-06-23 13:04:57.803350030 +0800
+@@ -0,0 +1,692 @@
++/******************************************************************************
++ *
++ *  Copyright (c) 2013, The Linux Foundation. All rights reserved.
++ *  Not a Contribution.
++ *
++ *  Copyright (C) 2009-2012 Broadcom Corporation
++ *
++ *  Licensed under the Apache License, Version 2.0 (the "License");
++ *  you may not use this file except in compliance with the License.
++ *  You may obtain a copy of the License at:
++ *
++ *  http://www.apache.org/licenses/LICENSE-2.0
++ *
++ *  Unless required by applicable law or agreed to in writing, software
++ *  distributed under the License is distributed on an "AS IS" BASIS,
++ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ *  See the License for the specific language governing permissions and
++ *  limitations under the License.
++ *
++ ******************************************************************************/
++
++/******************************************************************************
++ *
++ *  Filename:      userial.c
++ *
++ *  Description:   Contains open/read/write/close functions on serial port
++ *
++ ******************************************************************************/
++
++#define LOG_TAG "bt_usb"
++
++#include <utils/Log.h>
++#include <pthread.h>
++#include <fcntl.h>
++#include <errno.h>
++#include <stdio.h>
++#include <sys/socket.h>
++#include "bt_hci_bdroid.h"
++#include "userial.h"
++#include "utils.h"
++#include "bt_vendor_lib.h"
++#include <sys/prctl.h>
++#include "bt_utils.h"
++#include <linux/ioctl.h>
++#include "vendor.h"
++
++#define BTUSB_IOCTL_MAGIC                             'b'
++
++   /* Wait for an asynchronous USB Device Event (ACL/SCO/Event Data)    */
++   /* received.                                                         */
++#define BTUSB_IOCTL_WAIT_DATA                         _IOR(BTUSB_IOCTL_MAGIC,  0, void *)
++
++   /* Send/Receive HCI Packets to/from USB Bluetooth Device.            */
++#define BTUSB_IOCTL_SEND_PACKET                       _IOW(BTUSB_IOCTL_MAGIC,  1, void *)
++
++#define BTUSB_IOCTL_READ_PACKET                       _IOWR(BTUSB_IOCTL_MAGIC, 2, void *)
++
++
++/******************************************************************************
++**  Constants & Macros
++******************************************************************************/
++
++#ifndef USERIAL_DBG
++#define USERIAL_DBG FALSE
++#endif
++
++#if (USERIAL_DBG == TRUE)
++#define USERIALDBG(param, ...) {ALOGD(param, ## __VA_ARGS__);}
++#else
++#define USERIALDBG(param, ...) {}
++#endif
++
++#ifndef ENABLE_USERIAL_TIMING_LOGS
++#define ENABLE_USERIAL_TIMING_LOGS FALSE
++#endif
++
++#define MAX_SERIAL_PORT (USERIAL_PORT_3 + 1)
++#define READ_LIMIT (BTHC_USERIAL_READ_MEM_SIZE - BT_HC_HDR_SIZE)
++
++enum {
++    USERIAL_RX_EXIT,
++    USERIAL_RX_FLOW_OFF,
++    USERIAL_RX_FLOW_ON
++};
++
++#define PACKET_TYPE_ACL    2
++#define PACKET_TYPE_SCO    3
++#define PACKET_TYPE_EVENT  4
++
++#define ERESTARTSYS        512
++
++/******************************************************************************
++**  Local type definitions
++******************************************************************************/
++
++typedef struct
++{
++    int             fd;
++    uint8_t         port;
++    pthread_t       read_thread;
++    BUFFER_Q        rx_q;
++    HC_BT_HDR      *p_rx_hdr;
++} tUSERIAL_CB;
++
++/******************************************************************************
++**  Static variables
++******************************************************************************/
++
++static tUSERIAL_CB userial_cb;
++static volatile uint8_t userial_running = 0;
++
++
++/******************************************************************************
++**  USB initialization functions
++******************************************************************************/
++uint8_t userial_usb_init(void);
++uint8_t userial_usb_open(uint8_t port);
++uint16_t  userial_usb_read(uint16_t msg_id, uint8_t *p_buffer, uint16_t len);
++uint16_t userial_usb_write(uint16_t msg_id, uint8_t *p_data, uint16_t len);
++void userial_usb_close(void);
++
++/******************************************************************************
++**  Static functions
++******************************************************************************/
++
++#if defined(ENABLE_USERIAL_TIMING_LOGS) && (ENABLE_USERIAL_TIMING_LOGS==TRUE)
++
++static void log_userial_tx_timing(int len)
++{
++    #define USEC_PER_SEC 1000000L
++    static struct timespec prev = {0, 0};
++    struct timespec now, diff;
++    unsigned int diff_us = 0;
++    unsigned int now_us = 0;
++
++    clock_gettime(CLOCK_MONOTONIC, &now);
++    now_us = now.tv_sec*USEC_PER_SEC + now.tv_nsec/1000;
++    diff_us = (now.tv_sec - prev.tv_sec) * USEC_PER_SEC + (now.tv_nsec - prev.tv_nsec)/1000;
++
++    ALOGW("[userial] ts %08d diff : %08d len %d", now_us, diff_us,
++                len);
++
++    prev = now;
++}
++
++#endif
++
++
++/*****************************************************************************
++**   Socket signal functions to wake up userial_read_thread for termination
++**
++**   creating an unnamed pair of connected sockets
++**      - signal_fds[0]: join fd_set in select call of userial_read_thread
++**      - signal_fds[1]: trigger from userial_close
++*****************************************************************************/
++static int signal_fds[2]={0,1};
++static inline int send_wakeup_signal(char sig_cmd)
++{
++    return send(signal_fds[1], &sig_cmd, sizeof(sig_cmd), 0);
++}
++static inline char reset_signal()
++{
++    char sig_recv = -1;
++    recv(signal_fds[0], &sig_recv, sizeof(sig_recv), MSG_WAITALL);
++    return sig_recv;
++}
++
++#define IS_PKT_TYPE(A, B)       ((B) & (1 << (A)))
++#define CLEAR_PKT_TYPE(A,B)     ( *A = ((*A) & ~((1) << (B))) )
++#define CLEAR_ALL_PKT_TYPE(A)   ( *A = ((*A) & ~((1 << PACKET_TYPE_EVENT) | \
++                                        (1 << PACKET_TYPE_SCO) | \
++                                        (1 << PACKET_TYPE_ACL))) )
++
++/* Used for for transferring data to/from the USB Driver */
++typedef struct USBPacketInfo
++{
++   unsigned int   pktType;
++   unsigned int   buffSize;
++   unsigned char *buffer;
++} USBPacketRequest;
++
++/* Read the packet data from the driver */
++static int readPacket(int fd, int pkt_type, uint8_t *pbuf)
++{
++    int ret = 0;
++    USBPacketRequest readPacketrequest;
++
++    /* Fill in the packet request structure */
++    readPacketrequest.pktType  = pkt_type;
++    readPacketrequest.buffSize = READ_LIMIT;
++    readPacketrequest.buffer   = pbuf;
++
++    /* Retrieve the PACKET from driver */
++    ret = ioctl(fd, BTUSB_IOCTL_READ_PACKET, &readPacketrequest);
++    if (ret <= 0)
++        ALOGE("%s: Failed to read packet(type: %d) with return value: %d",
++            __func__, pkt_type, ret);
++    else
++        ALOGE("%s: Successfully read %2d bytes of packet(type: %d)",
++            __func__, ret+1, pkt_type);
++
++    return ret;
++}
++
++static int read_usb_packet(int fd, int *pkt_type, uint8_t *pbuf)
++{
++    int ret = 0, i = 0;
++
++    if (*pkt_type <= 0)
++    {
++        ALOGE("%s: Invalid Packet type: %d", __func__, *pkt_type);
++        return ret;
++    }
++    else if (IS_PKT_TYPE(PACKET_TYPE_EVENT, *pkt_type))
++    {
++        ALOGV("%s: HCI-EVENT PACKET AVAILABLE", __func__);
++        /* Save the HCI PACKET TYPE that is to be fetched */
++        ret = readPacket(fd, PACKET_TYPE_EVENT, pbuf);
++        if (ret > 0) {
++            /* Clear the EVENT packet type in the bit mask */
++            CLEAR_PKT_TYPE(pkt_type, PACKET_TYPE_EVENT);
++            if (pbuf[1] == 0x1) {
++                ALOGE("%s: RECVD IINQUIRY COMPLETE EVENT", __func__);
++                ALOGE("[ ==> 0x%2x\t0x%2x\t0x%2x\t0x%2x ]", pbuf[0], pbuf[1], pbuf[2], pbuf[3]);
++            }
++            else if (pbuf[1] == 0xe)
++                ALOGE("%s: RECVD COMMAND COMPLETE EVENT FOR OPCODE: 0x%x",
++                     __func__, ((pbuf[5] << 8) | pbuf[4]));
++            else if (pbuf[1] == 0x2F) {
++                ALOGE("%s: RECVD EXTENDED INQUIRY RESULT EVENT", __func__);
++                ALOGE("[ ==> 0x%2x\t0x%2x\t0x%2x\t0x%2x ]", pbuf[0], pbuf[1], pbuf[2], pbuf[3]);
++            }
++            else if (pbuf[1] == 0x0) {
++                ALOGE("%s: IGNORE UNKNOWN EVENT PACKET <0x%2x>", __func__, pbuf[1]);
++                return 0;
++            }
++        }
++
++        /* Check if any pending packet to be read */
++        if (*pkt_type)
++            ALOGI("%s: bitMask post read: %d", __func__, *pkt_type);
++        else
++            ALOGV("%s: Read all available data in driver's queue", __func__);
++    }
++    else if (IS_PKT_TYPE(PACKET_TYPE_SCO, *pkt_type))
++    {
++        ALOGV("%s: BT-SCO PACKET AVAILABLE", __func__);
++        /* Save the HCI PACKET TYPE that is to be fetched */
++        ret = readPacket(fd, PACKET_TYPE_SCO, pbuf);
++        if (ret > 0) {
++            /* Clear the SCO packet type in the bit mask */
++            CLEAR_PKT_TYPE(pkt_type, PACKET_TYPE_SCO);
++            ALOGV("%s: Retrieved %d bytes of SCO data from driver", __func__, ret);
++        }
++
++        /* Check if any pending packet to be read */
++        if (*pkt_type)
++            ALOGI("%s: bitMask post read: %d", __func__, *pkt_type);
++        else
++            ALOGV("%s: Read all available data in driver's queue", __func__);
++    }
++    else if (IS_PKT_TYPE(PACKET_TYPE_ACL, *pkt_type))
++    {
++        ALOGV("%s: BT-ACL PACKET AVAILABLE", __func__);
++        /* Save the HCI PACKET TYPE that is to be fetched */
++        ret = readPacket(fd, PACKET_TYPE_ACL, pbuf);
++        if (ret > 0) {
++            CLEAR_PKT_TYPE(pkt_type, PACKET_TYPE_ACL);
++            ALOGV("%s: Retrieved %d bytes of ACL data from driver", __func__, ret);
++        }
++
++        /* Check if any pending packet to be read */
++        if (*pkt_type)
++            ALOGI("%s: bitMask post read: %d", __func__, *pkt_type);
++        else
++            ALOGV("%s: Read all available data in driver's queue", __func__);
++    }
++    else
++        ALOGE("%s: Unkown Packet type: %d", __func__, *pkt_type);
++
++    if (ret < 0) {
++        CLEAR_ALL_PKT_TYPE(pkt_type);
++    }
++
++    return ret;
++}
++
++/*******************************************************************************
++**
++** Function        select_read
++**
++** Description     check if fd is ready for reading and listen for termination
++**                  signal. need to use select in order to avoid collision
++**                  between read and close on the same fd
++**
++** Returns         -1: termination
++**                 >=0: numbers of bytes read back from fd
++**
++*******************************************************************************/
++static int select_read(int fd, uint8_t *pbuf, int len)
++{
++    static int pktBitMask = 0;
++    int n = 0, ret = -1;
++
++    while (userial_running)
++    {
++        /* Check if packet is already availabile */
++        if (pktBitMask)
++        {
++            ret = read_usb_packet(fd, &pktBitMask, pbuf);
++            goto exit;
++        }
++        else
++        {
++            /* Wait for packet from device */
++            ALOGV("%s: Waiting for PACKET from device", __func__);
++            n = ioctl(fd, BTUSB_IOCTL_WAIT_DATA, pbuf);
++            if (n >= 0)
++            {
++                pktBitMask = *pbuf;
++                ALOGV("%s: readBitMask: %d", __func__, pktBitMask);
++
++                /* Read data from the driver */
++                ret = read_usb_packet(fd, &pktBitMask, pbuf);
++                goto exit;
++            }
++            else
++            {
++                /* -RESTARTSYS : sleep interrupted while waiting for data */
++                ret = n;
++                if (n == -ERESTARTSYS) {
++                    ALOGE("%s: Interrupted while waiting for data: Continue waiting...", __func__);
++                    continue;
++                }
++                else {
++                    ALOGE("%s: ioctl() failed with ret. val: %d", __func__, n);
++                    break;
++                }
++
++            }
++        }
++    }
++
++exit:
++    return ret;
++}
++
++static void handleSignal (int sig)
++{
++    if (sig == SIGUSR2) {
++        ALOGE("%s: Recvd. SIGUSR2 and hence terminating", __func__);
++        //pthread_exit(0);
++    }
++    else
++        ALOGE("%s: Recvd. signal: %d", __func__, sig);
++}
++
++/*******************************************************************************
++**
++** Function        userial_read_thread
++**
++** Description
++**
++** Returns         void *
++**
++*******************************************************************************/
++static void *userial_read_thread(void *arg)
++{
++    int rx_length = 0;
++    int sig = SIGUSR2;
++    sigset_t sigSet;
++    uint8_t *p;
++    HC_BT_HDR *p_buf = NULL;
++    struct sigaction act;
++
++    USERIALDBG("Entering userial_read_thread()");
++    prctl(PR_SET_NAME, (unsigned long)"userial_usb_read", 0, 0, 0);
++
++    ALOGE("%s: Registering the signal handler", __func__);
++    sigemptyset (&sigSet);
++    sigaddset (&sigSet, sig);
++    pthread_sigmask(SIG_UNBLOCK, &sigSet, NULL);
++    act.sa_handler = handleSignal;
++    sigaction (sig, &act, NULL );
++
++    userial_running = 1;
++
++    raise_priority_a2dp(TASK_HIGH_USERIAL_READ);
++
++    while (userial_running)
++    {
++        if (bt_hc_cbacks)
++        {
++            /* Allocate one byte extra for HCI H4 Packet indicator */
++            p_buf = (HC_BT_HDR *) bt_hc_cbacks->alloc( \
++                                                BTHC_USERIAL_READ_MEM_SIZE + 1);
++        }
++        else
++            p_buf = NULL;
++
++        if (p_buf != NULL)
++        {
++            p_buf->offset = 0;
++            p_buf->layer_specific = 0;
++
++            /* Increment by HC_BT_HDR size(8 bytes) : Copy the received event after the header */
++            p = (uint8_t *) (p_buf + 1);
++            rx_length = select_read(userial_cb.fd, p, READ_LIMIT);
++        }
++        else
++        {
++            rx_length = 0;
++            utils_delay(100);
++            ALOGW("userial_read_thread() failed to gain buffers");
++            continue;
++        }
++
++        if (rx_length > 0)
++        {
++            p_buf->len = (uint16_t)rx_length;
++            utils_enqueue(&(userial_cb.rx_q), p_buf);
++
++            //ALOGV("%s: Enqueued & Signalling Rx Data availability(%d bytes)", __func__, rx_length);
++            bthc_rx_ready();
++        }
++        else if (rx_length == 0) {
++            ALOGE("%s: Recvd. invalid packet from Controller: Deallocate memory and continue waiting for packet", __func__);
++            if (bt_hc_cbacks)
++                bt_hc_cbacks->dealloc(p_buf);
++            continue;
++        }
++        else /* rx_length < 0 */
++        {
++            ALOGE("select_read return size <=0:%d, exiting userial_read_thread",\
++                 rx_length);
++            /* if we get here, we should have a buffer */
++            if (bt_hc_cbacks)
++                bt_hc_cbacks->dealloc(p_buf);
++            /* negative value means exit thread */
++            break;
++        }
++    } /* for */
++
++    userial_running = 0;
++    vendor_send_command(BT_VND_OP_USERIAL_CLOSE, NULL);
++    ALOGE("%s: Leaving userial_read_thread()", __func__);
++    pthread_exit(NULL);
++
++    return NULL;    // Compiler friendly
++}
++
++
++/*****************************************************************************
++**   Userial API Functions
++*****************************************************************************/
++
++/*******************************************************************************
++**
++** Function        userial_init
++**
++** Description     Initializes the userial driver
++**
++** Returns         TRUE/FALSE
++**
++*******************************************************************************/
++uint8_t userial_usb_init(void)
++{
++    USERIALDBG("userial_usb_init");
++    memset(&userial_cb, 0, sizeof(tUSERIAL_CB));
++    userial_cb.fd = -1;
++    utils_queue_init(&(userial_cb.rx_q));
++    return TRUE;
++}
++
++
++/*******************************************************************************
++**
++** Function        userial_open
++**
++** Description     Open Bluetooth device with the port ID
++**
++** Returns         TRUE/FALSE
++**
++*******************************************************************************/
++uint8_t userial_usb_open(uint8_t port)
++{
++    struct sched_param param;
++    int policy, result;
++    pthread_attr_t thread_attr;
++    int fd_array[CH_MAX];
++
++    USERIALDBG("userial_usb_open(port:%d)", port);
++
++    if (userial_running)
++    {
++        /* Userial is open; close it first */
++        userial_usb_close();
++        utils_delay(50);
++    }
++
++    if (port >= MAX_SERIAL_PORT)
++    {
++        ALOGE("Port > MAX_SERIAL_PORT");
++        return FALSE;
++    }
++
++    /* Calling vendor-specific part */
++    {
++        result = vendor_send_command(BT_VND_OP_USERIAL_OPEN, &fd_array);
++
++        if (result != 1)
++        {
++            ALOGE("userial_usb_open: wrong numbers of open fd in vendor lib [%d]!",
++                    result);
++            ALOGE("userial_usb_open: HCI UART expects only one open fd");
++            vendor_send_command(BT_VND_OP_USERIAL_CLOSE, NULL);
++            return FALSE;
++        }
++
++        userial_cb.fd = fd_array[0];
++    }
++
++    if (userial_cb.fd == -1)
++    {
++        ALOGE("userial_usb_open: failed to open UART port");
++        return FALSE;
++    }
++
++    USERIALDBG( "fd = %d", userial_cb.fd);
++
++    userial_cb.port = port;
++
++    pthread_attr_init(&thread_attr);
++
++    ALOGI("%s: Starting USERIAL-USB-READ thread...", __func__);
++    if (pthread_create(&(userial_cb.read_thread), &thread_attr, \
++                       userial_read_thread, NULL) != 0 )
++    {
++        ALOGE("pthread_create failed!");
++        return FALSE;
++    }
++
++    if(pthread_getschedparam(userial_cb.read_thread, &policy, &param)==0)
++    {
++        result = pthread_setschedparam(userial_cb.read_thread, policy, &param);
++        if (result != 0)
++        {
++            ALOGW("userial_usb_open: pthread_setschedparam failed (%s)", \
++                  strerror(result));
++        }
++    }
++
++    return TRUE;
++}
++
++/*******************************************************************************
++**
++** Function        userial_read
++**
++** Description     Read data from the userial port
++**
++** Returns         Number of bytes actually read from the userial port and
++**                 copied into p_data.  This may be less than len.
++**
++*******************************************************************************/
++uint16_t  userial_usb_read(uint16_t msg_id, uint8_t *p_buffer, uint16_t len)
++{
++    uint16_t total_len = 0;
++    uint16_t copy_len = 0;
++    uint8_t *p_data = NULL;
++
++    do
++    {
++        if(userial_cb.p_rx_hdr != NULL)
++        {
++            p_data = ((uint8_t *)(userial_cb.p_rx_hdr + 1)) + \
++                     (userial_cb.p_rx_hdr->offset);
++
++            if((userial_cb.p_rx_hdr->len) <= (len - total_len))
++                copy_len = userial_cb.p_rx_hdr->len;
++            else
++                copy_len = (len - total_len);
++
++            memcpy((p_buffer + total_len), p_data, copy_len);
++
++            total_len += copy_len;
++
++            userial_cb.p_rx_hdr->offset += copy_len;
++            userial_cb.p_rx_hdr->len -= copy_len;
++
++            if(userial_cb.p_rx_hdr->len == 0)
++            {
++                if (bt_hc_cbacks)
++                    bt_hc_cbacks->dealloc(userial_cb.p_rx_hdr);
++
++                userial_cb.p_rx_hdr = NULL;
++            }
++        }
++
++        if(userial_cb.p_rx_hdr == NULL)
++        {
++            userial_cb.p_rx_hdr=(HC_BT_HDR *)utils_dequeue(&(userial_cb.rx_q));
++        }
++    } while ((userial_cb.p_rx_hdr != NULL) && (total_len < len));
++
++    return total_len;
++}
++
++static int usb_write(int fd, uint8_t *p_data, uint16_t len)
++{
++    int ret = 0;
++    USBPacketRequest sendPacketRequest;
++
++    /* Fill in the 'write' packet request structure */
++    sendPacketRequest.pktType  = *p_data;
++    sendPacketRequest.buffSize = len;
++    sendPacketRequest.buffer   = p_data+1;
++
++    if (sendPacketRequest.pktType == 0x1)
++        ALOGE("%s: Sending HCI-CMD: 0x%2x", __func__, ((p_data[2] << 8) | p_data[1]));
++
++    ret = ioctl(fd, BTUSB_IOCTL_SEND_PACKET, &sendPacketRequest);
++    return ret;
++}
++
++/*******************************************************************************
++**
++** Function        userial_write
++**
++** Description     Write data to the userial port
++**
++** Returns         Number of bytes actually written to the userial port. This
++**                 may be less than len.
++**
++*******************************************************************************/
++uint16_t userial_usb_write(uint16_t msg_id, uint8_t *p_data, uint16_t len)
++{
++    int ret, total = 0;
++
++#if defined(ENABLE_USERIAL_TIMING_LOGS) && (ENABLE_USERIAL_TIMING_LOGS==TRUE)
++        log_userial_tx_timing(len);
++#endif
++    ret = usb_write(userial_cb.fd, p_data+total, len);
++    if (ret < 0) {
++        ALOGE("%s: Write failed with return value: %d", __func__, ret);
++        return ret;
++    }
++    total = len;
++
++    return ((uint16_t)total);
++}
++
++/*******************************************************************************
++**
++** Function        userial_close
++**
++** Description     Close the userial port
++**
++** Returns         None
++**
++*******************************************************************************/
++void userial_usb_close(void)
++{
++    int result;
++    TRANSAC p_buf;
++
++    ALOGE("userial_usb_close(fd:%d)", userial_cb.fd);
++
++    if (userial_running) {
++        /* Signal userial_read_thread about port close */
++        ALOGE("%s: Signalling the read thread about BT shutdown", __func__);
++        pthread_kill(userial_cb.read_thread, SIGUSR2);
++    }
++
++    if ((result=pthread_join(userial_cb.read_thread, NULL)) < 0)
++        ALOGE( "pthread_join() FAILED result:%d", result);
++
++    /* Calling vendor-specific part */
++    ALOGE("%s: Calling vendor specific part to close the handle to USB driver", __func__);
++    vendor_send_command(BT_VND_OP_USERIAL_CLOSE, NULL);
++
++    userial_cb.fd = -1;
++
++    if (bt_hc_cbacks)
++    {
++        while ((p_buf = utils_dequeue (&(userial_cb.rx_q))) != NULL)
++        {
++            bt_hc_cbacks->dealloc(p_buf);
++        }
++    }
++}
++

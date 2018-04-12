@@ -1,0 +1,33 @@
+From 71b9e381cbd97740fb5e1d71f35ea0d45b005ce2 Mon Sep 17 00:00:00 2001
+From: Anantha Krishnan <ananthk@codeaurora.org>
+Date: Thu, 10 Jul 2014 17:11:50 +0530
+Subject: [PATCH 06/25] bluetooth: Send HCI RESET during BT OFF
+
+While turning BT OFF HCI RESET is not being sent and hence
+controller is not in proper state when user does BT OFF
+from GUI.
+
+Change-Id: I3375215597cb6c6c45d756596c1abdc60ca643d5
+CRs-Fixed: 676608
+Signed-off-by: Anantha Krishnan <ananthk@codeaurora.org>
+---
+ net/bluetooth/hci_core.c |    3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/net/bluetooth/hci_core.c b/net/bluetooth/hci_core.c
+index ace5e55..5578897 100644
+--- a/net/bluetooth/hci_core.c
++++ b/net/bluetooth/hci_core.c
+@@ -1242,8 +1242,7 @@ static int hci_dev_do_close(struct hci_dev *hdev)
+ 	/* Reset device */
+ 	skb_queue_purge(&hdev->cmd_q);
+ 	atomic_set(&hdev->cmd_cnt, 1);
+-	if (!test_bit(HCI_RAW, &hdev->flags) &&
+-	    test_bit(HCI_QUIRK_RESET_ON_CLOSE, &hdev->quirks)) {
++	if (!test_bit(HCI_RAW, &hdev->flags)) {
+ 		set_bit(HCI_INIT, &hdev->flags);
+ 		__hci_req_sync(hdev, hci_reset_req, 0, HCI_CMD_TIMEOUT);
+ 		clear_bit(HCI_INIT, &hdev->flags);
+-- 
+1.7.9.5
+

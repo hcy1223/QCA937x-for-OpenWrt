@@ -1,0 +1,96 @@
+# Build list
+
+targetList := drivers drivers_firmware
+targetList += wpa_supplicant hostapd rootfs_build 
+
+default: ${targetList}
+
+#################################################################################################################################
+export SIGMADUT_TOPDIR=${ATH_TOPDIR}/apps/sigma-dut
+export BE_TEST_TOPDIR=${ATH_TOPDIR}/build/scripts/x86
+export WLAN_DRIVER_TOPDIR=$(ATH_TOPDIR)/drivers
+export ATHDIAG_TOPDIR=${ATH_TOPDIR}/drivers/qcacld-new/tools/athdiag
+
+#################################################################################################################################
+#
+# driver patch
+#
+rome_usb_fw_to_h:
+	@echo Transforming Rome usb firmware binaries to header files
+	@cd ${ATH_TOPDIR}/build/tools && sudo chmod +x ./bin2hex.sh
+	@cd ${ATH_TOPDIR}/build/tools && ./bin2hex.sh ${WLAN_DRIVER_TOPDIR}/firmware/WLAN-firmware/athsetup.bin ${WLAN_DRIVER_TOPDIR}/qcacld-new/CORE/SERVICES/BMI/athsetup.h athsetup_bin
+	@cd ${ATH_TOPDIR}/build/tools && ./bin2hex.sh ${WLAN_DRIVER_TOPDIR}/firmware/WLAN-firmware/athwlan.bin ${WLAN_DRIVER_TOPDIR}/qcacld-new/CORE/SERVICES/BMI/athwlan.h athwlan_bin
+	@cd ${ATH_TOPDIR}/build/tools && ./bin2hex.sh ${WLAN_DRIVER_TOPDIR}/firmware/WLAN-firmware/fakeboar.bin ${WLAN_DRIVER_TOPDIR}/qcacld-new/CORE/SERVICES/BMI/fakeboar.h fakeboar_bin
+	@cd ${ATH_TOPDIR}/build/tools && ./bin2hex.sh ${WLAN_DRIVER_TOPDIR}/firmware/WLAN-firmware/otp.bin ${WLAN_DRIVER_TOPDIR}/qcacld-new/CORE/SERVICES/BMI/otp.h otp_bin
+	@cd ${ATH_TOPDIR}/build/tools && ./bin2hex.sh ${WLAN_DRIVER_TOPDIR}/firmware/WLAN-firmware/qca61x4.bin ${WLAN_DRIVER_TOPDIR}/qcacld-new/CORE/SERVICES/BMI/qca61x4.h qca61x4_bin
+	@cd ${ATH_TOPDIR}/build/tools && ./bin2hex.sh ${WLAN_DRIVER_TOPDIR}/firmware/WLAN-firmware/utf.bin ${WLAN_DRIVER_TOPDIR}/qcacld-new/CORE/SERVICES/BMI/utf.h utf_bin
+	@cd ${ATH_TOPDIR}/build/tools && ./bin2hex.sh ${WLAN_DRIVER_TOPDIR}/qcacld-new/firmware_bin/WCNSS_cfg.dat ${WLAN_DRIVER_TOPDIR}/qcacld-new/CORE/SERVICES/BMI/cfg.h cfg_dat
+	@cd ${ATH_TOPDIR}/build/tools && ./bin2hex.sh ${WLAN_DRIVER_TOPDIR}/qcacld-new/firmware_bin/WCNSS_qcom_cfg.usb.ini ${WLAN_DRIVER_TOPDIR}/qcacld-new/CORE/SERVICES/BMI/qcom_cfg.h qcom_cfg_ini
+	@cd ${ATH_TOPDIR}/build/tools && ./bin2hex.sh ${WLAN_DRIVER_TOPDIR}/qcacld-new/firmware_bin/WCNSS_qcom_wlan_nv.bin ${WLAN_DRIVER_TOPDIR}/qcacld-new/CORE/SERVICES/BMI/qcom_wlan_nv.h qcom_wlan_nv_bin
+	
+custom_patch: rome_usb_fw_to_h
+	@echo Patch CLD driver
+	@cd ${WLAN_DRIVER_TOPDIR} && patch -s -p0 < ${WLAN_DRIVER_TOPDIR}/patches/916-cld-backport-3.16.2.patch
+	@cd ${WLAN_DRIVER_TOPDIR} && patch -s -p0 < ${WLAN_DRIVER_TOPDIR}/patches/901-load_fw_from_h.patch
+	@cd ${WLAN_DRIVER_TOPDIR} && patch -s -p0 < ${WLAN_DRIVER_TOPDIR}/patches/904-barrier_h.patch
+	@cd ${WLAN_DRIVER_TOPDIR} && patch -s -p0 < ${WLAN_DRIVER_TOPDIR}/patches/905-hex2bin.patch
+	@cd ${WLAN_DRIVER_TOPDIR} && patch -s -p0 < ${WLAN_DRIVER_TOPDIR}/patches/906-is_compat_task.patch
+	@cd ${WLAN_DRIVER_TOPDIR} && patch -s -p0 < ${WLAN_DRIVER_TOPDIR}/patches/907-NLA_S32.patch
+	@cd ${WLAN_DRIVER_TOPDIR} && patch -s -p0 < ${WLAN_DRIVER_TOPDIR}/patches/908-rx_buffer_2k.patch
+	@cd ${WLAN_DRIVER_TOPDIR} && patch -s -p0 < ${WLAN_DRIVER_TOPDIR}/patches/909-tasklet_for_usb.patch
+	@cd ${WLAN_DRIVER_TOPDIR} && patch -s -p0 < ${WLAN_DRIVER_TOPDIR}/patches/910-werror.patch
+	@cd ${WLAN_DRIVER_TOPDIR} && patch -s -p0 < ${WLAN_DRIVER_TOPDIR}/patches/911-backports_export_h.patch
+	@cd ${WLAN_DRIVER_TOPDIR} && patch -s -p0 < ${WLAN_DRIVER_TOPDIR}/patches/912-CONFIG_WEXT_SPY.patch
+
+drivers_patch:
+	@echo Patch drivers
+	@cd ${WLAN_DRIVER_TOPDIR} && patch -s -p0 < patches/003-cfg80211-backports-3.16.2-1.patch 
+	@echo Patch wpa_supplicant_8
+	@cd ${WLAN_DRIVER_TOPDIR}/../apps/ && patch -s -p0 < ${WLAN_DRIVER_TOPDIR}/patches/002-wpa_supplicant-for-aio.patch
+	@cd ${WPA_SUPPLICANT_TOPDIR} && cp wpa_supplicant/android.config wpa_supplicant/.config
+	@cd ${WPA_SUPPLICANT_TOPDIR} && cp hostapd/android.config hostapd/.config
+drivers_patch_R:
+	@echo Revert drivers patch
+	@cd ${WLAN_DRIVER_TOPDIR} && patch -R -p0 < patches/003-cfg80211-backports-3.16.2-1.patch
+	@echo Revert wpa_supplicant_8 patch
+	@cd ${WLAN_DRIVER_TOPDIR}/../apps/ && patch -R -p0 < ${WLAN_DRIVER_TOPDIR}/patches/002-wpa_supplicant-for-aio.patch
+	@cd ${WPA_SUPPLICANT_TOPDIR} && rm wpa_supplicant/.config
+	@cd ${WPA_SUPPLICANT_TOPDIR} && rm hostapd/.config
+
+#################################################################################################################################
+#
+# Sigma-DUT package
+#
+sigmadut_build: rootfs_prep sigmadut_clean
+	@echo Build Sigma-DUT
+	cd $(SIGMADUT_TOPDIR) && \
+	${MAKEARCH} && \
+	cp $(SIGMADUT_TOPDIR)/sigma_dut $(INSTALL_ROOT)/sbin
+
+sigmadut_clean:
+	@echo Clean Sigma-DUT
+	cd $(SIGMADUT_TOPDIR) && \
+	${MAKEARCH} clean
+
+#################################################################################################################################
+#
+# athdiag
+#
+athdiag_build: rootfs_prep athdiag_clean
+	@echo Build athdiag tool
+	cd $(ATHDIAG_TOPDIR) && \
+	${MAKEARCH} && \
+	cp $(ATHDIAG_TOPDIR)/athdiag $(INSTALL_ROOT)/sbin
+
+athdiag_clean:
+	@echo Clean athdiag tool
+	cd $(ATHDIAG_TOPDIR) && \
+	${MAKEARCH} clean
+
+#
+# SPE_BE_TEST package
+#
+spe_package:
+	@echo Build SPE_BE_TEST
+	cd ${BE_TEST_TOPDIR} && \
+	./gen_spe_package.sh

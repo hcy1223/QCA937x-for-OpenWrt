@@ -1,0 +1,21 @@
+/*
+* Copyright (c) 2014 Linux Foundation
+* All Rights Reserved.
+*
+* Permission to use, copy, modify, and/or distribute this software for any purpose with or without fee is hereby granted, provided that the above copyright notice and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+*/
+
+diff -Naur qcacld-new.old/CORE/CLD_TXRX/HTT/htt_rx.c qcacld-new/CORE/CLD_TXRX/HTT/htt_rx.c
+--- qcacld-new.old/CORE/CLD_TXRX/HTT/htt_rx.c	2014-09-09 18:04:11.000000000 +0800
++++ qcacld-new/CORE/CLD_TXRX/HTT/htt_rx.c	2014-09-12 01:15:19.830784431 +0800
+@@ -55,7 +55,6 @@
+ #include <ieee80211_defines.h> /* ieee80211_rx_status */
+ 
+ #ifdef DEBUG_DMA_DONE
+-#include <asm/barrier.h>
+ #include <wma_api.h>
+ #endif
+ 

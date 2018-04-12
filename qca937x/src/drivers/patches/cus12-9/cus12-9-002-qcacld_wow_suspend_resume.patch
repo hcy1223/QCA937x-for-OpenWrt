@@ -1,0 +1,80 @@
+diff -urN qcacld-new.old/CORE/HDD/src/wlan_hdd_cfg80211.c qcacld-new/CORE/HDD/src/wlan_hdd_cfg80211.c
+--- qcacld-new.old/CORE/HDD/src/wlan_hdd_cfg80211.c	2015-04-14 17:39:56.475756748 +0800
++++ qcacld-new/CORE/HDD/src/wlan_hdd_cfg80211.c	2015-04-15 15:13:20.279430830 +0800
+@@ -88,6 +88,7 @@
+ #include "wlan_hdd_trace.h"
+ #include "vos_types.h"
+ #include "vos_trace.h"
++#include "hif.h"
+ #ifdef WLAN_BTAMP_FEATURE
+ #include "bap_hdd_misc.h"
+ #endif
+@@ -13801,6 +13802,8 @@
+ {
+     int ret;
+ 
++    hifHddDeviceResume();
++
+     vos_ssr_protect(__func__);
+     ret = __wlan_hdd_cfg80211_resume_wlan(wiphy);
+     vos_ssr_unprotect(__func__);
+@@ -14003,6 +14006,8 @@
+     ret = __wlan_hdd_cfg80211_suspend_wlan(wiphy, wow);
+     vos_ssr_unprotect(__func__);
+ 
++    hifHddDeviceSuspend();
++
+     return ret;
+ }
+ 
+diff -urN qcacld-new.old/CORE/SERVICES/COMMON/hif.h qcacld-new/CORE/SERVICES/COMMON/hif.h
+--- qcacld-new.old/CORE/SERVICES/COMMON/hif.h	2015-04-14 17:39:56.467756748 +0800
++++ qcacld-new/CORE/SERVICES/COMMON/hif.h	2015-04-14 17:42:15.331757708 +0800
+@@ -842,4 +842,7 @@
+ 
+ A_BOOL HIFIsMailBoxSwapped(HIF_DEVICE *hd);
+ 
++int hifHddDeviceSuspend();
++int hifHddDeviceResume();
++
+ #endif /* _HIF_H_ */
+diff -urN qcacld-new.old/CORE/SERVICES/HIF/sdio/linux/native_sdio/src/hif.c qcacld-new/CORE/SERVICES/HIF/sdio/linux/native_sdio/src/hif.c
+--- qcacld-new.old/CORE/SERVICES/HIF/sdio/linux/native_sdio/src/hif.c	2015-04-14 17:39:56.471756748 +0800
++++ qcacld-new/CORE/SERVICES/HIF/sdio/linux/native_sdio/src/hif.c	2015-04-14 17:50:41.655761211 +0800
+@@ -2115,6 +2115,36 @@
+     }
+ }
+ 
++int hifHddDeviceSuspend()
++{
++    int i;
++
++    for (i=0; i<MAX_HIF_DEVICES; ++i) {
++        HIF_DEVICE *hifdevice = hif_devices[i];
++        if (hifdevice && hifdevice->func)
++        {
++            hifDeviceSuspend(&hifdevice->func->dev);
++        }
++    }
++
++    return 0;
++}
++
++int hifHddDeviceResume()
++{
++    int i;
++
++    for (i=0; i<MAX_HIF_DEVICES; ++i) {
++        HIF_DEVICE *hifdevice = hif_devices[i];
++        if (hifdevice && hifdevice->func)
++        {
++            hifDeviceResume(&hifdevice->func->dev);
++        }
++    }
++
++    return 0;
++}
++
+ static int hifDeviceResume(struct device *dev)
+ {
+     struct sdio_func *func=dev_to_sdio_func(dev);

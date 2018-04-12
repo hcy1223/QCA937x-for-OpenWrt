@@ -1,0 +1,6153 @@
+diff -urN backports.orig/.config backports/.config
+--- backports.orig/.config	2015-09-24 15:25:20.469038328 +0800
++++ backports/.config	2015-09-24 15:25:20.553038328 +0800
+@@ -25,8 +25,6 @@
+ CPTCFG_NEED_PER_CPU_PAGE_FIRST_CHUNK=y
+ CPTCFG_ARCH_HIBERNATION_POSSIBLE=y
+ CPTCFG_ARCH_SUSPEND_POSSIBLE=y
+-CPTCFG_ARCH_WANT_HUGE_PMD_SHARE=y
+-CPTCFG_ARCH_WANT_GENERAL_HUGETLB=y
+ CPTCFG_ARCH_SUPPORTS_OPTIMIZED_INLINING=y
+ CPTCFG_ARCH_SUPPORTS_DEBUG_PAGEALLOC=y
+ CPTCFG_HAVE_INTEL_TXT=y
+@@ -41,7 +39,6 @@
+ CPTCFG_HAVE_KERNEL_LZMA=y
+ CPTCFG_HAVE_KERNEL_XZ=y
+ CPTCFG_HAVE_KERNEL_LZO=y
+-CPTCFG_HAVE_KERNEL_LZ4=y
+ CPTCFG_KERNEL_GZIP=y
+ CPTCFG_SWAP=y
+ CPTCFG_SYSVIPC=y
+@@ -118,11 +115,11 @@
+ CPTCFG_RD_LZMA=y
+ CPTCFG_RD_XZ=y
+ CPTCFG_RD_LZO=y
+-CPTCFG_RD_LZ4=y
+ CPTCFG_SYSCTL=y
+ CPTCFG_ANON_INODES=y
+ CPTCFG_HAVE_UID16=y
+ CPTCFG_SYSCTL_EXCEPTION_TRACE=y
++CPTCFG_HOTPLUG=y
+ CPTCFG_HAVE_PCSPKR_PLATFORM=y
+ CPTCFG_UID16=y
+ CPTCFG_SYSCTL_SYSCALL=y
+@@ -146,7 +143,6 @@
+ CPTCFG_VM_EVENT_COUNTERS=y
+ CPTCFG_SLUB_DEBUG=y
+ CPTCFG_SLUB=y
+-CPTCFG_SLUB_CPU_PARTIAL=y
+ CPTCFG_PROFILING=y
+ CPTCFG_TRACEPOINTS=y
+ CPTCFG_OPROFILE=m
+@@ -189,7 +185,6 @@
+ CPTCFG_SECCOMP_FILTER=y
+ CPTCFG_HAVE_IRQ_TIME_ACCOUNTING=y
+ CPTCFG_HAVE_ARCH_TRANSPARENT_HUGEPAGE=y
+-CPTCFG_HAVE_ARCH_SOFT_DIRTY=y
+ CPTCFG_MODULES_USE_ELF_REL=y
+ CPTCFG_CLONE_BACKWARDS=y
+ CPTCFG_OLD_SIGSUSPEND3=y
+@@ -215,7 +210,6 @@
+ CPTCFG_ACORN_PARTITION=y
+ CPTCFG_ACORN_PARTITION_ICS=y
+ CPTCFG_ACORN_PARTITION_RISCIX=y
+-CPTCFG_AIX_PARTITION=y
+ CPTCFG_OSF_PARTITION=y
+ CPTCFG_AMIGA_PARTITION=y
+ CPTCFG_ATARI_PARTITION=y
+@@ -245,6 +239,7 @@
+ CPTCFG_INLINE_READ_UNLOCK_IRQ=y
+ CPTCFG_INLINE_WRITE_UNLOCK=y
+ CPTCFG_INLINE_WRITE_UNLOCK_IRQ=y
++CPTCFG_ARCH_SUPPORTS_ATOMIC_RMW=y
+ CPTCFG_MUTEX_SPIN_ON_OWNER=y
+ CPTCFG_FREEZER=y
+ CPTCFG_ZONE_DMA=y
+@@ -305,6 +300,8 @@
+ CPTCFG_X86_MCE_INJECT=m
+ CPTCFG_X86_THERMAL_VECTOR=y
+ CPTCFG_VM86=y
++CPTCFG_X86_16BIT=y
++CPTCFG_X86_ESPFIX32=y
+ CPTCFG_I8K=m
+ CPTCFG_X86_REBOOTFIXUPS=y
+ CPTCFG_MICROCODE=m
+@@ -312,6 +309,8 @@
+ CPTCFG_MICROCODE_AMD=y
+ CPTCFG_MICROCODE_OLD_INTERFACE=y
+ CPTCFG_MICROCODE_INTEL_LIB=y
++CPTCFG_MICROCODE_INTEL_EARLY=y
++CPTCFG_MICROCODE_EARLY=y
+ CPTCFG_X86_MSR=m
+ CPTCFG_X86_CPUID=m
+ CPTCFG_HIGHMEM64G=y
+@@ -350,9 +349,6 @@
+ CPTCFG_CROSS_MEMORY_ATTACH=y
+ CPTCFG_CLEANCACHE=y
+ CPTCFG_FRONTSWAP=y
+-CPTCFG_ZBUD=y
+-CPTCFG_ZSWAP=y
+-CPTCFG_MEM_SOFT_DIRTY=y
+ CPTCFG_HIGHPTE=y
+ CPTCFG_X86_CHECK_BIOS_CORRUPTION=y
+ CPTCFG_X86_BOOTPARAM_MEMORY_CORRUPTION_CHECK=y
+@@ -385,13 +381,7 @@
+ CPTCFG_PM_WAKELOCKS_GC=y
+ CPTCFG_PM_RUNTIME=y
+ CPTCFG_PM=y
+-CPTCFG_PM_DEBUG=y
+-CPTCFG_PM_ADVANCED_DEBUG=y
+-CPTCFG_PM_SLEEP_DEBUG=y
+-CPTCFG_PM_TRACE=y
+-CPTCFG_PM_TRACE_RTC=y
+ CPTCFG_PM_CLK=y
+-CPTCFG_WQ_POWER_EFFICIENT_DEFAULT=y
+ CPTCFG_ACPI=y
+ CPTCFG_ACPI_SLEEP=y
+ CPTCFG_ACPI_EC_DEBUGFS=m
+@@ -530,6 +520,7 @@
+ CPTCFG_RAPIDIO_CPS_XX=y
+ CPTCFG_RAPIDIO_TSI568=y
+ CPTCFG_RAPIDIO_CPS_GEN2=y
++CPTCFG_RAPIDIO_TSI500=y
+ CPTCFG_BINFMT_ELF=y
+ CPTCFG_ARCH_BINFMT_ELF_RANDOMIZE_PIE=y
+ CPTCFG_CORE_DUMP_DEFAULT_ELF_HEADERS=y
+@@ -568,7 +559,6 @@
+ CPTCFG_IP_MROUTE=y
+ CPTCFG_IP_PIMSM_V1=y
+ CPTCFG_IP_PIMSM_V2=y
+-CPTCFG_ARPD=y
+ CPTCFG_SYN_COOKIES=y
+ CPTCFG_NET_IPVTI=m
+ CPTCFG_INET_AH=m
+@@ -863,9 +853,6 @@
+ CPTCFG_ATM_BR2684=m
+ CPTCFG_L2TP=m
+ CPTCFG_L2TP_DEBUGFS=m
+-CPTCFG_L2TP_V3=y
+-CPTCFG_L2TP_IP=m
+-CPTCFG_L2TP_ETH=m
+ CPTCFG_STP=m
+ CPTCFG_GARP=m
+ CPTCFG_MRP=m
+@@ -956,19 +943,15 @@
+ CPTCFG_BATMAN_ADV_DAT=y
+ CPTCFG_BATMAN_ADV_NC=y
+ CPTCFG_OPENVSWITCH=m
+-CPTCFG_OPENVSWITCH_GRE=y
+ CPTCFG_VSOCKETS=m
+ CPTCFG_VMWARE_VMCI_VSOCKETS=m
+ CPTCFG_NETLINK_MMAP=y
+ CPTCFG_NETLINK_DIAG=m
+-CPTCFG_NET_MPLS_GSO=m
+ CPTCFG_RPS=y
+ CPTCFG_RFS_ACCEL=y
+ CPTCFG_XPS=y
+ CPTCFG_NETPRIO_CGROUP=m
+-CPTCFG_NET_RX_BUSY_POLL=y
+ CPTCFG_BQL=y
+-CPTCFG_NET_FLOW_LIMIT=y
+ CPTCFG_NET_PKTGEN=m
+ CPTCFG_NET_TCPPROBE=m
+ CPTCFG_HAMRADIO=y
+@@ -1346,7 +1329,7 @@
+ CPTCFG_MEGARAID_MM=m
+ CPTCFG_MEGARAID_MAILBOX=m
+ CPTCFG_MEGARAID_LEGACY=m
+-CPTCFG_MEGARAID_SAS=y
++CPTCFG_MEGARAID_SAS=m
+ CPTCFG_SCSI_MPT2SAS=m
+ CPTCFG_SCSI_MPT3SAS=m
+ CPTCFG_SCSI_UFSHCD=m
+@@ -1426,7 +1409,6 @@
+ CPTCFG_SATA_PMP=y
+ CPTCFG_SATA_AHCI=m
+ CPTCFG_SATA_AHCI_PLATFORM=m
+-CPTCFG_AHCI_IMX=m
+ CPTCFG_SATA_INIC162X=m
+ CPTCFG_SATA_ACARD_AHCI=m
+ CPTCFG_SATA_SIL24=m
+@@ -1439,7 +1421,6 @@
+ CPTCFG_SATA_MV=m
+ CPTCFG_SATA_NV=m
+ CPTCFG_SATA_PROMISE=m
+-CPTCFG_SATA_RCAR=m
+ CPTCFG_SATA_SIL=m
+ CPTCFG_SATA_SIS=m
+ CPTCFG_SATA_SVW=m
+@@ -1509,14 +1490,15 @@
+ CPTCFG_MD_MULTIPATH=m
+ CPTCFG_MD_FAULTY=m
+ CPTCFG_BCACHE=m
++CPTCFG_BLK_DEV_DM_BUILTIN=y
+ CPTCFG_BLK_DEV_DM=y
+-CPTCFG_DM_BUFIO=y
+-CPTCFG_DM_BIO_PRISON=y
+-CPTCFG_DM_PERSISTENT_DATA=y
++CPTCFG_DM_BUFIO=m
++CPTCFG_DM_BIO_PRISON=m
++CPTCFG_DM_PERSISTENT_DATA=m
+ CPTCFG_DM_CRYPT=m
+ CPTCFG_DM_SNAPSHOT=m
+ CPTCFG_DM_THIN_PROVISIONING=m
+-CPTCFG_DM_CACHE=y
++CPTCFG_DM_CACHE=m
+ CPTCFG_DM_CACHE_MQ=m
+ CPTCFG_DM_CACHE_CLEANER=m
+ CPTCFG_DM_MIRROR=m
+@@ -1530,7 +1512,6 @@
+ CPTCFG_DM_UEVENT=y
+ CPTCFG_DM_FLAKEY=m
+ CPTCFG_DM_VERITY=m
+-CPTCFG_DM_SWITCH=m
+ CPTCFG_TARGET_CORE=m
+ CPTCFG_TCM_IBLOCK=m
+ CPTCFG_TCM_FILEIO=m
+@@ -1563,11 +1544,11 @@
+ CPTCFG_MACINTOSH_DRIVERS=y
+ CPTCFG_MAC_EMUMOUSEBTN=m
+ CPTCFG_NETDEVICES=y
+-CPTCFG_MII=m
+ CPTCFG_BONDING=m
+ CPTCFG_DUMMY=m
+ CPTCFG_EQUALIZER=m
+ CPTCFG_NET_FC=y
++CPTCFG_MII=y
+ CPTCFG_IFB=m
+ CPTCFG_MACVLAN=m
+ CPTCFG_MACVTAP=m
+@@ -1580,7 +1561,6 @@
+ CPTCFG_TUN=y
+ CPTCFG_VETH=m
+ CPTCFG_VIRTIO_NET=y
+-CPTCFG_NLMON=m
+ CPTCFG_ARCNET=m
+ CPTCFG_ARCNET_1201=m
+ CPTCFG_ARCNET_1051=m
+@@ -1617,7 +1597,6 @@
+ CPTCFG_VHOST_NET=m
+ CPTCFG_VHOST_SCSI=m
+ CPTCFG_VHOST_RING=m
+-CPTCFG_VHOST=m
+ CPTCFG_NET_DSA_MV88E6XXX=m
+ CPTCFG_NET_DSA_MV88E6060=m
+ CPTCFG_NET_DSA_MV88E6XXX_NEED_PPU=y
+@@ -1640,7 +1619,6 @@
+ CPTCFG_PCNET32=m
+ CPTCFG_PCMCIA_NMCLAN=m
+ CPTCFG_NI65=m
+-CPTCFG_NET_VENDOR_ARC=y
+ CPTCFG_NET_CADENCE=y
+ CPTCFG_ARM_AT91_ETHER=m
+ CPTCFG_MACB=m
+@@ -1703,7 +1681,6 @@
+ CPTCFG_MLX4_EN=m
+ CPTCFG_MLX4_EN_DCB=y
+ CPTCFG_MLX4_CORE=m
+-CPTCFG_MLX5_CORE=m
+ CPTCFG_NET_VENDOR_MICREL=y
+ CPTCFG_KS8842=m
+ CPTCFG_KS8851=m
+@@ -1743,7 +1720,6 @@
+ CPTCFG_8139TOO_PIO=y
+ CPTCFG_8139TOO_8129=y
+ CPTCFG_R8169=m
+-CPTCFG_SH_ETH=m
+ CPTCFG_NET_VENDOR_RDC=y
+ CPTCFG_R6040=m
+ CPTCFG_NET_VENDOR_SEEQ=y
+@@ -1760,7 +1736,6 @@
+ CPTCFG_SMC9194=m
+ CPTCFG_PCMCIA_SMC91C92=m
+ CPTCFG_EPIC100=m
+-CPTCFG_SMSC911X=m
+ CPTCFG_SMSC9420=m
+ CPTCFG_NET_VENDOR_STMICRO=y
+ CPTCFG_STMMAC_ETH=m
+@@ -1834,6 +1809,7 @@
+ CPTCFG_HOSTAP_PLX=m
+ CPTCFG_HOSTAP_PCI=m
+ CPTCFG_HOSTAP_CS=m
++CPTCFG_IWLWIFI_DEVICE_TESTMODE=y
+ CPTCFG_WIMAX_I2400M=m
+ CPTCFG_WIMAX_I2400M_USB=m
+ CPTCFG_WAN=y
+@@ -2075,9 +2051,6 @@
+ CPTCFG_TOUCHSCREEN_CYTTSP_CORE=m
+ CPTCFG_TOUCHSCREEN_CYTTSP_I2C=m
+ CPTCFG_TOUCHSCREEN_CYTTSP_SPI=m
+-CPTCFG_TOUCHSCREEN_CYTTSP4_CORE=m
+-CPTCFG_TOUCHSCREEN_CYTTSP4_I2C=m
+-CPTCFG_TOUCHSCREEN_CYTTSP4_SPI=m
+ CPTCFG_TOUCHSCREEN_DA9034=m
+ CPTCFG_TOUCHSCREEN_DA9052=m
+ CPTCFG_TOUCHSCREEN_DYNAPRO=m
+@@ -2219,6 +2192,7 @@
+ CPTCFG_N_HDLC=m
+ CPTCFG_TRACE_ROUTER=m
+ CPTCFG_TRACE_SINK=m
++CPTCFG_STALDRV=y
+ CPTCFG_SERIAL_8250=y
+ CPTCFG_SERIAL_8250_PNP=y
+ CPTCFG_SERIAL_8250_CONSOLE=y
+@@ -2254,7 +2228,6 @@
+ CPTCFG_SERIAL_PCH_UART=m
+ CPTCFG_SERIAL_ARC=m
+ CPTCFG_SERIAL_RP2=m
+-CPTCFG_SERIAL_FSL_LPUART=m
+ CPTCFG_TTY_PRINTK=y
+ CPTCFG_PRINTER=m
+ CPTCFG_PPDEV=m
+@@ -2337,7 +2310,7 @@
+ CPTCFG_I2C_DESIGNWARE_PCI=m
+ CPTCFG_I2C_EG20T=m
+ CPTCFG_I2C_GPIO=m
+-CPTCFG_I2C_KEMPLD=m
++CPTCFG_I2C_INTEL_MID=m
+ CPTCFG_I2C_OCORES=m
+ CPTCFG_I2C_PCA_PLATFORM=m
+ CPTCFG_I2C_SIMTEC=m
+@@ -2371,6 +2344,7 @@
+ CPTCFG_SPI_DW_MMIO=m
+ CPTCFG_SPI_SPIDEV=m
+ CPTCFG_SPI_TLE62X0=m
++CPTCFG_SSBI=m
+ CPTCFG_HSI=m
+ CPTCFG_HSI_BOARDINFO=y
+ CPTCFG_HSI_CHAR=m
+@@ -2524,7 +2498,6 @@
+ CPTCFG_SENSORS_F75375S=m
+ CPTCFG_SENSORS_FSCHMD=m
+ CPTCFG_SENSORS_G760A=m
+-CPTCFG_SENSORS_G762=m
+ CPTCFG_SENSORS_GL518SM=m
+ CPTCFG_SENSORS_GL520SM=m
+ CPTCFG_SENSORS_GPIO_FAN=m
+@@ -2634,7 +2607,6 @@
+ CPTCFG_CPU_THERMAL=y
+ CPTCFG_THERMAL_EMULATION=y
+ CPTCFG_INTEL_POWERCLAMP=m
+-CPTCFG_X86_PKG_TEMP_THERMAL=m
+ CPTCFG_WATCHDOG=y
+ CPTCFG_WATCHDOG_CORE=y
+ CPTCFG_SOFT_WATCHDOG=m
+@@ -2663,7 +2635,6 @@
+ CPTCFG_IT8712F_WDT=m
+ CPTCFG_IT87_WDT=m
+ CPTCFG_HP_WATCHDOG=m
+-CPTCFG_KEMPLD_WDT=m
+ CPTCFG_HPWDT_NMI_DECODING=y
+ CPTCFG_SC1200_WDT=m
+ CPTCFG_SCx200_WDT=m
+@@ -2683,7 +2654,6 @@
+ CPTCFG_W83977F_WDT=m
+ CPTCFG_MACHZ_WDT=m
+ CPTCFG_SBC_EPX_C3_WATCHDOG=m
+-CPTCFG_MEN_A21_WDT=m
+ CPTCFG_XEN_WDT=m
+ CPTCFG_PCWATCHDOG=m
+ CPTCFG_MIXCOMWD=m
+@@ -2714,7 +2684,6 @@
+ CPTCFG_LPC_SCH=m
+ CPTCFG_MFD_INTEL_MSIC=y
+ CPTCFG_MFD_JANZ_CMODIO=m
+-CPTCFG_MFD_KEMPLD=m
+ CPTCFG_MFD_88PM800=m
+ CPTCFG_MFD_88PM805=m
+ CPTCFG_MFD_88PM860X=y
+@@ -2770,7 +2739,6 @@
+ CPTCFG_MFD_ARIZONA_SPI=m
+ CPTCFG_MFD_WM5102=y
+ CPTCFG_MFD_WM5110=y
+-CPTCFG_MFD_WM8997=y
+ CPTCFG_MFD_WM8400=y
+ CPTCFG_MFD_WM831X=y
+ CPTCFG_MFD_WM831X_I2C=y
+@@ -2826,7 +2794,6 @@
+ CPTCFG_FB=y
+ CPTCFG_FIRMWARE_EDID=y
+ CPTCFG_FB_DDC=m
+-CPTCFG_FB_BOOT_VESA_SUPPORT=y
+ CPTCFG_FB_CFB_FILLRECT=y
+ CPTCFG_FB_CFB_COPYAREA=y
+ CPTCFG_FB_CFB_IMAGEBLIT=y
+@@ -2850,7 +2817,6 @@
+ CPTCFG_FB_IMSTT=y
+ CPTCFG_FB_VGA16=m
+ CPTCFG_FB_UVESA=m
+-CPTCFG_FB_VESA=m
+ CPTCFG_FB_EFI=y
+ CPTCFG_FB_N411=m
+ CPTCFG_FB_HGA=m
+@@ -2964,6 +2930,8 @@
+ CPTCFG_DUMMY_CONSOLE=y
+ CPTCFG_FRAMEBUFFER_CONSOLE=y
+ CPTCFG_FRAMEBUFFER_CONSOLE_DETECT_PRIMARY=y
++CPTCFG_FONT_8x8=y
++CPTCFG_FONT_8x16=y
+ CPTCFG_SOUND=m
+ CPTCFG_SND=m
+ CPTCFG_SND_TIMER=m
+@@ -3104,7 +3072,6 @@
+ CPTCFG_SND_HDA_CODEC_SIGMATEL=y
+ CPTCFG_SND_HDA_CODEC_VIA=y
+ CPTCFG_SND_HDA_CODEC_HDMI=y
+-CPTCFG_SND_HDA_I915=y
+ CPTCFG_SND_HDA_CODEC_CIRRUS=y
+ CPTCFG_SND_HDA_CODEC_CONEXANT=y
+ CPTCFG_SND_HDA_CODEC_CA0110=y
+@@ -3149,7 +3116,6 @@
+ CPTCFG_SND_USB_CAIAQ_INPUT=y
+ CPTCFG_SND_USB_US122L=m
+ CPTCFG_SND_USB_6FIRE=m
+-CPTCFG_SND_USB_HIFACE=m
+ CPTCFG_SND_FIREWIRE=y
+ CPTCFG_SND_FIREWIRE_LIB=m
+ CPTCFG_SND_FIREWIRE_SPEAKERS=m
+@@ -3196,22 +3162,19 @@
+ CPTCFG_SND_SOC_DA7213=m
+ CPTCFG_SND_SOC_DA732X=m
+ CPTCFG_SND_SOC_DA9055=m
+-CPTCFG_SND_SOC_BT_SCO=m
++CPTCFG_SND_SOC_DFBMCS320=m
+ CPTCFG_SND_SOC_ISABELLE=m
+ CPTCFG_SND_SOC_LM49453=m
+ CPTCFG_SND_SOC_MAX98088=m
+ CPTCFG_SND_SOC_MAX98090=m
+ CPTCFG_SND_SOC_MAX98095=m
+ CPTCFG_SND_SOC_MAX9850=m
+-CPTCFG_SND_SOC_HDMI_CODEC=m
+ CPTCFG_SND_SOC_PCM3008=m
+ CPTCFG_SND_SOC_RT5631=m
+-CPTCFG_SND_SOC_RT5640=m
+ CPTCFG_SND_SOC_SGTL5000=m
+ CPTCFG_SND_SOC_SI476X=m
+ CPTCFG_SND_SOC_SN95031=m
+ CPTCFG_SND_SOC_SPDIF=m
+-CPTCFG_SND_SOC_SSM2518=m
+ CPTCFG_SND_SOC_SSM2602=m
+ CPTCFG_SND_SOC_STA32X=m
+ CPTCFG_SND_SOC_STA529=m
+@@ -3280,7 +3243,6 @@
+ CPTCFG_SND_SIMPLE_CARD=m
+ CPTCFG_AC97_BUS=m
+ CPTCFG_HID=m
+-CPTCFG_HID_BATTERY_STRENGTH=y
+ CPTCFG_HIDRAW=y
+ CPTCFG_UHID=m
+ CPTCFG_HID_GENERIC=m
+@@ -3299,11 +3261,9 @@
+ CPTCFG_DRAGONRISE_FF=y
+ CPTCFG_HID_EMS_FF=m
+ CPTCFG_HID_ELECOM=m
+-CPTCFG_HID_ELO=m
+ CPTCFG_HID_EZKEY=m
+ CPTCFG_HID_HOLTEK=m
+ CPTCFG_HOLTEK_FF=y
+-CPTCFG_HID_HUION=m
+ CPTCFG_HID_KEYTOUCH=m
+ CPTCFG_HID_KYE=m
+ CPTCFG_HID_UCLOGIC=m
+@@ -3336,6 +3296,7 @@
+ CPTCFG_HID_PICOLCD_LEDS=y
+ CPTCFG_HID_PICOLCD_CIR=y
+ CPTCFG_HID_PRIMAX=m
++CPTCFG_HID_PS3REMOTE=m
+ CPTCFG_HID_ROCCAT=m
+ CPTCFG_HID_SAITEK=m
+ CPTCFG_HID_SAMSUNG=m
+@@ -3355,6 +3316,7 @@
+ CPTCFG_THRUSTMASTER_FF=y
+ CPTCFG_HID_WACOM=m
+ CPTCFG_HID_WIIMOTE=m
++CPTCFG_HID_WIIMOTE_EXT=y
+ CPTCFG_HID_ZEROPLUS=m
+ CPTCFG_ZEROPLUS_FF=y
+ CPTCFG_HID_ZYDACRON=m
+@@ -3365,6 +3327,9 @@
+ CPTCFG_USB_KBD=m
+ CPTCFG_USB_MOUSE=m
+ CPTCFG_I2C_HID=m
++CPTCFG_USB_ARCH_HAS_OHCI=y
++CPTCFG_USB_ARCH_HAS_EHCI=y
++CPTCFG_USB_ARCH_HAS_XHCI=y
+ CPTCFG_USB_SUPPORT=y
+ CPTCFG_USB_COMMON=y
+ CPTCFG_USB_ARCH_HAS_HCD=y
+@@ -3372,6 +3337,7 @@
+ CPTCFG_USB_ANNOUNCE_NEW_DEVICES=y
+ CPTCFG_USB_DEFAULT_PERSIST=y
+ CPTCFG_USB_DYNAMIC_MINORS=y
++CPTCFG_USB_OTG=y
+ CPTCFG_USB_MON=m
+ CPTCFG_USB_WUSB=m
+ CPTCFG_USB_WUSB_CBAF=m
+@@ -3387,9 +3353,7 @@
+ CPTCFG_USB_ISP116X_HCD=m
+ CPTCFG_USB_ISP1760_HCD=m
+ CPTCFG_USB_ISP1362_HCD=m
+-CPTCFG_USB_FUSBH200_HCD=m
+ CPTCFG_USB_OHCI_HCD=y
+-CPTCFG_USB_OHCI_HCD_PCI=y
+ CPTCFG_USB_OHCI_HCD_PLATFORM=y
+ CPTCFG_USB_OHCI_LITTLE_ENDIAN=y
+ CPTCFG_USB_UHCI_HCD=y
+@@ -3402,7 +3366,6 @@
+ CPTCFG_USB_WHCI_HCD=m
+ CPTCFG_USB_HWA_HCD=m
+ CPTCFG_USB_MUSB_HDRC=m
+-CPTCFG_USB_MUSB_DUAL_ROLE=y
+ CPTCFG_USB_MUSB_TUSB6010=m
+ CPTCFG_USB_MUSB_UX500=m
+ CPTCFG_MUSB_PIO_ONLY=y
+@@ -3498,8 +3461,6 @@
+ CPTCFG_USB_SERIAL_ZTE=m
+ CPTCFG_USB_SERIAL_SSU100=m
+ CPTCFG_USB_SERIAL_QT2=m
+-CPTCFG_USB_SERIAL_FLASHLOADER=m
+-CPTCFG_USB_SERIAL_SUUNTO=m
+ CPTCFG_USB_SERIAL_DEBUG=m
+ CPTCFG_USB_EMI62=m
+ CPTCFG_USB_EMI26=m
+@@ -3539,12 +3500,12 @@
+ CPTCFG_USB_ISP1301=m
+ CPTCFG_USB_RCAR_PHY=m
+ CPTCFG_USB_GADGET=m
+-CPTCFG_USB_FOTG210_UDC=m
+ CPTCFG_USB_R8A66597=m
+ CPTCFG_USB_RENESAS_USBHS_UDC=m
+ CPTCFG_USB_PXA27X=m
+ CPTCFG_USB_MV_UDC=m
+ CPTCFG_USB_MV_U3D=m
++CPTCFG_USB_GADGET_MUSB_HDRC=m
+ CPTCFG_USB_AMD5536UDC=m
+ CPTCFG_USB_NET2272=m
+ CPTCFG_USB_NET2272_DMA=y
+@@ -3555,27 +3516,10 @@
+ CPTCFG_USB_F_ACM=m
+ CPTCFG_USB_F_SS_LB=m
+ CPTCFG_USB_U_SERIAL=m
+-CPTCFG_USB_U_ETHER=m
+-CPTCFG_USB_U_RNDIS=m
+ CPTCFG_USB_F_SERIAL=m
+ CPTCFG_USB_F_OBEX=m
+-CPTCFG_USB_F_NCM=m
+-CPTCFG_USB_F_ECM=m
+-CPTCFG_USB_F_PHONET=m
+-CPTCFG_USB_F_EEM=m
+-CPTCFG_USB_F_SUBSET=m
+-CPTCFG_USB_F_RNDIS=m
+-CPTCFG_USB_CONFIGFS=m
+-CPTCFG_USB_CONFIGFS_SERIAL=y
+-CPTCFG_USB_CONFIGFS_ACM=y
+-CPTCFG_USB_CONFIGFS_OBEX=y
+-CPTCFG_USB_CONFIGFS_NCM=y
+-CPTCFG_USB_CONFIGFS_ECM=y
+-CPTCFG_USB_CONFIGFS_ECM_SUBSET=y
+-CPTCFG_USB_CONFIGFS_RNDIS=y
+-CPTCFG_USB_CONFIGFS_EEM=y
+-CPTCFG_USB_CONFIGFS_PHONET=y
+ CPTCFG_USB_ZERO=m
++CPTCFG_USB_ZERO_HNPTEST=y
+ CPTCFG_USB_AUDIO=m
+ CPTCFG_GADGET_UAC1=y
+ CPTCFG_USB_ETH=m
+@@ -3687,7 +3631,6 @@
+ CPTCFG_INFINIBAND_CXGB3=m
+ CPTCFG_INFINIBAND_CXGB4=m
+ CPTCFG_MLX4_INFINIBAND=m
+-CPTCFG_MLX5_INFINIBAND=m
+ CPTCFG_INFINIBAND_NES=m
+ CPTCFG_INFINIBAND_OCRDMA=m
+ CPTCFG_INFINIBAND_IPOIB=m
+@@ -3741,7 +3684,6 @@
+ CPTCFG_RTC_DRV_ISL12022=m
+ CPTCFG_RTC_DRV_X1205=m
+ CPTCFG_RTC_DRV_PALMAS=m
+-CPTCFG_RTC_DRV_PCF2127=m
+ CPTCFG_RTC_DRV_PCF8523=m
+ CPTCFG_RTC_DRV_PCF8563=m
+ CPTCFG_RTC_DRV_PCF8583=m
+@@ -3795,14 +3737,11 @@
+ CPTCFG_DMADEVICES=y
+ CPTCFG_INTEL_MID_DMAC=m
+ CPTCFG_INTEL_IOATDMA=m
+-CPTCFG_DW_DMAC_CORE=m
+ CPTCFG_DW_DMAC=m
+-CPTCFG_DW_DMAC_PCI=m
+ CPTCFG_TIMB_DMA=m
+ CPTCFG_PCH_DMA=m
+ CPTCFG_DMA_ENGINE=y
+ CPTCFG_DMA_ACPI=y
+-CPTCFG_NET_DMA=y
+ CPTCFG_ASYNC_TX_DMA=y
+ CPTCFG_DCA=m
+ CPTCFG_AUXDISPLAY=y
+@@ -3865,14 +3804,17 @@
+ CPTCFG_COMEDI_SERIAL2002=m
+ CPTCFG_COMEDI_SKEL=m
+ CPTCFG_COMEDI_ISA_DRIVERS=y
++CPTCFG_COMEDI_ACL7225B=m
+ CPTCFG_COMEDI_PCL711=m
+ CPTCFG_COMEDI_PCL724=m
++CPTCFG_COMEDI_PCL725=m
+ CPTCFG_COMEDI_PCL726=m
+ CPTCFG_COMEDI_PCL730=m
+ CPTCFG_COMEDI_PCL812=m
+ CPTCFG_COMEDI_PCL816=m
+ CPTCFG_COMEDI_PCL818=m
+ CPTCFG_COMEDI_PCM3724=m
++CPTCFG_COMEDI_PCM3730=m
+ CPTCFG_COMEDI_AMPLC_DIO200_ISA=m
+ CPTCFG_COMEDI_AMPLC_PC236_ISA=m
+ CPTCFG_COMEDI_AMPLC_PC263_ISA=m
+@@ -3908,7 +3850,6 @@
+ CPTCFG_COMEDI_PCMUIO=m
+ CPTCFG_COMEDI_MULTIQ3=m
+ CPTCFG_COMEDI_POC=m
+-CPTCFG_COMEDI_S526=m
+ CPTCFG_COMEDI_PCI_DRIVERS=y
+ CPTCFG_COMEDI_8255_PCI=m
+ CPTCFG_COMEDI_ADDI_WATCHDOG=m
+@@ -3963,6 +3904,7 @@
+ CPTCFG_COMEDI_NI_PCIDIO=m
+ CPTCFG_COMEDI_NI_PCIMIO=m
+ CPTCFG_COMEDI_RTD520=m
++CPTCFG_COMEDI_S526=m
+ CPTCFG_COMEDI_S626=m
+ CPTCFG_COMEDI_SSV_DNP=m
+ CPTCFG_COMEDI_MITE=m
+@@ -4038,6 +3980,7 @@
+ CPTCFG_AD9910=m
+ CPTCFG_AD9951=m
+ CPTCFG_ADIS16060=m
++CPTCFG_ADIS16130=m
+ CPTCFG_ADIS16260=m
+ CPTCFG_AD5933=m
+ CPTCFG_SENSORS_ISL29018=m
+@@ -4056,6 +3999,8 @@
+ CPTCFG_AD2S1200=m
+ CPTCFG_AD2S1210=m
+ CPTCFG_IIO_PERIODIC_RTC_TRIGGER=m
++CPTCFG_IIO_GPIO_TRIGGER=m
++CPTCFG_IIO_SYSFS_TRIGGER=m
+ CPTCFG_IIO_SIMPLE_DUMMY=m
+ CPTCFG_ZSMALLOC=y
+ CPTCFG_ZRAM=m
+@@ -4100,7 +4045,6 @@
+ CPTCFG_VIDEO_GO7007_USB=m
+ CPTCFG_VIDEO_GO7007_LOADER=m
+ CPTCFG_VIDEO_GO7007_USB_S2250_BOARD=m
+-CPTCFG_SOLO6X10=m
+ CPTCFG_LIRC_STAGING=y
+ CPTCFG_LIRC_BT829=m
+ CPTCFG_LIRC_IGORPLUGUSB=m
+@@ -4111,6 +4055,17 @@
+ CPTCFG_LIRC_SERIAL_TRANSMITTER=y
+ CPTCFG_LIRC_SIR=m
+ CPTCFG_LIRC_ZILOG=m
++CPTCFG_ANDROID=y
++CPTCFG_ANDROID_BINDER_IPC=y
++CPTCFG_ASHMEM=y
++CPTCFG_ANDROID_LOGGER=m
++CPTCFG_ANDROID_TIMED_OUTPUT=y
++CPTCFG_ANDROID_TIMED_GPIO=m
++CPTCFG_ANDROID_LOW_MEMORY_KILLER=y
++CPTCFG_ANDROID_INTF_ALARM_DEV=y
++CPTCFG_SYNC=y
++CPTCFG_SW_SYNC=y
++CPTCFG_SW_SYNC_USER=y
+ CPTCFG_USB_WPAN_HCD=m
+ CPTCFG_WIMAX_GDM72XX=m
+ CPTCFG_WIMAX_GDM72XX_QOS=y
+@@ -4118,6 +4073,7 @@
+ CPTCFG_WIMAX_GDM72XX_WIMAX2=y
+ CPTCFG_WIMAX_GDM72XX_USB=y
+ CPTCFG_WIMAX_GDM72XX_USB_PM=y
++CPTCFG_CSR_WIFI=m
+ CPTCFG_NET_VENDOR_SILICOM=y
+ CPTCFG_SBYPASS=m
+ CPTCFG_BPCTL=m
+@@ -4126,7 +4082,6 @@
+ CPTCFG_FIREWIRE_SERIAL=m
+ CPTCFG_ZCACHE=y
+ CPTCFG_USB_DWC2=m
+-CPTCFG_USB_BTMTK=m
+ CPTCFG_X86_PLATFORM_DEVICES=y
+ CPTCFG_ACER_WMI=m
+ CPTCFG_ACERHDF=m
+@@ -4177,15 +4132,12 @@
+ CPTCFG_INTEL_OAKTRAIL=m
+ CPTCFG_SAMSUNG_Q10=m
+ CPTCFG_APPLE_GMUX=m
+-CPTCFG_INTEL_RST=m
+-CPTCFG_INTEL_SMARTCONNECT=m
+ CPTCFG_PVPANIC=m
+ CPTCFG_CLKDEV_LOOKUP=y
+ CPTCFG_HAVE_CLK_PREPARE=y
+ CPTCFG_COMMON_CLK=y
+ CPTCFG_COMMON_CLK_WM831X=m
+ CPTCFG_COMMON_CLK_MAX77686=m
+-CPTCFG_COMMON_CLK_SI5351=m
+ CPTCFG_CLK_TWL6040=m
+ CPTCFG_CLKSRC_I8253=y
+ CPTCFG_CLKEVT_I8253=y
+@@ -4211,7 +4163,6 @@
+ CPTCFG_EXTCON_MAX77693=m
+ CPTCFG_EXTCON_MAX8997=m
+ CPTCFG_EXTCON_ARIZONA=m
+-CPTCFG_EXTCON_PALMAS=m
+ CPTCFG_MEMORY=y
+ CPTCFG_IIO=m
+ CPTCFG_IIO_BUFFER=y
+@@ -4234,7 +4185,6 @@
+ CPTCFG_AD7887=m
+ CPTCFG_LP8788_ADC=y
+ CPTCFG_MAX1363=m
+-CPTCFG_MCP320X=m
+ CPTCFG_TI_ADC081C=m
+ CPTCFG_TI_AM335X_ADC=m
+ CPTCFG_VIPERBOARD_ADC=m
+@@ -4256,13 +4206,11 @@
+ CPTCFG_AD5764=m
+ CPTCFG_AD5791=m
+ CPTCFG_AD5686=m
+-CPTCFG_AD7303=m
+ CPTCFG_MAX517=m
+ CPTCFG_MCP4725=m
+ CPTCFG_AD9523=m
+ CPTCFG_ADF4350=m
+ CPTCFG_ADIS16080=m
+-CPTCFG_ADIS16130=m
+ CPTCFG_ADIS16136=m
+ CPTCFG_ADXRS450=m
+ CPTCFG_HID_SENSOR_GYRO_3D=m
+@@ -4285,11 +4233,6 @@
+ CPTCFG_IIO_ST_MAGN_3AXIS=m
+ CPTCFG_IIO_ST_MAGN_I2C_3AXIS=m
+ CPTCFG_IIO_ST_MAGN_SPI_3AXIS=m
+-CPTCFG_IIO_INTERRUPT_TRIGGER=m
+-CPTCFG_IIO_SYSFS_TRIGGER=m
+-CPTCFG_IIO_ST_PRESS=m
+-CPTCFG_IIO_ST_PRESS_I2C=m
+-CPTCFG_IIO_ST_PRESS_SPI=m
+ CPTCFG_VME_BUS=m
+ CPTCFG_VME_CA91CX42=m
+ CPTCFG_VME_TSI148=m
+@@ -4297,26 +4240,10 @@
+ CPTCFG_VME_USER=m
+ CPTCFG_VME_PIO2=m
+ CPTCFG_PWM=y
+-CPTCFG_PWM_SYSFS=y
+ CPTCFG_IPACK_BUS=m
+ CPTCFG_BOARD_TPCI200=m
+ CPTCFG_SERIAL_IPOCTAL=m
+ CPTCFG_RESET_CONTROLLER=y
+-CPTCFG_FMC=m
+-CPTCFG_FMC_FAKEDEV=m
+-CPTCFG_FMC_TRIVIAL=m
+-CPTCFG_FMC_WRITE_EEPROM=m
+-CPTCFG_FMC_CHARDEV=m
+-CPTCFG_DM_RAID45=m
+-CPTCFG_AUFS_FS=m
+-CPTCFG_AUFS_BRANCH_MAX_127=y
+-CPTCFG_AUFS_SBILIST=y
+-CPTCFG_AUFS_EXPORT=y
+-CPTCFG_AUFS_BR_RAMFS=y
+-CPTCFG_AUFS_BR_FUSE=y
+-CPTCFG_AUFS_POLL=y
+-CPTCFG_AUFS_BR_HFSPLUS=y
+-CPTCFG_AUFS_BDEV_LOOP=y
+ CPTCFG_EDD=y
+ CPTCFG_EDD_OFF=y
+ CPTCFG_FIRMWARE_MEMMAP=y
+@@ -4327,7 +4254,6 @@
+ CPTCFG_ISCSI_IBFT_FIND=y
+ CPTCFG_ISCSI_IBFT=m
+ CPTCFG_EFI_VARS=y
+-CPTCFG_EFI_VARS_PSTORE=m
+ CPTCFG_DCACHE_WORD_ACCESS=y
+ CPTCFG_EXT2_FS=m
+ CPTCFG_EXT2_FS_XATTR=y
+@@ -4383,7 +4309,6 @@
+ CPTCFG_AUTOFS4_FS=m
+ CPTCFG_FUSE_FS=y
+ CPTCFG_CUSE=m
+-CPTCFG_OVERLAYFS_FS=m
+ CPTCFG_GENERIC_ACL=y
+ CPTCFG_FSCACHE=m
+ CPTCFG_FSCACHE_STATS=y
+@@ -4453,8 +4378,7 @@
+ CPTCFG_F2FS_STAT_FS=y
+ CPTCFG_F2FS_FS_XATTR=y
+ CPTCFG_F2FS_FS_POSIX_ACL=y
+-CPTCFG_F2FS_FS_SECURITY=y
+-CPTCFG_EFIVAR_FS=y
++CPTCFG_EFIVAR_FS=m
+ CPTCFG_ORE=m
+ CPTCFG_NETWORK_FILESYSTEMS=y
+ CPTCFG_NFS_FS=m
+@@ -4464,11 +4388,9 @@
+ CPTCFG_NFS_V4=m
+ CPTCFG_NFS_SWAP=y
+ CPTCFG_NFS_V4_1=y
+-CPTCFG_NFS_V4_2=y
+ CPTCFG_PNFS_FILE_LAYOUT=m
+ CPTCFG_PNFS_BLOCK=m
+ CPTCFG_PNFS_OBJLAYOUT=m
+-CPTCFG_NFS_V4_SECURITY_LABEL=y
+ CPTCFG_NFS_FSCACHE=y
+ CPTCFG_NFS_USE_KERNEL_DNS=y
+ CPTCFG_NFS_DEBUG=y
+@@ -4477,7 +4399,6 @@
+ CPTCFG_NFSD_V3=y
+ CPTCFG_NFSD_V3_ACL=y
+ CPTCFG_NFSD_V4=y
+-CPTCFG_NFSD_V4_SECURITY_LABEL=y
+ CPTCFG_LOCKD=m
+ CPTCFG_LOCKD_V4=y
+ CPTCFG_NFS_ACL_SUPPORT=m
+@@ -4513,7 +4434,6 @@
+ CPTCFG_AFS_FS=m
+ CPTCFG_9P_FS=m
+ CPTCFG_9P_FS_POSIX_ACL=y
+-CPTCFG_9P_FS_SECURITY=y
+ CPTCFG_NLS=y
+ CPTCFG_NLS_CODEPAGE_437=y
+ CPTCFG_NLS_CODEPAGE_737=m
+@@ -4567,25 +4487,21 @@
+ CPTCFG_DLM=m
+ CPTCFG_TRACE_IRQFLAGS_SUPPORT=y
+ CPTCFG_PRINTK_TIME=y
+-CPTCFG_BOOT_PRINTK_DELAY=y
+-CPTCFG_DYNAMIC_DEBUG=y
++CPTCFG_MAGIC_SYSRQ=y
+ CPTCFG_UNUSED_SYMBOLS=y
+ CPTCFG_DEBUG_FS=y
+-CPTCFG_ARCH_WANT_FRAME_POINTERS=y
+-CPTCFG_FRAME_POINTER=y
+-CPTCFG_MAGIC_SYSRQ=y
+ CPTCFG_DEBUG_KERNEL=y
+-CPTCFG_HAVE_DEBUG_KMEMLEAK=y
+-CPTCFG_HAVE_DEBUG_STACKOVERFLOW=y
+-CPTCFG_HAVE_ARCH_KMEMCHECK=y
+ CPTCFG_LOCKUP_DETECTOR=y
+ CPTCFG_HARDLOCKUP_DETECTOR=y
+ CPTCFG_DETECT_HUNG_TASK=y
+ CPTCFG_SCHED_DEBUG=y
+ CPTCFG_SCHEDSTATS=y
+ CPTCFG_TIMER_STATS=y
++CPTCFG_HAVE_DEBUG_KMEMLEAK=y
+ CPTCFG_STACKTRACE=y
+-CPTCFG_DEBUG_BUGVERBOSE=y
++CPTCFG_ARCH_WANT_FRAME_POINTERS=y
++CPTCFG_FRAME_POINTER=y
++CPTCFG_BOOT_PRINTK_DELAY=y
+ CPTCFG_NOTIFIER_ERROR_INJECTION=m
+ CPTCFG_CPU_NOTIFIER_ERROR_INJECT=m
+ CPTCFG_PM_NOTIFIER_ERROR_INJECT=m
+@@ -4631,14 +4547,15 @@
+ CPTCFG_RBTREE_TEST=m
+ CPTCFG_INTERVAL_TREE_TEST=m
+ CPTCFG_ASYNC_RAID6_TEST=m
+-CPTCFG_TEST_STRING_HELPERS=m
+-CPTCFG_TEST_KSTRTOX=m
+ CPTCFG_HAVE_ARCH_KGDB=y
+ CPTCFG_KGDB=y
+ CPTCFG_KGDB_SERIAL_CONSOLE=y
+ CPTCFG_KGDB_LOW_LEVEL_TRAP=y
+ CPTCFG_KGDB_KDB=y
+ CPTCFG_KDB_KEYBOARD=y
++CPTCFG_HAVE_ARCH_KMEMCHECK=y
++CPTCFG_TEST_STRING_HELPERS=m
++CPTCFG_TEST_KSTRTOX=m
+ CPTCFG_STRICT_DEVMEM=y
+ CPTCFG_EARLY_PRINTK=y
+ CPTCFG_EARLY_PRINTK_INTEL_MID=y
+@@ -4665,13 +4582,10 @@
+ CPTCFG_SECURITY_SMACK=y
+ CPTCFG_SECURITY_TOMOYO=y
+ CPTCFG_SECURITY_APPARMOR=y
+-CPTCFG_SECURITY_APPARMOR_UNCONFINED_INIT=y
+-CPTCFG_SECURITY_APPARMOR_HASH=y
+ CPTCFG_SECURITY_YAMA=y
+ CPTCFG_SECURITY_YAMA_STACKED=y
+ CPTCFG_INTEGRITY=y
+ CPTCFG_INTEGRITY_SIGNATURE=y
+-CPTCFG_INTEGRITY_AUDIT=y
+ CPTCFG_INTEGRITY_ASYMMETRIC_KEYS=y
+ CPTCFG_EVM=y
+ CPTCFG_DEFAULT_SECURITY_APPARMOR=y
+@@ -4725,7 +4639,6 @@
+ CPTCFG_CRYPTO_CRC32C_INTEL=y
+ CPTCFG_CRYPTO_CRC32=m
+ CPTCFG_CRYPTO_CRC32_PCLMUL=m
+-CPTCFG_CRYPTO_CRCT10DIF=y
+ CPTCFG_CRYPTO_GHASH=m
+ CPTCFG_CRYPTO_MD4=m
+ CPTCFG_CRYPTO_MD5=y
+@@ -4765,8 +4678,6 @@
+ CPTCFG_CRYPTO_DEFLATE=m
+ CPTCFG_CRYPTO_ZLIB=m
+ CPTCFG_CRYPTO_LZO=y
+-CPTCFG_CRYPTO_LZ4=m
+-CPTCFG_CRYPTO_LZ4HC=m
+ CPTCFG_CRYPTO_ANSI_CPRNG=m
+ CPTCFG_CRYPTO_USER_API=m
+ CPTCFG_CRYPTO_USER_API_HASH=m
+@@ -4797,10 +4708,8 @@
+ CPTCFG_BINARY_PRINTF=y
+ CPTCFG_RAID6_PQ=m
+ CPTCFG_BITREVERSE=y
+-CPTCFG_RATIONAL=y
+ CPTCFG_GENERIC_STRNCPY_FROM_USER=y
+ CPTCFG_GENERIC_STRNLEN_USER=y
+-CPTCFG_GENERIC_NET_UTILS=y
+ CPTCFG_GENERIC_FIND_FIRST_BIT=y
+ CPTCFG_GENERIC_PCI_IOMAP=y
+ CPTCFG_GENERIC_IOMAP=y
+@@ -4813,16 +4722,13 @@
+ CPTCFG_CRC32=y
+ CPTCFG_CRC32_SLICEBY8=y
+ CPTCFG_CRC7=m
+-CPTCFG_LIBCRC32C=y
++CPTCFG_LIBCRC32C=m
+ CPTCFG_CRC8=m
+ CPTCFG_AUDIT_GENERIC=y
+ CPTCFG_ZLIB_INFLATE=y
+ CPTCFG_ZLIB_DEFLATE=m
+ CPTCFG_LZO_COMPRESS=y
+ CPTCFG_LZO_DECOMPRESS=y
+-CPTCFG_LZ4_COMPRESS=m
+-CPTCFG_LZ4HC_COMPRESS=m
+-CPTCFG_LZ4_DECOMPRESS=y
+ CPTCFG_XZ_DEC=y
+ CPTCFG_XZ_DEC_X86=y
+ CPTCFG_XZ_DEC_POWERPC=y
+@@ -4837,7 +4743,6 @@
+ CPTCFG_DECOMPRESS_LZMA=y
+ CPTCFG_DECOMPRESS_XZ=y
+ CPTCFG_DECOMPRESS_LZO=y
+-CPTCFG_DECOMPRESS_LZ4=y
+ CPTCFG_GENERIC_ALLOCATOR=y
+ CPTCFG_REED_SOLOMON=m
+ CPTCFG_REED_SOLOMON_ENC8=y
+@@ -4867,9 +4772,7 @@
+ CPTCFG_SIGNATURE=y
+ CPTCFG_OID_REGISTRY=y
+ CPTCFG_UCS2_STRING=y
+-CPTCFG_FONT_SUPPORT=y
+-CPTCFG_FONT_8x8=y
+-CPTCFG_FONT_8x16=y
++CPTCFG_BACKPORT_KERNEL_3_11=y
+ CPTCFG_BACKPORT_KERNEL_3_12=y
+ CPTCFG_BACKPORT_KERNEL_3_13=y
+ CPTCFG_BACKPORT_KERNEL_3_14=y
+@@ -4961,6 +4864,7 @@
+ CPTCFG_WIRELESS=y
+ CPTCFG_NET_CORE=y
+ CPTCFG_EXPERT=y
++CPTCFG_BACKPORT_FW_LOADER=y
+ # CPTCFG_BACKPORT_USERSEL_NET_SCH_CODEL is not set
+ # CPTCFG_BACKPORT_USERSEL_NET_SCH_FQ_CODEL is not set
+ CPTCFG_BACKPORT_BUILD_CORDIC=m
+@@ -4979,7 +4883,32 @@
+ CPTCFG_CFG80211_WEXT=y
+ # CPTCFG_LIB80211 is not set
+ # CPTCFG_MAC80211 is not set
+-# CPTCFG_BT is not set
++CPTCFG_BT=m
++CPTCFG_BT_RFCOMM=m
++CPTCFG_BT_RFCOMM_TTY=y
++CPTCFG_BT_BNEP=m
++CPTCFG_BT_BNEP_MC_FILTER=y
++CPTCFG_BT_BNEP_PROTO_FILTER=y
++# CPTCFG_BT_CMTP is not set
++# CPTCFG_BT_HIDP is not set
++
++#
++# Bluetooth device drivers
++#
++CPTCFG_BT_HCIBTUSB=m
++# CPTCFG_BT_HCIBTSDIO is not set
++# CPTCFG_BT_HCIUART is not set
++# CPTCFG_BT_HCIBCM203X is not set
++# CPTCFG_BT_HCIBPA10X is not set
++# CPTCFG_BT_HCIBFUSB is not set
++# CPTCFG_BT_HCIDTL1 is not set
++# CPTCFG_BT_HCIBT3C is not set
++# CPTCFG_BT_HCIBLUECARD is not set
++# CPTCFG_BT_HCIBTUART is not set
++# CPTCFG_BT_HCIVHCI is not set
++# CPTCFG_BT_MRVL is not set
++CPTCFG_BT_ATH3K=m
++# CPTCFG_BT_WILINK is not set
+ CPTCFG_WLAN=y
+ # CPTCFG_USB_NET_RNDIS_WLAN is not set
+ # CPTCFG_ATH_CARDS is not set
+diff -urN backports.orig/drivers/bluetooth/ath3k.c backports/drivers/bluetooth/ath3k.c
+--- backports.orig/drivers/bluetooth/ath3k.c	2015-09-24 15:25:20.401038328 +0800
++++ backports/drivers/bluetooth/ath3k.c	2015-09-24 15:25:20.477038328 +0800
+@@ -1,5 +1,6 @@
+ /*
+  * Copyright (c) 2008-2009 Atheros Communications Inc.
++ * Copyright (c) 2014 The Linux Foundation. All rights reserved.
+  *
+  *  This program is free software; you can redistribute it and/or modify
+  *  it under the terms of the GNU General Public License as published by
+@@ -29,9 +30,35 @@
+ #include <linux/usb.h>
+ #include <net/bluetooth/bluetooth.h>
+ 
++#include "ath3k.h"
++
+ #define VERSION "1.0"
+ #define ATH3K_FIRMWARE	"ath3k-1.fw"
+ 
++#define ROME1_1_USB_RAMPATCH_FILE	"ar3k/rampatch_1.1.img"
++#define ROME1_1_USB_NVM_FILE		"ar3k/nvm_tlv_usb_1.1.bin"
++
++#define ROME2_1_USB_RAMPATCH_FILE	"ar3k/rampatch_tlv_usb_2.1.tlv"
++#define ROME2_1_USB_NVM_FILE		"ar3k/nvm_tlv_usb_2.1.bin"
++
++#define ROME3_0_USB_RAMPATCH_FILE	"ar3k/rampatch_tlv_usb_3.0.tlv"
++#define ROME3_0_USB_NVM_FILE		"ar3k/nvm_tlv_usb_3.0.bin"
++
++#define TF1_1_USB_RAMPATCH_FILE	"ar3k/rampatch_tlv_usb_tf_1.1.tlv"
++#define TF1_1_USB_NVM_FILE		"ar3k/nvm_tlv_usb_tf_1.1.bin"
++
++#define ROME2_1_USB_RAMPATCH_HEADER	sizeof(struct rome2_1_version)
++#define ROME1_1_USB_RAMPATCH_HEADER	sizeof(struct rome1_1_version)
++
++#define ROME1_1_USB_NVM_HEADER			0x04
++#define ROME2_1_USB_NVM_HEADER			0x04
++
++#define ROME1_1_USB_CHIP_VERSION		0x101
++#define ROME2_1_USB_CHIP_VERSION		0x200
++#define ROME3_0_USB_CHIP_VERSION		0x300
++#define ROME3_2_USB_CHIP_VERSION		0x302
++
++#define TF1_1_USB_PRODUCT_ID			0xe500
+ #define ATH3K_DNLOAD				0x01
+ #define ATH3K_GETSTATE				0x05
+ #define ATH3K_SET_NORMAL_MODE			0x07
+@@ -41,21 +68,43 @@
+ #define ATH3K_MODE_MASK				0x3F
+ #define ATH3K_NORMAL_MODE			0x0E
+ 
+-#define ATH3K_PATCH_UPDATE			0x80
+-#define ATH3K_SYSCFG_UPDATE			0x40
++#define ATH3K_PATCH_UPDATE			0xA0
++#define ATH3K_SYSCFG_UPDATE			0x60
++#define ATH3K_PATCH_SYSCFG_UPDATE		(ATH3K_PATCH_UPDATE | \
++							ATH3K_SYSCFG_UPDATE)
+ 
+ #define ATH3K_XTAL_FREQ_26M			0x00
+ #define ATH3K_XTAL_FREQ_40M			0x01
+ #define ATH3K_XTAL_FREQ_19P2			0x02
+ #define ATH3K_NAME_LEN				0xFF
+ 
+-struct ath3k_version {
+-	unsigned int	rom_version;
+-	unsigned int	build_version;
+-	unsigned int	ram_version;
+-	unsigned char	ref_clock;
+-	unsigned char	reserved[0x07];
++struct __packed rome1_1_version {
++	u8	type;
++	u8	length[3];
++	u8	sign_ver;
++	u8	sign_algo;
++	u8	resv1[2];
++	u16	product_id;
++	u16	build_ver;
++	u16	patch_ver;
++	u8	resv2[2];
++	u32	entry_addr;
+ };
++struct __packed rome2_1_version {
++	u8	type;
++	u8	length[3];
++	u32	total_len;
++	u32	patch_len;
++	u8	sign_ver;
++	u8	sign_algo;
++	u8	resv1[2];
++	u16	product_id;
++	u16	build_ver;
++	u16	patch_ver;
++	u8	resv2[2];
++	u32	entry_addr;
++};
++
+ 
+ static struct usb_device_id ath3k_table[] = {
+ 	/* Atheros AR3011 */
+@@ -78,6 +127,7 @@
+ 	{ USB_DEVICE(0x0CF3, 0x3008) },
+ 	{ USB_DEVICE(0x0CF3, 0x311D) },
+ 	{ USB_DEVICE(0x0CF3, 0x817a) },
++	{ USB_DEVICE(0x0CF3, 0xe500) },
+ 	{ USB_DEVICE(0x13d3, 0x3375) },
+ 	{ USB_DEVICE(0x04CA, 0x3004) },
+ 	{ USB_DEVICE(0x04CA, 0x3005) },
+@@ -243,8 +293,42 @@
+ 	return ret;
+ }
+ 
++int get_rome_version(struct usb_device *udev, struct ath3k_version *version)
++{
++	struct ath3k_version fw_version;
++	int ret = -1;
++
++	if (!version) {
++		BT_ERR("NULL output parameters");
++		return ret;
++	}
++
++	ret = ath3k_get_version(udev, &fw_version);
++	if (ret < 0) {
++		BT_ERR("Failed to get Rome Firmware version");
++		return ret;
++	}
++
++	switch (fw_version.rom_version) {
++	case ROME1_1_USB_CHIP_VERSION:
++	case ROME2_1_USB_CHIP_VERSION:
++	case ROME3_0_USB_CHIP_VERSION:
++	case ROME3_2_USB_CHIP_VERSION:
++		memcpy(version, &fw_version, sizeof(struct ath3k_version));
++		ret = 0;
++		break;
++	default:
++		BT_ERR("Unsupported ROME USB version");
++		ret = -1;
++		break;
++	}
++
++	return ret;
++}
++EXPORT_SYMBOL(get_rome_version);
++
+ static int ath3k_load_fwfile(struct usb_device *udev,
+-		const struct firmware *firmware)
++		const struct firmware *firmware, int header_h)
+ {
+ 	u8 *send_buf;
+ 	int err, pipe, len, size, count, sent = 0;
+@@ -258,7 +342,7 @@
+ 		return -ENOMEM;
+ 	}
+ 
+-	size = min_t(uint, count, FW_HDR_SIZE);
++	size = min_t(uint, count, header_h);
+ 	memcpy(send_buf, firmware->data, size);
+ 
+ 	pipe = usb_sndctrlpipe(udev, 0);
+@@ -328,12 +412,15 @@
+ 			NULL, 0, USB_CTRL_SET_TIMEOUT);
+ }
+ 
+-static int ath3k_load_patch(struct usb_device *udev)
++static int ath3k_load_patch(struct usb_device *udev,
++						struct ath3k_version *version)
+ {
+ 	unsigned char fw_state;
+ 	char filename[ATH3K_NAME_LEN] = {0};
+ 	const struct firmware *firmware;
+-	struct ath3k_version fw_version, pt_version;
++	struct ath3k_version pt_version;
++	struct rome2_1_version *rome2_1_version;
++	struct rome1_1_version *rome1_1_version;
+ 	int ret;
+ 
+ 	ret = ath3k_get_state(udev, &fw_state);
+@@ -342,49 +429,104 @@
+ 		return ret;
+ 	}
+ 
+-	if (fw_state & ATH3K_PATCH_UPDATE) {
+-		BT_DBG("Patch was already downloaded");
++	if ((fw_state == ATH3K_PATCH_UPDATE) ||
++		(fw_state == ATH3K_PATCH_SYSCFG_UPDATE)) {
++		BT_INFO("%s: Patch already downloaded(fw_state: %d)", __func__,
++			fw_state);
+ 		return 0;
++	} else
++		BT_DBG("%s: Downloading RamPatch(fw_state: %d)", __func__,
++			fw_state);
++
++	switch (version->rom_version) {
++	case ROME1_1_USB_CHIP_VERSION:
++		BT_DBG("Chip Detected as ROME1.1");
++		snprintf(filename, ATH3K_NAME_LEN, ROME1_1_USB_RAMPATCH_FILE);
++		break;
++	case ROME2_1_USB_CHIP_VERSION:
++		BT_DBG("Chip Detected as ROME2.1");
++		snprintf(filename, ATH3K_NAME_LEN, ROME2_1_USB_RAMPATCH_FILE);
++		break;
++	case ROME3_0_USB_CHIP_VERSION:
++		BT_DBG("Chip Detected as ROME3.0");
++		snprintf(filename, ATH3K_NAME_LEN, ROME3_0_USB_RAMPATCH_FILE);
++		break;
++	case ROME3_2_USB_CHIP_VERSION:
++		if (udev->descriptor.idProduct == TF1_1_USB_PRODUCT_ID) {
++			BT_DBG("Chip Detected as TF1.1");
++			snprintf(filename, ATH3K_NAME_LEN,
++						TF1_1_USB_RAMPATCH_FILE);
++		} else {
++			BT_INFO("Unsupported Chip");
++			return -ENODEV;
++		}
++		break;
++	default:
++		BT_DBG("Chip Detected as Ath3k");
++		snprintf(filename, ATH3K_NAME_LEN, "ar3k/AthrBT_0x%08x.dfu",
++		version->rom_version);
++		break;
+ 	}
+ 
+-	ret = ath3k_get_version(udev, &fw_version);
+-	if (ret < 0) {
+-		BT_ERR("Can't get version to change to load ram patch err");
+-		return ret;
+-	}
+-
+-	snprintf(filename, ATH3K_NAME_LEN, "ar3k/AthrBT_0x%08x.dfu",
+-		fw_version.rom_version);
+-
+ 	ret = request_firmware(&firmware, filename, &udev->dev);
+ 	if (ret < 0) {
+ 		BT_ERR("Patch file not found %s", filename);
+ 		return ret;
+ 	}
+ 
+-	pt_version.rom_version = *(int *)(firmware->data + firmware->size - 8);
+-	pt_version.build_version = *(int *)
++	if ((version->rom_version == ROME2_1_USB_CHIP_VERSION) ||
++		(version->rom_version == ROME3_0_USB_CHIP_VERSION) ||
++		(version->rom_version == ROME3_2_USB_CHIP_VERSION)) {
++		rome2_1_version = (struct rome2_1_version *) firmware->data;
++		pt_version.rom_version = rome2_1_version->build_ver;
++		pt_version.build_version = rome2_1_version->patch_ver;
++		BT_DBG("pt_ver.rome_ver : 0x%x", pt_version.rom_version);
++		BT_DBG("pt_ver.build_ver: 0x%x", pt_version.build_version);
++		BT_DBG("fw_ver.rom_ver: 0x%x", version->rom_version);
++		BT_DBG("fw_ver.build_ver: 0x%x", version->build_version);
++	} else if (version->rom_version == ROME1_1_USB_CHIP_VERSION) {
++		rome1_1_version = (struct rome1_1_version *) firmware->data;
++		pt_version.build_version = rome1_1_version->build_ver;
++		pt_version.rom_version = rome1_1_version->patch_ver;
++		BT_DBG("pt_ver.rom1.1_ver : 0x%x", pt_version.rom_version);
++		BT_DBG("pt_ver.build1.1_ver: 0x%x", pt_version.build_version);
++		BT_DBG("fw_ver.rom1.1_ver: 0x%x", version->rom_version);
++		BT_DBG("fw_ver.build1.1_ver: 0x%x", version->build_version);
++	} else {
++		pt_version.rom_version = *(int *)(firmware->data +
++						firmware->size - 8);
++		pt_version.build_version = *(int *)
+ 		(firmware->data + firmware->size - 4);
+-
+-	if ((pt_version.rom_version != fw_version.rom_version) ||
+-		(pt_version.build_version <= fw_version.build_version)) {
++	}
++	if ((pt_version.rom_version != version->rom_version) ||
++		(pt_version.build_version <= version->build_version)) {
+ 		BT_ERR("Patch file version did not match with firmware");
+ 		release_firmware(firmware);
+ 		return -EINVAL;
+ 	}
+ 
+-	ret = ath3k_load_fwfile(udev, firmware);
++	if ((version->rom_version == ROME2_1_USB_CHIP_VERSION) ||
++		(version->rom_version == ROME3_0_USB_CHIP_VERSION) ||
++		(version->rom_version == ROME3_2_USB_CHIP_VERSION))
++		ret = ath3k_load_fwfile(udev, firmware,
++						ROME2_1_USB_RAMPATCH_HEADER);
++	else if (version->rom_version == ROME1_1_USB_CHIP_VERSION)
++		ret = ath3k_load_fwfile(udev, firmware,
++						 ROME1_1_USB_RAMPATCH_HEADER);
++	else
++		ret = ath3k_load_fwfile(udev, firmware, FW_HDR_SIZE);
++
+ 	release_firmware(firmware);
+ 
+ 	return ret;
+ }
+ 
+-static int ath3k_load_syscfg(struct usb_device *udev)
++static int ath3k_load_syscfg(struct usb_device *udev,
++						struct ath3k_version *version)
+ {
+ 	unsigned char fw_state;
+ 	char filename[ATH3K_NAME_LEN] = {0};
+ 	const struct firmware *firmware;
+-	struct ath3k_version fw_version;
+ 	int clk_value, ret;
+ 
+ 	ret = ath3k_get_state(udev, &fw_state);
+@@ -393,14 +535,15 @@
+ 		return -EBUSY;
+ 	}
+ 
+-	ret = ath3k_get_version(udev, &fw_version);
+-	if (ret < 0) {
+-		BT_ERR("Can't get version to change to load ram patch err");
+-		return ret;
+-	}
+-
+-	switch (fw_version.ref_clock) {
++	if ((fw_state == ATH3K_SYSCFG_UPDATE) ||
++		(fw_state == ATH3K_PATCH_SYSCFG_UPDATE)) {
++		BT_INFO("%s: NVM already downloaded(fw_state: %d)", __func__,
++			fw_state);
++		return 0;
++	} else
++		BT_DBG("%s: Downloading NVM(fw_state: %d)", __func__, fw_state);
+ 
++	switch (version->ref_clock) {
+ 	case ATH3K_XTAL_FREQ_26M:
+ 		clk_value = 26;
+ 		break;
+@@ -415,8 +558,23 @@
+ 		break;
+ 	}
+ 
+-	snprintf(filename, ATH3K_NAME_LEN, "ar3k/ramps_0x%08x_%d%s",
+-		fw_version.rom_version, clk_value, ".dfu");
++	if (version->rom_version == ROME2_1_USB_CHIP_VERSION)
++		snprintf(filename, ATH3K_NAME_LEN, ROME2_1_USB_NVM_FILE);
++	else if (version->rom_version == ROME3_0_USB_CHIP_VERSION)
++		snprintf(filename, ATH3K_NAME_LEN, ROME3_0_USB_NVM_FILE);
++	else if (version->rom_version == ROME3_2_USB_CHIP_VERSION) {
++		if (udev->descriptor.idProduct == TF1_1_USB_PRODUCT_ID)
++			snprintf(filename, ATH3K_NAME_LEN, TF1_1_USB_NVM_FILE);
++		else {
++			BT_INFO("Unsupported Chip");
++			return -ENODEV;
++		}
++	}
++	else if (version->rom_version == ROME1_1_USB_CHIP_VERSION)
++		snprintf(filename, ATH3K_NAME_LEN, ROME1_1_USB_NVM_FILE);
++	else
++		snprintf(filename, ATH3K_NAME_LEN, "ar3k/ramps_0x%08x_%d%s",
++			version->rom_version, clk_value, ".dfu");
+ 
+ 	ret = request_firmware(&firmware, filename, &udev->dev);
+ 	if (ret < 0) {
+@@ -424,24 +582,58 @@
+ 		return ret;
+ 	}
+ 
+-	ret = ath3k_load_fwfile(udev, firmware);
++	if ((version->rom_version == ROME2_1_USB_CHIP_VERSION) ||
++		(version->rom_version == ROME3_0_USB_CHIP_VERSION) ||
++		(version->rom_version == ROME3_2_USB_CHIP_VERSION))
++		ret = ath3k_load_fwfile(udev, firmware, ROME2_1_USB_NVM_HEADER);
++	else if (version->rom_version == ROME1_1_USB_CHIP_VERSION)
++		ret = ath3k_load_fwfile(udev, firmware, ROME1_1_USB_NVM_HEADER);
++	else
++		ret = ath3k_load_fwfile(udev, firmware, FW_HDR_SIZE);
++
+ 	release_firmware(firmware);
+ 
+ 	return ret;
+ }
+ 
++int rome_download(struct usb_device *udev, struct ath3k_version *version)
++{
++	int ret;
++
++	ret = ath3k_load_patch(udev, version);
++	if (ret < 0) {
++		BT_ERR("Loading patch file failed");
++		return ret;
++	}
++	ret = ath3k_load_syscfg(udev, version);
++	if (ret < 0) {
++		BT_ERR("Loading sysconfig file failed");
++		return ret;
++	}
++
++	return ret;
++}
++EXPORT_SYMBOL(rome_download);
++
+ static int ath3k_probe(struct usb_interface *intf,
+ 			const struct usb_device_id *id)
+ {
+ 	const struct firmware *firmware;
+ 	struct usb_device *udev = interface_to_usbdev(intf);
+ 	int ret;
++	struct ath3k_version version;
+ 
+ 	BT_DBG("intf %p id %p", intf, id);
+ 
+ 	if (intf->cur_altsetting->desc.bInterfaceNumber != 0)
+ 		return -ENODEV;
+ 
++	ret = get_rome_version(udev, &version);
++	if (!ret) {
++		BT_INFO("Rome detected, fw dnld will be triggered from btusb");
++		return -ENODEV;
++	}
++
+ 	/* match device ID in ath3k blacklist table */
+ 	if (!id->driver_info) {
+ 		const struct usb_device_id *match;
+@@ -457,12 +649,12 @@
+ 		if (le16_to_cpu(udev->descriptor.bcdDevice) > 0x0001)
+ 			return -ENODEV;
+ 
+-		ret = ath3k_load_patch(udev);
++		ret = ath3k_load_patch(udev, &version);
+ 		if (ret < 0) {
+ 			BT_ERR("Loading patch file failed");
+ 			return ret;
+ 		}
+-		ret = ath3k_load_syscfg(udev);
++		ret = ath3k_load_syscfg(udev, &version);
+ 		if (ret < 0) {
+ 			BT_ERR("Loading sysconfig file failed");
+ 			return ret;
+diff -urN backports.orig/drivers/bluetooth/ath3k.h backports/drivers/bluetooth/ath3k.h
+--- backports.orig/drivers/bluetooth/ath3k.h	1970-01-01 08:00:00.000000000 +0800
++++ backports/drivers/bluetooth/ath3k.h	2015-09-24 15:25:20.477038328 +0800
+@@ -0,0 +1,27 @@
++/*
++ * Copyright (c) 2008-2009 Atheros Communications Inc.
++ * Copyright (c) 2014, The Linux Foundation. All rights reserved.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 and
++ * only version 2 as published by the Free Software Foundation.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++*/
++
++#include <linux/usb.h>
++
++struct ath3k_version {
++	unsigned int	rom_version;
++	unsigned int	build_version;
++	unsigned int	ram_version;
++	unsigned char	ref_clock;
++	unsigned char	reserved[0x07];
++};
++
++int get_rome_version(struct usb_device *udev, struct ath3k_version *version);
++int rome_download(struct usb_device *udev, struct ath3k_version *version);
++
+diff -urN backports.orig/drivers/bluetooth/btusb.c backports/drivers/bluetooth/btusb.c
+--- backports.orig/drivers/bluetooth/btusb.c	2015-09-24 15:25:20.401038328 +0800
++++ backports/drivers/bluetooth/btusb.c	2015-09-24 15:25:20.477038328 +0800
+@@ -4,7 +4,6 @@
+  *
+  *  Copyright (C) 2005-2008  Marcel Holtmann <marcel@holtmann.org>
+  *
+- *
+  *  This program is free software; you can redistribute it and/or modify
+  *  it under the terms of the GNU General Public License as published by
+  *  the Free Software Foundation; either version 2 of the License, or
+@@ -28,6 +27,8 @@
+ #include <net/bluetooth/bluetooth.h>
+ #include <net/bluetooth/hci_core.h>
+ 
++#include "ath3k.h"
++
+ #define VERSION "0.6"
+ 
+ static bool ignore_dga;
+@@ -36,7 +37,8 @@
+ static bool disable_scofix;
+ static bool force_scofix;
+ 
+-static bool reset = 1;
++static int sco_conn;
++static int reset = 1;
+ 
+ static struct usb_driver btusb_driver;
+ 
+@@ -145,6 +147,7 @@
+ 	{ USB_DEVICE(0x0cf3, 0x3008), .driver_info = BTUSB_ATH3012 },
+ 	{ USB_DEVICE(0x0cf3, 0x311d), .driver_info = BTUSB_ATH3012 },
+ 	{ USB_DEVICE(0x0cf3, 0x817a), .driver_info = BTUSB_ATH3012 },
++	{ USB_DEVICE(0x0cf3, 0xe500), .driver_info = BTUSB_ATH3012 },
+ 	{ USB_DEVICE(0x13d3, 0x3375), .driver_info = BTUSB_ATH3012 },
+ 	{ USB_DEVICE(0x04ca, 0x3004), .driver_info = BTUSB_ATH3012 },
+ 	{ USB_DEVICE(0x04ca, 0x3005), .driver_info = BTUSB_ATH3012 },
+@@ -833,8 +836,9 @@
+ 
+ 	BT_DBG("%s evt %d", hdev->name, evt);
+ 
+-	if (hdev->conn_hash.sco_num != data->sco_num) {
+-		data->sco_num = hdev->conn_hash.sco_num;
++	if ((evt == HCI_NOTIFY_SCO_COMPLETE) || (evt == HCI_NOTIFY_CONN_DEL)) {
++		BT_DBG("SCO conn state changed: evt %d", evt);
++		sco_conn = (evt == HCI_NOTIFY_SCO_COMPLETE) ? 1 : 0;
+ 		schedule_work(&data->work);
+ 	}
+ }
+@@ -889,7 +893,7 @@
+ 	int new_alts;
+ 	int err;
+ 
+-	if (hdev->conn_hash.sco_num > 0) {
++	if (sco_conn) {
+ 		if (!test_bit(BTUSB_DID_ISO_RESUME, &data->flags)) {
+ 			err = usb_autopm_get_interface(data->isoc ? data->isoc : data->intf);
+ 			if (err < 0) {
+@@ -1336,6 +1340,7 @@
+ 	struct btusb_data *data;
+ 	struct hci_dev *hdev;
+ 	int i, err;
++	struct ath3k_version version;
+ 
+ 	BT_DBG("intf %p id %p", intf, id);
+ 
+@@ -1364,11 +1369,22 @@
+ 
+ 	if (id->driver_info & BTUSB_ATH3012) {
+ 		struct usb_device *udev = interface_to_usbdev(intf);
+-
+ 		/* Old firmware would otherwise let ath3k driver load
+ 		 * patch and sysconfig files */
+-		if (le16_to_cpu(udev->descriptor.bcdDevice) <= 0x0001)
++		err = get_rome_version(udev, &version);
++		if (err < 0) {
++			if (le16_to_cpu(udev->descriptor.bcdDevice) <= 0x0001)
++				BT_INFO("FW for ar3k is yet to be downloaded");
++			else
++				BT_ERR("Failed to get ROME USB version");
++			return -ENODEV;
++		}
++		BT_INFO("Rome Version: 0x%x", version.rom_version);
++		err = rome_download(udev, &version);
++		if (err < 0) {
++			BT_ERR("Failed to download ROME firmware");
+ 			return -ENODEV;
++		}
+ 	}
+ 
+ 	data = devm_kzalloc(&intf->dev, sizeof(*data), GFP_KERNEL);
+@@ -1490,6 +1506,7 @@
+ 	}
+ 
+ 	usb_set_intfdata(intf, data);
++	usb_enable_autosuspend(data->udev);
+ 
+ 	return 0;
+ }
+@@ -1504,6 +1521,12 @@
+ 	if (!data)
+ 		return;
+ 
++	/* kill all the anchored urbs on USB disconnect */
++	usb_kill_anchored_urbs(&data->intr_anchor);
++	usb_kill_anchored_urbs(&data->bulk_anchor);
++	usb_kill_anchored_urbs(&data->isoc_anchor);
++	usb_kill_anchored_urbs(&data->tx_anchor);
++
+ 	hdev = data->hdev;
+ 	usb_set_intfdata(data->intf, NULL);
+ 
+diff -urN backports.orig/drivers/bluetooth/hci_ibs.c backports/drivers/bluetooth/hci_ibs.c
+--- backports.orig/drivers/bluetooth/hci_ibs.c	1970-01-01 08:00:00.000000000 +0800
++++ backports/drivers/bluetooth/hci_ibs.c	2015-09-24 15:25:20.477038328 +0800
+@@ -0,0 +1,913 @@
++/*
++ *  Qualcomm's Bluetooth Software In-Band Sleep UART protocol
++ *
++ *  HCI_IBS (HCI In-Band Sleep) is Qualcomm's power management
++ *  protocol extension to H4.
++ *
++ *  Copyright (C) 2007 Texas Instruments, Inc.
++ *  Copyright (c) 2010, 2012, 2014, The Linux Foundation. All rights reserved.
++ *
++ *  Acknowledgements:
++ *  This file is based on hci_ll.c, which was...
++ *  Written by Ohad Ben-Cohen <ohad@bencohen.org>
++ *  which was in turn based on hci_h4.c, which was written
++ *  by Maxim Krasnyansky and Marcel Holtmann.
++ *
++ *  This program is free software; you can redistribute it and/or modify
++ *  it under the terms of the GNU General Public License version 2
++ *  as published by the Free Software Foundation
++ *
++ *  This program is distributed in the hope that it will be useful,
++ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
++ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ *  GNU General Public License for more details.
++ *
++ *  You should have received a copy of the GNU General Public License
++ *  along with this program; if not, write to the Free Software
++ *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
++ *
++ */
++
++#include <linux/module.h>
++#include <linux/kernel.h>
++
++#include <linux/init.h>
++#include <linux/sched.h>
++#include <linux/types.h>
++#include <linux/fcntl.h>
++#include <linux/interrupt.h>
++#include <linux/ptrace.h>
++#include <linux/poll.h>
++
++#include <linux/slab.h>
++#include <linux/tty.h>
++#include <linux/errno.h>
++#include <linux/string.h>
++#include <linux/signal.h>
++#include <linux/ioctl.h>
++#include <linux/timer.h>
++#include <linux/skbuff.h>
++#include <linux/serial_core.h>
++
++#ifdef CONFIG_SERIAL_MSM_HS
++#include <linux/platform_data/msm_serial_hs.h>
++#endif
++
++#include <net/bluetooth/bluetooth.h>
++#include <net/bluetooth/hci_core.h>
++
++#include "hci_uart.h"
++
++/* HCI_IBS protocol messages */
++#define HCI_IBS_SLEEP_IND	0xFE
++#define HCI_IBS_WAKE_IND	0xFD
++#define HCI_IBS_WAKE_ACK	0xFC
++
++/* TX idle time out value */
++#define TX_IDLE_TO		1000
++
++/* HCI_IBS receiver States */
++#define HCI_IBS_W4_PACKET_TYPE	0
++#define HCI_IBS_W4_EVENT_HDR	1
++#define HCI_IBS_W4_ACL_HDR	2
++#define HCI_IBS_W4_SCO_HDR	3
++#define HCI_IBS_W4_DATA		4
++
++/* HCI_IBS transmit side sleep protocol states */
++enum tx_ibs_states_e {
++	HCI_IBS_TX_ASLEEP,
++	HCI_IBS_TX_WAKING,
++	HCI_IBS_TX_AWAKE,
++};
++
++/* HCI_IBS receive side sleep protocol states */
++enum rx_states_e {
++	HCI_IBS_RX_ASLEEP,
++	HCI_IBS_RX_AWAKE,
++};
++
++/* HCI_IBS transmit and receive side clock state vote */
++enum hci_ibs_clock_state_vote_e {
++	HCI_IBS_VOTE_STATS_UPDATE,
++	HCI_IBS_TX_VOTE_CLOCK_ON,
++	HCI_IBS_TX_VOTE_CLOCK_OFF,
++	HCI_IBS_RX_VOTE_CLOCK_ON,
++	HCI_IBS_RX_VOTE_CLOCK_OFF,
++};
++
++static unsigned long wake_retrans = 1;
++static unsigned long tx_idle_delay = (HZ * 2);
++
++struct hci_ibs_cmd {
++	u8 cmd;
++} __attribute__((packed));
++
++struct ibs_struct {
++	unsigned long rx_state;
++	unsigned long rx_count;
++	struct sk_buff *rx_skb;
++	struct sk_buff_head txq;
++	struct sk_buff_head tx_wait_q;	/* HCI_IBS wait queue	*/
++	spinlock_t hci_ibs_lock;	/* HCI_IBS state lock	*/
++	unsigned long tx_ibs_state;	/* HCI_IBS transmit side power state */
++	unsigned long rx_ibs_state;	/* HCI_IBS receive side power state */
++	unsigned long tx_vote;		/* clock must be on for TX */
++	unsigned long rx_vote;		/* clock must be on for RX */
++	struct	timer_list tx_idle_timer;
++	struct	timer_list wake_retrans_timer;
++	struct	workqueue_struct *workqueue;
++	struct	work_struct ws_awake_rx;
++	struct	work_struct ws_awake_device;
++	struct	work_struct ws_rx_vote_off;
++	struct	work_struct ws_tx_vote_off;
++	void *ibs_hu; /* keeps the hci_uart pointer for reference */
++
++	/* debug */
++	unsigned long ibs_sent_wacks;
++	unsigned long ibs_sent_slps;
++	unsigned long ibs_sent_wakes;
++	unsigned long ibs_recv_wacks;
++	unsigned long ibs_recv_slps;
++	unsigned long ibs_recv_wakes;
++	unsigned long vote_last_jif;
++	unsigned long vote_on_ticks;
++	unsigned long vote_off_ticks;
++	unsigned long tx_votes_on;
++	unsigned long rx_votes_on;
++	unsigned long tx_votes_off;
++	unsigned long rx_votes_off;
++	unsigned long votes_on;
++	unsigned long votes_off;
++};
++
++#ifdef CONFIG_SERIAL_MSM_HS
++static void __ibs_msm_serial_clock_on(struct tty_struct *tty)
++{
++	struct uart_state *state = tty->driver_data;
++	struct uart_port *port = state->uart_port;
++
++	msm_hs_request_clock_on(port);
++}
++
++static void __ibs_msm_serial_clock_request_off(struct tty_struct *tty)
++{
++	struct uart_state *state = tty->driver_data;
++	struct uart_port *port = state->uart_port;
++
++	msm_hs_request_clock_off(port);
++}
++#else
++static inline void __ibs_msm_serial_clock_on(struct tty_struct *tty) {}
++static inline void __ibs_msm_serial_clock_request_off(struct tty_struct *tty) {}
++#endif
++
++/* clock_vote needs to be called with the ibs lock held */
++static void ibs_msm_serial_clock_vote(unsigned long vote, struct hci_uart *hu)
++{
++	struct ibs_struct *ibs = hu->priv;
++
++	unsigned long old_vote = (ibs->tx_vote | ibs->rx_vote);
++	unsigned long new_vote;
++
++	switch (vote) {
++	default: /* error */
++		BT_ERR("voting irregularity");
++		return;
++	case HCI_IBS_VOTE_STATS_UPDATE:
++		if (old_vote)
++			ibs->vote_off_ticks += (jiffies - ibs->vote_last_jif);
++		else
++			ibs->vote_on_ticks += (jiffies - ibs->vote_last_jif);
++		return;
++	case HCI_IBS_TX_VOTE_CLOCK_ON:
++		ibs->tx_vote = 1;
++		ibs->tx_votes_on++;
++		new_vote = 1;
++		break;
++	case HCI_IBS_RX_VOTE_CLOCK_ON:
++		ibs->rx_vote = 1;
++		ibs->rx_votes_on++;
++		new_vote = 1;
++		break;
++	case HCI_IBS_TX_VOTE_CLOCK_OFF:
++		ibs->tx_vote = 0;
++		ibs->tx_votes_off++;
++		new_vote = ibs->rx_vote | ibs->tx_vote;
++		break;
++	case HCI_IBS_RX_VOTE_CLOCK_OFF:
++		ibs->rx_vote = 0;
++		ibs->rx_votes_off++;
++		new_vote = ibs->rx_vote | ibs->tx_vote;
++		break;
++	}
++	if (new_vote != old_vote) {
++		if (new_vote)
++			__ibs_msm_serial_clock_on(hu->tty);
++		else
++			__ibs_msm_serial_clock_request_off(hu->tty);
++
++		BT_DBG("HCIUART_IBS: vote msm_serial_hs clock %lu(%lu)",
++			new_vote, vote);
++		/* debug */
++		if (new_vote) {
++			ibs->votes_on++;
++			ibs->vote_off_ticks += (jiffies - ibs->vote_last_jif);
++		} else {
++			ibs->votes_off++;
++			ibs->vote_on_ticks += (jiffies - ibs->vote_last_jif);
++		}
++		ibs->vote_last_jif = jiffies;
++	}
++}
++
++/*
++ * Builds and sends an HCI_IBS command packet.
++ * These are very simple packets with only 1 cmd byte
++ */
++static int send_hci_ibs_cmd(u8 cmd, struct hci_uart *hu)
++{
++	int err = 0;
++	struct sk_buff *skb = NULL;
++	struct ibs_struct *ibs = hu->priv;
++	struct hci_ibs_cmd *hci_ibs_packet;
++
++	BT_DBG("hu %p cmd 0x%x", hu, cmd);
++
++	/* allocate packet */
++	skb = bt_skb_alloc(1, GFP_ATOMIC);
++	if (!skb) {
++		BT_ERR("cannot allocate memory for HCI_IBS packet");
++		err = -ENOMEM;
++		goto out;
++	}
++
++	/* prepare packet */
++	hci_ibs_packet = (struct hci_ibs_cmd *) skb_put(skb, 1);
++	hci_ibs_packet->cmd = cmd;
++	skb->dev = (void *) hu->hdev;
++
++	/* send packet */
++	skb_queue_tail(&ibs->txq, skb);
++out:
++	return err;
++}
++
++static void ibs_wq_awake_device(struct work_struct *work)
++{
++	struct ibs_struct *ibs = container_of(work, struct ibs_struct,
++					ws_awake_device);
++	struct hci_uart *hu = (struct hci_uart *)ibs->ibs_hu;
++	unsigned long flags;
++
++	BT_DBG(" %p ", hu);
++
++	/* Vote for serial clock */
++	ibs_msm_serial_clock_vote(HCI_IBS_TX_VOTE_CLOCK_ON, hu);
++
++	spin_lock_irqsave(&ibs->hci_ibs_lock, flags);
++
++	/* send wake indication to device */
++	if (send_hci_ibs_cmd(HCI_IBS_WAKE_IND, hu) < 0)
++		BT_ERR("cannot send WAKE to device");
++
++	ibs->ibs_sent_wakes++; /* debug */
++
++	/* start retransmit timer */
++	mod_timer(&ibs->wake_retrans_timer, jiffies + msecs_to_jiffies(10));
++
++	spin_unlock_irqrestore(&ibs->hci_ibs_lock, flags);
++
++}
++
++static void ibs_wq_awake_rx(struct work_struct *work)
++{
++	struct ibs_struct *ibs = container_of(work, struct ibs_struct,
++					ws_awake_rx);
++	struct hci_uart *hu = (struct hci_uart *)ibs->ibs_hu;
++	unsigned long flags;
++
++	BT_DBG(" %p ", hu);
++
++	ibs_msm_serial_clock_vote(HCI_IBS_RX_VOTE_CLOCK_ON, hu);
++
++	spin_lock_irqsave(&ibs->hci_ibs_lock, flags);
++
++	ibs->rx_ibs_state = HCI_IBS_RX_AWAKE;
++	/* Always acknowledge device wake up,
++	 * sending IBS message doesn't count as TX ON
++	 */
++	if (send_hci_ibs_cmd(HCI_IBS_WAKE_ACK, hu) < 0)
++		BT_ERR("cannot acknowledge device wake up");
++
++	ibs->ibs_sent_wacks++; /* debug */
++
++	spin_unlock_irqrestore(&ibs->hci_ibs_lock, flags);
++
++	/* actually send the packets */
++	hci_uart_tx_wakeup(hu);
++
++}
++
++static void ibs_wq_serial_rx_clock_vote_off(struct work_struct *work)
++{
++	struct ibs_struct *ibs = container_of(work, struct ibs_struct,
++					ws_rx_vote_off);
++	struct hci_uart *hu = (struct hci_uart *)ibs->ibs_hu;
++
++	BT_DBG(" %p ", hu);
++
++	ibs_msm_serial_clock_vote(HCI_IBS_RX_VOTE_CLOCK_OFF, hu);
++
++}
++
++static void ibs_wq_serial_tx_clock_vote_off(struct work_struct *work)
++{
++	struct ibs_struct *ibs = container_of(work, struct ibs_struct,
++					ws_tx_vote_off);
++	struct hci_uart *hu = (struct hci_uart *)ibs->ibs_hu;
++
++	BT_DBG(" %p ", hu);
++
++	hci_uart_tx_wakeup(hu);  /* run HCI tx handling unlocked */
++
++	/* now that message queued to tty driver, vote for tty clocks off */
++	/* It is up to the tty driver to pend the clocks off until tx done. */
++	ibs_msm_serial_clock_vote(HCI_IBS_TX_VOTE_CLOCK_OFF, hu);
++
++}
++
++static void hci_ibs_tx_idle_timeout(unsigned long arg)
++{
++	struct hci_uart *hu = (struct hci_uart *) arg;
++	struct ibs_struct *ibs = hu->priv;
++	unsigned long flags;
++
++	BT_DBG("hu %p idle timeout in %lu state", hu, ibs->tx_ibs_state);
++
++	spin_lock_irqsave_nested(&ibs->hci_ibs_lock,
++					flags, SINGLE_DEPTH_NESTING);
++
++	switch (ibs->tx_ibs_state) {
++	default:
++	case HCI_IBS_TX_ASLEEP:
++	case HCI_IBS_TX_WAKING:
++		BT_ERR("spurrious timeout in tx state %ld", ibs->tx_ibs_state);
++		goto out;
++	case HCI_IBS_TX_AWAKE: /* TX_IDLE, go to SLEEP */
++		if (send_hci_ibs_cmd(HCI_IBS_SLEEP_IND, hu) < 0) {
++			BT_ERR("cannot send SLEEP to device");
++			goto out;
++		}
++		ibs->tx_ibs_state = HCI_IBS_TX_ASLEEP;
++		ibs->ibs_sent_slps++; /* debug */
++		break;
++	}
++
++	queue_work(ibs->workqueue, &ibs->ws_tx_vote_off);
++
++out:
++	spin_unlock_irqrestore(&ibs->hci_ibs_lock, flags);
++}
++
++static void hci_ibs_wake_retrans_timeout(unsigned long arg)
++{
++	struct hci_uart *hu = (struct hci_uart *) arg;
++	struct ibs_struct *ibs = hu->priv;
++	unsigned long flags;
++	unsigned long retransmit = 0;
++
++	BT_DBG("hu %p wake retransmit timeout in %lu state",
++		hu, ibs->tx_ibs_state);
++
++	spin_lock_irqsave_nested(&ibs->hci_ibs_lock,
++					flags, SINGLE_DEPTH_NESTING);
++
++	switch (ibs->tx_ibs_state) {
++	default:
++	case HCI_IBS_TX_ASLEEP:
++	case HCI_IBS_TX_AWAKE:
++		BT_ERR("spurrious timeout tx state %ld", ibs->tx_ibs_state);
++		goto out;
++	case HCI_IBS_TX_WAKING: /* No WAKE_ACK, retransmit WAKE */
++		retransmit = 1;
++		if (send_hci_ibs_cmd(HCI_IBS_WAKE_IND, hu) < 0) {
++			BT_ERR("cannot acknowledge device wake up");
++			goto out;
++		}
++		ibs->ibs_sent_wakes++; /* debug */
++		mod_timer(&ibs->wake_retrans_timer, jiffies + wake_retrans);
++		break;
++	}
++out:
++	spin_unlock_irqrestore(&ibs->hci_ibs_lock, flags);
++	if (retransmit)
++		hci_uart_tx_wakeup(hu);
++}
++
++/* Initialize protocol */
++static int ibs_open(struct hci_uart *hu)
++{
++	struct ibs_struct *ibs;
++
++	BT_DBG("hu %p", hu);
++
++	ibs = kzalloc(sizeof(*ibs), GFP_ATOMIC);
++	if (!ibs)
++		return -ENOMEM;
++
++	skb_queue_head_init(&ibs->txq);
++	skb_queue_head_init(&ibs->tx_wait_q);
++	spin_lock_init(&ibs->hci_ibs_lock);
++	ibs->workqueue = create_singlethread_workqueue("ibs_wq");
++	if (!ibs->workqueue) {
++		BT_ERR("IBS Workqueue not initialized properly");
++		kfree(ibs);
++		return -ENOMEM;
++	}
++
++	INIT_WORK(&ibs->ws_awake_rx, ibs_wq_awake_rx);
++	INIT_WORK(&ibs->ws_awake_device, ibs_wq_awake_device);
++	INIT_WORK(&ibs->ws_rx_vote_off, ibs_wq_serial_rx_clock_vote_off);
++	INIT_WORK(&ibs->ws_tx_vote_off, ibs_wq_serial_tx_clock_vote_off);
++
++	ibs->ibs_hu = (void *)hu;
++
++	/* Assume we start with both sides asleep -- extra wakes OK */
++	ibs->tx_ibs_state = HCI_IBS_TX_ASLEEP;
++	ibs->rx_ibs_state = HCI_IBS_RX_ASLEEP;
++	/* clocks actually on, but we start votes off */
++	ibs->tx_vote = 0;
++	ibs->rx_vote = 0;
++
++	/* debug */
++	ibs->ibs_sent_wacks = 0;
++	ibs->ibs_sent_slps = 0;
++	ibs->ibs_sent_wakes = 0;
++	ibs->ibs_recv_wacks = 0;
++	ibs->ibs_recv_slps = 0;
++	ibs->ibs_recv_wakes = 0;
++	ibs->vote_last_jif = jiffies;
++	ibs->vote_on_ticks = 0;
++	ibs->vote_off_ticks = 0;
++	ibs->votes_on = 0;
++	ibs->votes_off = 0;
++	ibs->tx_votes_on = 0;
++	ibs->tx_votes_off = 0;
++	ibs->rx_votes_on = 0;
++	ibs->rx_votes_off = 0;
++
++	hu->priv = ibs;
++
++	init_timer(&ibs->wake_retrans_timer);
++	ibs->wake_retrans_timer.function = hci_ibs_wake_retrans_timeout;
++	ibs->wake_retrans_timer.data     = (u_long) hu;
++
++	init_timer(&ibs->tx_idle_timer);
++	ibs->tx_idle_timer.function = hci_ibs_tx_idle_timeout;
++	ibs->tx_idle_timer.data     = (u_long) hu;
++
++	BT_INFO("HCI_IBS open, tx_idle_delay=%lu, wake_retrans=%lu",
++		tx_idle_delay, wake_retrans);
++
++	return 0;
++}
++
++void ibs_log_local_stats(struct ibs_struct *ibs)
++{
++	BT_INFO("HCI_IBS stats: tx_idle_delay=%lu, wake_retrans=%lu",
++		tx_idle_delay, wake_retrans);
++
++	BT_INFO("HCI_IBS stats: tx_ibs_state=%lu, rx_ibs_state=%lu",
++		ibs->tx_ibs_state, ibs->rx_ibs_state);
++	BT_INFO("HCI_IBS stats: sent: sleep=%lu, wake=%lu, wake_ack=%lu",
++		ibs->ibs_sent_slps, ibs->ibs_sent_wakes, ibs->ibs_sent_wacks);
++	BT_INFO("HCI_IBS stats: recv: sleep=%lu, wake=%lu, wake_ack=%lu",
++		ibs->ibs_recv_slps, ibs->ibs_recv_wakes, ibs->ibs_recv_wacks);
++
++	BT_INFO("HCI_IBS stats: queues: txq=%s, txwaitq=%s",
++		skb_queue_empty(&(ibs->txq)) ? "empty" : "full",
++		skb_queue_empty(&(ibs->tx_wait_q)) ? "empty" : "full");
++
++	BT_INFO("HCI_IBS stats: vote state: tx=%lu, rx=%lu",
++		ibs->tx_vote, ibs->rx_vote);
++	BT_INFO("HCI_IBS stats: tx votes cast: on=%lu, off=%lu",
++		ibs->tx_votes_on, ibs->tx_votes_off);
++	BT_INFO("HCI_IBS stats: rx votes cast: on=%lu, off=%lu",
++		ibs->rx_votes_on, ibs->rx_votes_off);
++	BT_INFO("HCI_IBS stats: msm_clock votes cast: on=%lu, off=%lu",
++		ibs->votes_on, ibs->votes_off);
++	BT_INFO("HCI_IBS stats: vote ticks: on=%lu, off=%lu",
++		ibs->vote_on_ticks, ibs->vote_off_ticks);
++}
++
++/* Flush protocol data */
++static int ibs_flush(struct hci_uart *hu)
++{
++	struct ibs_struct *ibs = hu->priv;
++
++	BT_DBG("hu %p", hu);
++
++	skb_queue_purge(&ibs->tx_wait_q);
++	skb_queue_purge(&ibs->txq);
++
++	return 0;
++}
++
++/* Close protocol */
++static int ibs_close(struct hci_uart *hu)
++{
++	struct ibs_struct *ibs = hu->priv;
++
++	BT_DBG("hu %p", hu);
++
++	ibs_msm_serial_clock_vote(HCI_IBS_VOTE_STATS_UPDATE, hu);
++	ibs_log_local_stats(ibs);
++
++	skb_queue_purge(&ibs->tx_wait_q);
++	skb_queue_purge(&ibs->txq);
++	del_timer(&ibs->tx_idle_timer);
++	del_timer(&ibs->wake_retrans_timer);
++	destroy_workqueue(ibs->workqueue);
++	ibs->ibs_hu = NULL;
++
++	kfree_skb(ibs->rx_skb);
++
++	hu->priv = NULL;
++
++	kfree(ibs);
++
++	return 0;
++}
++
++/*
++ * Called upon a wake-up-indication from the device
++ */
++static void ibs_device_want_to_wakeup(struct hci_uart *hu)
++{
++	unsigned long flags;
++	struct ibs_struct *ibs = hu->priv;
++
++	BT_DBG("hu %p", hu);
++
++	/* lock hci_ibs state */
++	spin_lock_irqsave(&ibs->hci_ibs_lock, flags);
++
++	/* debug */
++	ibs->ibs_recv_wakes++;
++
++	switch (ibs->rx_ibs_state) {
++	case HCI_IBS_RX_ASLEEP:
++		/* Make sure clock is on - we may have turned clock off since
++		 * receiving the wake up indicator
++		 */
++		/* awake rx clock */
++		queue_work(ibs->workqueue, &ibs->ws_awake_rx);
++		spin_unlock_irqrestore(&ibs->hci_ibs_lock, flags);
++		return;
++	case HCI_IBS_RX_AWAKE:
++		/* Always acknowledge device wake up,
++		 * sending IBS message doesn't count as TX ON.
++		 */
++		if (send_hci_ibs_cmd(HCI_IBS_WAKE_ACK, hu) < 0) {
++			BT_ERR("cannot acknowledge device wake up");
++			goto out;
++		}
++		ibs->ibs_sent_wacks++; /* debug */
++		break;
++	default:
++		/* any other state is illegal */
++		BT_ERR("received HCI_IBS_WAKE_IND in rx state %ld",
++			ibs->rx_ibs_state);
++		break;
++	}
++
++out:
++	spin_unlock_irqrestore(&ibs->hci_ibs_lock, flags);
++
++	/* actually send the packets */
++	hci_uart_tx_wakeup(hu);
++}
++
++/*
++ * Called upon a sleep-indication from the device
++ */
++static void ibs_device_want_to_sleep(struct hci_uart *hu)
++{
++	unsigned long flags;
++	struct ibs_struct *ibs = hu->priv;
++
++	BT_DBG("hu %p", hu);
++
++	/* lock hci_ibs state */
++	spin_lock_irqsave(&ibs->hci_ibs_lock, flags);
++
++	/* debug */
++	ibs->ibs_recv_slps++;
++
++	switch (ibs->rx_ibs_state) {
++	case HCI_IBS_RX_AWAKE:
++		/* update state */
++		ibs->rx_ibs_state = HCI_IBS_RX_ASLEEP;
++		/* vote off rx clock under workqueue */
++		queue_work(ibs->workqueue, &ibs->ws_rx_vote_off);
++		break;
++	case HCI_IBS_RX_ASLEEP:
++		/* deliberate fall-through */
++	default:
++		/* any other state is illegal */
++		BT_ERR("received HCI_IBS_SLEEP_IND in rx state %ld",
++			ibs->rx_ibs_state);
++		break;
++	}
++
++	spin_unlock_irqrestore(&ibs->hci_ibs_lock, flags);
++}
++
++/*
++ * Called upon wake-up-acknowledgement from the device
++ */
++static void ibs_device_woke_up(struct hci_uart *hu)
++{
++	unsigned long flags;
++	struct ibs_struct *ibs = hu->priv;
++	struct sk_buff *skb = NULL;
++
++	BT_DBG("hu %p", hu);
++
++	/* lock hci_ibs state */
++	spin_lock_irqsave(&ibs->hci_ibs_lock, flags);
++
++	/* debug */
++	ibs->ibs_recv_wacks++;
++
++	switch (ibs->tx_ibs_state) {
++	case HCI_IBS_TX_ASLEEP:
++		/* This could be spurrious rx wake on the BT chip.
++		 * Send it another SLEEP othwise it will stay awake. */
++	default:
++		BT_ERR("received HCI_IBS_WAKE_ACK in tx state %ld",
++			ibs->tx_ibs_state);
++		break;
++	case HCI_IBS_TX_AWAKE:
++		/* expect one if we send 2 WAKEs */
++		BT_DBG("received HCI_IBS_WAKE_ACK in tx state %ld",
++			ibs->tx_ibs_state);
++		break;
++	case HCI_IBS_TX_WAKING:
++		/* send pending packets */
++		while ((skb = skb_dequeue(&ibs->tx_wait_q)))
++			skb_queue_tail(&ibs->txq, skb);
++		/* switch timers and change state to HCI_IBS_TX_AWAKE */
++		del_timer(&ibs->wake_retrans_timer);
++		mod_timer(&ibs->tx_idle_timer, jiffies +
++			msecs_to_jiffies(TX_IDLE_TO));
++		ibs->tx_ibs_state = HCI_IBS_TX_AWAKE;
++	}
++
++	spin_unlock_irqrestore(&ibs->hci_ibs_lock, flags);
++
++	/* actually send the packets */
++	hci_uart_tx_wakeup(hu);
++}
++
++/* Enqueue frame for transmittion (padding, crc, etc) */
++/* may be called from two simultaneous tasklets */
++static int ibs_enqueue(struct hci_uart *hu, struct sk_buff *skb)
++{
++	unsigned long flags = 0;
++	struct ibs_struct *ibs = hu->priv;
++
++	BT_DBG("hu %p skb %p", hu, skb);
++
++	/* Prepend skb with frame type */
++	memcpy(skb_push(skb, 1), &bt_cb(skb)->pkt_type, 1);
++
++	/* lock hci_ibs state */
++	spin_lock_irqsave(&ibs->hci_ibs_lock, flags);
++
++	/* act according to current state */
++	switch (ibs->tx_ibs_state) {
++	case HCI_IBS_TX_AWAKE:
++		BT_DBG("device awake, sending normally");
++		skb_queue_tail(&ibs->txq, skb);
++		mod_timer(&ibs->tx_idle_timer, jiffies +
++			msecs_to_jiffies(TX_IDLE_TO));
++		break;
++
++	case HCI_IBS_TX_ASLEEP:
++		BT_DBG("device asleep, waking up and queueing packet");
++		/* save packet for later */
++		skb_queue_tail(&ibs->tx_wait_q, skb);
++
++		ibs->tx_ibs_state = HCI_IBS_TX_WAKING;
++		/* schedule a work queue to wake up device */
++		queue_work(ibs->workqueue, &ibs->ws_awake_device);
++		break;
++
++	case HCI_IBS_TX_WAKING:
++		BT_DBG("device waking up, queueing packet");
++		/* transient state; just keep packet for later */
++		skb_queue_tail(&ibs->tx_wait_q, skb);
++		break;
++
++	default:
++		BT_ERR("illegal tx state: %ld (losing packet)",
++			ibs->tx_ibs_state);
++		kfree_skb(skb);
++		break;
++	}
++
++	spin_unlock_irqrestore(&ibs->hci_ibs_lock, flags);
++
++	return 0;
++}
++
++static inline int ibs_check_data_len(struct ibs_struct *ibs, int len)
++{
++	register int room = skb_tailroom(ibs->rx_skb);
++
++	BT_DBG("len %d room %d", len, room);
++
++	if (!len) {
++		hci_recv_frame(ibs->rx_skb);
++	} else if (len > room) {
++		BT_ERR("Data length is too large");
++		kfree_skb(ibs->rx_skb);
++	} else {
++		ibs->rx_state = HCI_IBS_W4_DATA;
++		ibs->rx_count = len;
++		return len;
++	}
++
++	ibs->rx_state = HCI_IBS_W4_PACKET_TYPE;
++	ibs->rx_skb   = NULL;
++	ibs->rx_count = 0;
++
++	return 0;
++}
++
++/* Recv data */
++static int ibs_recv(struct hci_uart *hu, void *data, int count)
++{
++	struct ibs_struct *ibs = hu->priv;
++	register char *ptr;
++	struct hci_event_hdr *eh;
++	struct hci_acl_hdr   *ah;
++	struct hci_sco_hdr   *sh;
++	register int len, type, dlen;
++
++	BT_DBG("hu %p count %d rx_state %ld rx_count %ld",
++			hu, count, ibs->rx_state, ibs->rx_count);
++
++	ptr = data;
++	while (count) {
++		if (ibs->rx_count) {
++			len = min_t(unsigned int, ibs->rx_count, count);
++			memcpy(skb_put(ibs->rx_skb, len), ptr, len);
++			ibs->rx_count -= len; count -= len; ptr += len;
++
++			if (ibs->rx_count)
++				continue;
++
++			switch (ibs->rx_state) {
++			case HCI_IBS_W4_DATA:
++				BT_DBG("Complete data");
++				hci_recv_frame(ibs->rx_skb);
++
++				ibs->rx_state = HCI_IBS_W4_PACKET_TYPE;
++				ibs->rx_skb = NULL;
++				continue;
++
++			case HCI_IBS_W4_EVENT_HDR:
++				eh = (struct hci_event_hdr *) ibs->rx_skb->data;
++
++				BT_DBG("Event header: evt 0x%2.2x plen %d",
++					eh->evt, eh->plen);
++
++				ibs_check_data_len(ibs, eh->plen);
++				continue;
++
++			case HCI_IBS_W4_ACL_HDR:
++				ah = (struct hci_acl_hdr *) ibs->rx_skb->data;
++				dlen = __le16_to_cpu(ah->dlen);
++
++				BT_DBG("ACL header: dlen %d", dlen);
++
++				ibs_check_data_len(ibs, dlen);
++				continue;
++
++			case HCI_IBS_W4_SCO_HDR:
++				sh = (struct hci_sco_hdr *) ibs->rx_skb->data;
++
++				BT_DBG("SCO header: dlen %d", sh->dlen);
++
++				ibs_check_data_len(ibs, sh->dlen);
++				continue;
++			}
++		}
++
++		/* HCI_IBS_W4_PACKET_TYPE */
++		switch ((unsigned char) *ptr) {
++		case HCI_EVENT_PKT:
++			BT_DBG("Event packet");
++			ibs->rx_state = HCI_IBS_W4_EVENT_HDR;
++			ibs->rx_count = HCI_EVENT_HDR_SIZE;
++			type = HCI_EVENT_PKT;
++			break;
++
++		case HCI_ACLDATA_PKT:
++			BT_DBG("ACL packet");
++			ibs->rx_state = HCI_IBS_W4_ACL_HDR;
++			ibs->rx_count = HCI_ACL_HDR_SIZE;
++			type = HCI_ACLDATA_PKT;
++			break;
++
++		case HCI_SCODATA_PKT:
++			BT_DBG("SCO packet");
++			ibs->rx_state = HCI_IBS_W4_SCO_HDR;
++			ibs->rx_count = HCI_SCO_HDR_SIZE;
++			type = HCI_SCODATA_PKT;
++			break;
++
++		/* HCI_IBS signals */
++		case HCI_IBS_SLEEP_IND:
++			BT_DBG("HCI_IBS_SLEEP_IND packet");
++			ibs_device_want_to_sleep(hu);
++			ptr++; count--;
++			continue;
++
++		case HCI_IBS_WAKE_IND:
++			BT_DBG("HCI_IBS_WAKE_IND packet");
++			ibs_device_want_to_wakeup(hu);
++			ptr++; count--;
++			continue;
++
++		case HCI_IBS_WAKE_ACK:
++			BT_DBG("HCI_IBS_WAKE_ACK packet");
++			ibs_device_woke_up(hu);
++			ptr++; count--;
++			continue;
++
++		default:
++			BT_ERR("Unknown HCI packet type %2.2x", (__u8)*ptr);
++			hu->hdev->stat.err_rx++;
++			ptr++; count--;
++			continue;
++		};
++
++		ptr++; count--;
++
++		/* Allocate packet */
++		ibs->rx_skb = bt_skb_alloc(HCI_MAX_FRAME_SIZE, GFP_ATOMIC);
++		if (!ibs->rx_skb) {
++			BT_ERR("Can't allocate mem for new packet");
++			ibs->rx_state = HCI_IBS_W4_PACKET_TYPE;
++			ibs->rx_count = 0;
++			return 0;
++		}
++
++		ibs->rx_skb->dev = (void *) hu->hdev;
++		bt_cb(ibs->rx_skb)->pkt_type = type;
++	}
++
++	return count;
++}
++
++static struct sk_buff *ibs_dequeue(struct hci_uart *hu)
++{
++	struct ibs_struct *ibs = hu->priv;
++	return skb_dequeue(&ibs->txq);
++}
++
++static struct hci_uart_proto ibs_p = {
++	.id		= HCI_UART_IBS,
++	.open		= ibs_open,
++	.close		= ibs_close,
++	.recv		= ibs_recv,
++	.enqueue	= ibs_enqueue,
++	.dequeue	= ibs_dequeue,
++	.flush		= ibs_flush,
++};
++
++int ibs_init(void)
++{
++	int err = hci_uart_register_proto(&ibs_p);
++
++	if (!err)
++		BT_INFO("HCI_IBS protocol initialized");
++	else
++		BT_ERR("HCI_IBS protocol registration failed");
++
++	return err;
++}
++
++int ibs_deinit(void)
++{
++	return hci_uart_unregister_proto(&ibs_p);
++}
++
++module_param(wake_retrans, ulong, 0644);
++MODULE_PARM_DESC(wake_retrans, "Delay (1/HZ) to retransmit WAKE_IND");
++
++module_param(tx_idle_delay, ulong, 0644);
++MODULE_PARM_DESC(tx_idle_delay, "Delay (1/HZ) since last tx for SLEEP_IND");
+diff -urN backports.orig/drivers/bluetooth/hci_ldisc.c backports/drivers/bluetooth/hci_ldisc.c
+--- backports.orig/drivers/bluetooth/hci_ldisc.c	2015-09-24 15:25:20.401038328 +0800
++++ backports/drivers/bluetooth/hci_ldisc.c	2015-09-24 15:25:20.477038328 +0800
+@@ -2,9 +2,9 @@
+  *
+  *  Bluetooth HCI UART driver
+  *
+- *  Copyright (C) 2000-2001  Qualcomm Incorporated
+  *  Copyright (C) 2002-2003  Maxim Krasnyansky <maxk@qualcomm.com>
+  *  Copyright (C) 2004-2005  Marcel Holtmann <marcel@holtmann.org>
++ *  Copyright (c) 2000-2001, 2010, Code Aurora Forum. All rights reserved.
+  *
+  *
+  *  This program is free software; you can redistribute it and/or modify
+@@ -385,12 +385,15 @@
+ {
+ 	struct hci_uart *hu = (void *)tty->disc_data;
+ 
+-	if (!hu || tty != hu->tty)
++	if (!hu || tty != hu->tty || !data)
+ 		return;
+ 
+ 	if (!test_bit(HCI_UART_PROTO_SET, &hu->flags))
+ 		return;
+ 
++	if (!hu->proto)
++		return;
++
+ 	spin_lock(&hu->rx_lock);
+ 	hu->proto->recv(hu, (void *) data, count);
+ 
+@@ -609,6 +612,9 @@
+ #ifdef CPTCFG_BT_HCIUART_3WIRE
+ 	h5_init();
+ #endif
++#ifdef CPTCFG_BT_HCIUART_IBS
++	ibs_init();
++#endif
+ 
+ 	return 0;
+ }
+@@ -632,6 +638,9 @@
+ #ifdef CPTCFG_BT_HCIUART_3WIRE
+ 	h5_deinit();
+ #endif
++#ifdef CPTCFG_BT_HCIUART_IBS
++	ibs_deinit();
++#endif
+ 
+ 	/* Release tty registration of line discipline */
+ 	if ((err = tty_unregister_ldisc(N_HCI)))
+diff -urN backports.orig/drivers/bluetooth/hci_uart.h backports/drivers/bluetooth/hci_uart.h
+--- backports.orig/drivers/bluetooth/hci_uart.h	2015-09-24 15:25:20.401038328 +0800
++++ backports/drivers/bluetooth/hci_uart.h	2015-09-24 15:25:20.477038328 +0800
+@@ -2,9 +2,9 @@
+  *
+  *  Bluetooth HCI UART driver
+  *
+- *  Copyright (C) 2000-2001  Qualcomm Incorporated
+  *  Copyright (C) 2002-2003  Maxim Krasnyansky <maxk@qualcomm.com>
+  *  Copyright (C) 2004-2005  Marcel Holtmann <marcel@holtmann.org>
++ *  Copyright (c) 2000-2001, 2010, Code Aurora Forum. All rights reserved.
+  *
+  *
+  *  This program is free software; you can redistribute it and/or modify
+@@ -35,7 +35,7 @@
+ #define HCIUARTGETFLAGS		_IOR('U', 204, int)
+ 
+ /* UART protocols */
+-#define HCI_UART_MAX_PROTO	6
++#define HCI_UART_MAX_PROTO	7
+ 
+ #define HCI_UART_H4	0
+ #define HCI_UART_BCSP	1
+@@ -43,12 +43,15 @@
+ #define HCI_UART_H4DS	3
+ #define HCI_UART_LL	4
+ #define HCI_UART_ATH3K	5
++#define HCI_UART_IBS	6
+ 
+ #define HCI_UART_RAW_DEVICE	0
+ #define HCI_UART_RESET_ON_INIT	1
+ #define HCI_UART_CREATE_AMP	2
+ #define HCI_UART_INIT_PENDING	3
+ 
++#include <linux/interrupt.h>
++
+ struct hci_uart;
+ 
+ struct hci_uart_proto {
+@@ -114,3 +117,8 @@
+ int h5_init(void);
+ int h5_deinit(void);
+ #endif
++
++#ifdef CPTCFG_BT_HCIUART_IBS
++int ibs_init(void);
++int ibs_deinit(void);
++#endif
+diff -urN backports.orig/drivers/bluetooth/Kconfig backports/drivers/bluetooth/Kconfig
+--- backports.orig/drivers/bluetooth/Kconfig	2015-09-24 15:25:20.401038328 +0800
++++ backports/drivers/bluetooth/Kconfig	2015-09-24 15:25:20.477038328 +0800
+@@ -97,6 +97,17 @@
+ 
+ 	  Say Y here to compile support for Three-wire UART protocol.
+ 
++config BT_HCIUART_IBS
++	bool "HCI_IBS protocol support"
++	depends on BT_HCIUART
++	default n
++	help
++	  HCI_IBS (HCI In-Band Sleep) is a serial protocol for communication
++	  between Bluetooth device and host. This protocol is required for
++	  UART clock control for some Qualcomm Bluetooth devices.
++
++	  Say Y here to compile support for HCI_IBS protocol.
++
+ config BT_HCIBCM203X
+ 	tristate "HCI BCM203x USB driver"
+ 	depends on m
+diff -urN backports.orig/drivers/bluetooth/Makefile backports/drivers/bluetooth/Makefile
+--- backports.orig/drivers/bluetooth/Makefile	2015-09-24 15:25:20.401038328 +0800
++++ backports/drivers/bluetooth/Makefile	2015-09-24 15:25:20.477038328 +0800
+@@ -29,4 +29,5 @@
+ hci_uart-$(CPTCFG_BT_HCIUART_LL)	+= hci_ll.o
+ hci_uart-$(CPTCFG_BT_HCIUART_ATH3K)	+= hci_ath.o
+ hci_uart-$(CPTCFG_BT_HCIUART_3WIRE)	+= hci_h5.o
++hci_uart-$(CPTCFG_BT_HCIUART_IBS)  += hci_ibs.o
+ hci_uart-objs				:= $(hci_uart-y)
+diff -urN backports.orig/.gitignore backports/.gitignore
+--- backports.orig/.gitignore	2015-09-24 15:25:20.469038328 +0800
++++ backports/.gitignore	2015-09-24 15:25:20.553038328 +0800
+@@ -1,7 +1,6 @@
+ Kconfig.kernel
+ Kconfig.versions
+ .kernel_config_md5
+-.config
+ .config.old
+ *~
+ *.o
+diff -urN backports.orig/include/net/bluetooth/bluetooth.h backports/include/net/bluetooth/bluetooth.h
+--- backports.orig/include/net/bluetooth/bluetooth.h	2015-09-24 15:25:20.385038328 +0800
++++ backports/include/net/bluetooth/bluetooth.h	2015-09-24 15:25:20.473038328 +0800
+@@ -1,6 +1,7 @@
+ /*
+    BlueZ - Bluetooth protocol stack for Linux
+    Copyright (C) 2000-2001 Qualcomm Incorporated
++   Copyright (C) 2014 The Linux Foundation. All rights reserved.
+ 
+    Written 2000,2001 by Maxim Krasnyansky <maxk@qualcomm.com>
+ 
+@@ -28,6 +29,7 @@
+ #include <linux/poll.h>
+ #include <net/sock.h>
+ #include <linux/seq_file.h>
++#include <linux/usb.h>
+ 
+ #ifndef AF_BLUETOOTH
+ #define AF_BLUETOOTH	31
+diff -urN backports.orig/include/net/bluetooth/hci_core.h backports/include/net/bluetooth/hci_core.h
+--- backports.orig/include/net/bluetooth/hci_core.h	2015-09-24 15:25:20.385038328 +0800
++++ backports/include/net/bluetooth/hci_core.h	2015-09-24 15:25:20.473038328 +0800
+@@ -592,6 +592,7 @@
+ int hci_conn_security(struct hci_conn *conn, __u8 sec_level, __u8 auth_type);
+ int hci_conn_change_link_key(struct hci_conn *conn);
+ int hci_conn_switch_role(struct hci_conn *conn, __u8 role);
++int hci_cfg_link_policy(struct hci_conn *conn);
+ 
+ void hci_conn_enter_active_mode(struct hci_conn *conn, __u8 force_active);
+ 
+diff -urN backports.orig/include/net/bluetooth/hci.h backports/include/net/bluetooth/hci.h
+--- backports.orig/include/net/bluetooth/hci.h	2015-09-24 15:25:20.385038328 +0800
++++ backports/include/net/bluetooth/hci.h	2015-09-24 15:25:20.473038328 +0800
+@@ -47,6 +47,7 @@
+ #define HCI_NOTIFY_CONN_ADD		1
+ #define HCI_NOTIFY_CONN_DEL		2
+ #define HCI_NOTIFY_VOICE_SETTING	3
++#define HCI_NOTIFY_SCO_COMPLETE		4
+ 
+ /* HCI bus types */
+ #define HCI_VIRTUAL	0
+diff -urN backports.orig/include/net/cfg80211.h backports/include/net/cfg80211.h
+--- backports.orig/include/net/cfg80211.h	2015-09-24 15:25:20.385038328 +0800
++++ backports/include/net/cfg80211.h	2015-09-24 15:25:20.473038328 +0800
+@@ -735,6 +735,10 @@
+  * @capability: station capability
+  * @ext_capab: extended capabilities of the station
+  * @ext_capab_len: number of extended capabilities
++ * @supported_channels: supported channels in IEEE 802.11 format
++ * @supported_channels_len: number of supported channels
++ * @supported_oper_classes: supported oper classes in IEEE 802.11 format
++ * @supported_oper_classes_len: number of supported operating classes
+  */
+ struct station_parameters {
+ 	const u8 *supported_rates;
+@@ -754,6 +758,10 @@
+ 	u16 capability;
+ 	const u8 *ext_capab;
+ 	u8 ext_capab_len;
++	const u8 *supported_channels;
++	u8 supported_channels_len;
++	const u8 *supported_oper_classes;
++	u8 supported_oper_classes_len;
+ };
+ 
+ /**
+@@ -1374,10 +1382,12 @@
+ /**
+  * struct cfg80211_match_set - sets of attributes to match
+  *
+- * @ssid: SSID to be matched
++ * @ssid: SSID to be matched; may be zero-length for no match (RSSI only)
++ * @rssi_thold: don't report scan results below this threshold (in s32 dBm)
+  */
+ struct cfg80211_match_set {
+ 	struct cfg80211_ssid ssid;
++	s32 rssi_thold;
+ };
+ 
+ /**
+@@ -1400,7 +1410,8 @@
+  * @dev: the interface
+  * @scan_start: start time of the scheduled scan
+  * @channels: channels to scan
+- * @rssi_thold: don't report scan results below this threshold (in s32 dBm)
++ * @min_rssi_thold: for drivers only supporting a single threshold, this
++ *	contains the minimum over all matchsets
+  */
+ struct cfg80211_sched_scan_request {
+ 	struct cfg80211_ssid *ssids;
+@@ -1413,7 +1424,8 @@
+ 	u32 flags;
+ 	struct cfg80211_match_set *match_sets;
+ 	int n_match_sets;
+-	s32 rssi_thold;
++	s32 min_rssi_thold;
++	s32 rssi_thold; /* just for backward compatible */
+ 
+ 	/* internal */
+ 	struct wiphy *wiphy;
+@@ -2290,8 +2302,7 @@
+ 	void	(*rfkill_poll)(struct wiphy *wiphy);
+ 
+ #ifdef CPTCFG_NL80211_TESTMODE
+-	int	(*testmode_cmd)(struct wiphy *wiphy, struct wireless_dev *wdev,
+-				void *data, int len);
++	int	(*testmode_cmd)(struct wiphy *wiphy, void *data, int len);
+ 	int	(*testmode_dump)(struct wiphy *wiphy, struct sk_buff *skb,
+ 				 struct netlink_callback *cb,
+ 				 void *data, int len);
+@@ -2418,22 +2429,28 @@
+  * enum wiphy_flags - wiphy capability flags
+  *
+  * @WIPHY_FLAG_CUSTOM_REGULATORY:  tells us the driver for this device
+- * 	has its own custom regulatory domain and cannot identify the
+- * 	ISO / IEC 3166 alpha2 it belongs to. When this is enabled
+- * 	we will disregard the first regulatory hint (when the
+- * 	initiator is %REGDOM_SET_BY_CORE).
+- * @WIPHY_FLAG_STRICT_REGULATORY: tells us the driver for this device will
+- *	ignore regulatory domain settings until it gets its own regulatory
+- *	domain via its regulatory_hint() unless the regulatory hint is
+- *	from a country IE. After its gets its own regulatory domain it will
+- *	only allow further regulatory domain settings to further enhance
+- *	compliance. For example if channel 13 and 14 are disabled by this
+- *	regulatory domain no user regulatory domain can enable these channels
+- *	at a later time. This can be used for devices which do not have
+- *	calibration information guaranteed for frequencies or settings
+- *	outside of its regulatory domain. If used in combination with
+- *	WIPHY_FLAG_CUSTOM_REGULATORY the inspected country IE power settings
+- *	will be followed.
++ *	has its own custom regulatory domain and cannot identify the
++ *	ISO / IEC 3166 alpha2 it belongs to. When this is enabled
++ *	we will disregard the first regulatory hint (when the
++ *	initiator is %REGDOM_SET_BY_CORE). wiphys can set the custom
++ *	regulatory domain using wiphy_apply_custom_regulatory()
++ *	prior to wiphy registration.
++ * @WIPHY_FLAG_STRICT_REGULATORY: tells us that the wiphy for this device
++ *	has regulatory domain that it wishes to be considered as the
++ *	superset for regulatory rules. After this device gets its regulatory
++ *	domain programmed further regulatory hints shall only be considered
++ *	for this device to enhance regulatory compliance, forcing the
++ *	device to only possibly use subsets of the original regulatory
++ *	rules. For example if channel 13 and 14 are disabled by this
++ *	device's regulatory domain no user specified regulatory hint which
++ *	has these channels enabled would enable them for this wiphy,
++ *	the device's original regulatory domain will be trusted as the
++ *	base. You can program the superset of regulatory rules for this
++ *	wiphy with regulatory_hint() for cards programmed with an
++ *	ISO3166-alpha2 country code. wiphys that use regulatory_hint()
++ *	will have their wiphy->regd programmed once the regulatory
++ *	domain is set, and all other regulatory hints will be ignored
++ *	until their own regulatory domain gets programmed.
+  * @WIPHY_FLAG_DISABLE_BEACON_HINTS: enable this if your driver needs to ensure
+  *	that passive scan flags and beaconing flags may not be lifted by
+  *	cfg80211 due to regulatory beacon hints. For more information on beacon
+@@ -2474,6 +2491,7 @@
+  * @WIPHY_FLAG_SUPPORTS_5_10_MHZ: Device supports 5 MHz and 10 MHz channels.
+  * @WIPHY_FLAG_HAS_CHANNEL_SWITCH: Device supports channel switch in
+  *	beaconing mode (AP, IBSS, Mesh, ...).
++ * @WIPHY_FLAG_DFS_OFFLOAD: The driver handles all the DFS related operations.
+  */
+ enum wiphy_flags {
+ 	WIPHY_FLAG_CUSTOM_REGULATORY		= BIT(0),
+@@ -2497,8 +2515,10 @@
+ 	WIPHY_FLAG_AP_PROBE_RESP_OFFLOAD	= BIT(19),
+ 	WIPHY_FLAG_OFFCHAN_TX			= BIT(20),
+ 	WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL	= BIT(21),
+-	WIPHY_FLAG_SUPPORTS_5_10_MHZ		= BIT(22),
++	WIPHY_FLAG_DFS_OFFLOAD                  = BIT(22),
+ 	WIPHY_FLAG_HAS_CHANNEL_SWITCH		= BIT(23),
++// DFS OFFLOAD occupied bit 22.
++	WIPHY_FLAG_SUPPORTS_5_10_MHZ		= BIT(24)
+ };
+ 
+ /**
+@@ -2655,6 +2675,34 @@
+ };
+ 
+ /**
++ * enum wiphy_vendor_command_flags - validation flags for vendor commands
++ * @WIPHY_VENDOR_CMD_NEED_WDEV: vendor command requires wdev
++ * @WIPHY_VENDOR_CMD_NEED_NETDEV: vendor command requires netdev
++ * @WIPHY_VENDOR_CMD_NEED_RUNNING: interface/wdev must be up & running
++ *	(must be combined with %_WDEV or %_NETDEV)
++ */
++enum wiphy_vendor_command_flags {
++	WIPHY_VENDOR_CMD_NEED_WDEV = BIT(0),
++	WIPHY_VENDOR_CMD_NEED_NETDEV = BIT(1),
++	WIPHY_VENDOR_CMD_NEED_RUNNING = BIT(2),
++};
++
++/**
++ * struct wiphy_vendor_command - vendor command definition
++ * @info: vendor command identifying information, as used in nl80211
++ * @flags: flags, see &enum wiphy_vendor_command_flags
++ * @doit: callback for the operation, note that wdev is %NULL if the
++ *	flags didn't ask for a wdev and non-%NULL otherwise; the data
++ *	pointer may be %NULL if userspace provided no data at all
++ */
++struct wiphy_vendor_command {
++	struct nl80211_vendor_cmd_info info;
++	u32 flags;
++	int (*doit)(struct wiphy *wiphy, struct wireless_dev *wdev,
++		    void *data, int data_len);
++};
++
++/**
+  * struct wiphy - wireless hardware description
+  * @reg_notifier: the driver's regulatory notification callback,
+  *	note that if your driver uses wiphy_apply_custom_regulatory()
+@@ -2765,6 +2813,17 @@
+  * @extended_capabilities_mask: mask of the valid values
+  * @extended_capabilities_len: length of the extended capabilities
+  * @coalesce: packet coalescing support information
++ * @country_ie_pref: country IE processing preferences specified
++ *     by enum nl80211_country_ie_pref
++ * @vendor_commands: array of vendor commands supported by the hardware
++ * @n_vendor_commands: number of vendor commands
++ * @vendor_events: array of vendor events supported by the hardware
++ * @n_vendor_events: number of vendor events
++ *
++ * @max_ap_assoc_sta: maximum number of associated stations supported in AP mode
++ *	(including P2P GO) or 0 to indicate no such limit is advertised. The
++ *	driver is allowed to advertise a theoretical limit that it can reach in
++ *	some cases, but may not always reach.
+  */
+ struct wiphy {
+ 	/* assign these fields before you register the wiphy */
+@@ -2817,7 +2876,8 @@
+ 	u32 hw_version;
+ 
+ #ifdef CONFIG_PM
+-	const struct wiphy_wowlan_support *wowlan;
++//	const struct wiphy_wowlan_support *wowlan;
++	struct wiphy_wowlan_support wowlan;
+ 	struct cfg80211_wowlan *wowlan_config;
+ #endif
+ 
+@@ -2838,6 +2898,8 @@
+ 	const u8 *extended_capabilities, *extended_capabilities_mask;
+ 	u8 extended_capabilities_len;
+ 
++	u8 country_ie_pref;
++
+ 	/* If multiple wiphys are registered and you're handed e.g.
+ 	 * a regular netdev with assigned ieee80211_ptr, you won't
+ 	 * know whether it points to a wiphy your driver has registered
+@@ -2879,6 +2941,12 @@
+ 
+ 	const struct wiphy_coalesce_support *coalesce;
+ 
++	const struct wiphy_vendor_command *vendor_commands;
++	const struct nl80211_vendor_cmd_info *vendor_events;
++	int n_vendor_commands, n_vendor_events;
++
++	u16 max_ap_assoc_sta;
++
+ 	char priv[0] __aligned(NETDEV_ALIGN);
+ };
+ 
+@@ -3442,6 +3510,32 @@
+ int regulatory_hint(struct wiphy *wiphy, const char *alpha2);
+ 
+ /**
++ * regulatory_hint_user - hint to the wireless core a regulatory domain
++ * which the driver has received from an application
++ * @alpha2: the ISO/IEC 3166 alpha2 the driver claims its regulatory domain
++ *	should be in. If @rd is set this should be NULL. Note that if you
++ *	set this to NULL you should still set rd->alpha2 to some accepted
++ *	alpha2.
++ * @user_reg_hint_type: the type of user regulatory hint.
++ *
++ * Wireless drivers can use this function to hint to the wireless core
++ * the current regulatory domain as specified by trusted applications,
++ * it is the driver's responsibilty to estbalish which applications it
++ * trusts.
++ *
++ * The wiphy should be registered to cfg80211 prior to this call.
++ * For cfg80211 drivers this means you must first use wiphy_register(),
++ * for mac80211 drivers you must first use ieee80211_register_hw().
++ *
++ * Drivers should check the return value, its possible you can get
++ * an -ENOMEM or an -EINVAL.
++ *
++ * Return: 0 on success. -ENOMEM, -EINVAL.
++ */
++int regulatory_hint_user(const char *alpha2,
++			 enum nl80211_user_reg_hint_type user_reg_hint_type);
++
++/**
+  * wiphy_apply_custom_regulatory - apply a custom driver regulatory domain
+  * @wiphy: the wireless device we want to process the regulatory domain on
+  * @regd: the custom regulatory domain to use for this wiphy
+@@ -3727,6 +3821,44 @@
+ void cfg80211_rx_unprot_mlme_mgmt(struct net_device *dev,
+ 				  const u8 *buf, size_t len);
+ 
++
++/**
++ * __cfg80211_send_disassoc - notification of processed disassociation
++ * @dev: network device
++ * @buf: disassociation response frame (header + body)
++ * @len: length of the frame data
++ *
++ * Like cfg80211_send_disassoc(), but doesn't take the wdev lock.
++ */
++void __cfg80211_send_disassoc(struct net_device *dev, const u8 *buf,
++	size_t len);
++
++/**
++ * cfg80211_send_unprot_deauth - notification of unprotected deauthentication
++ * @dev: network device
++ * @buf: deauthentication frame (header + body)
++ * @len: length of the frame data
++ *
++ * This function is called whenever a received Deauthentication frame has been
++ * dropped in station mode because of MFP being used but the Deauthentication
++ * frame was not protected. This function may sleep.
++ */
++void cfg80211_send_unprot_deauth(struct net_device *dev, const u8 *buf,
++				 size_t len);
++
++/**
++ * cfg80211_send_unprot_disassoc - notification of unprotected disassociation
++ * @dev: network device
++ * @buf: disassociation frame (header + body)
++ * @len: length of the frame data
++ *
++ * This function is called whenever a received Disassociation frame has been
++ * dropped in station mode because of MFP being used but the Disassociation
++ * frame was not protected. This function may sleep.
++ */
++void cfg80211_send_unprot_disassoc(struct net_device *dev, const u8 *buf,
++				   size_t len);
++
+ /**
+  * cfg80211_michael_mic_failure - notification of Michael MIC failure (TKIP)
+  * @dev: network device
+@@ -3809,6 +3941,129 @@
+  */
+ void wiphy_rfkill_stop_polling(struct wiphy *wiphy);
+ 
++/**
++ * DOC: Vendor commands
++ *
++ * Occasionally, there are special protocol or firmware features that
++ * can't be implemented very openly. For this and similar cases, the
++ * vendor command functionality allows implementing the features with
++ * (typically closed-source) userspace and firmware, using nl80211 as
++ * the configuration mechanism.
++ *
++ * A driver supporting vendor commands must register them as an array
++ * in struct wiphy, with handlers for each one, each command has an
++ * OUI and sub command ID to identify it.
++ *
++ * Note that this feature should not be (ab)used to implement protocol
++ * features that could openly be shared across drivers. In particular,
++ * it must never be required to use vendor commands to implement any
++ * "normal" functionality that higher-level userspace like connection
++ * managers etc. need.
++ */
++
++struct sk_buff *__cfg80211_alloc_reply_skb(struct wiphy *wiphy,
++                                           enum nl80211_commands cmd,
++                                           enum nl80211_attrs attr,
++                                           int approxlen);
++
++struct sk_buff *__cfg80211_alloc_event_skb(struct wiphy *wiphy,
++                                           enum nl80211_commands cmd,
++                                           enum nl80211_attrs attr,
++                                           int vendor_event_idx,
++                                           int approxlen, gfp_t gfp);
++
++void __cfg80211_send_event_skb(struct sk_buff *skb, gfp_t gfp);
++/**
++ * cfg80211_vendor_cmd_alloc_reply_skb - allocate vendor command reply
++ * @wiphy: the wiphy
++ * @approxlen: an upper bound of the length of the data that will
++ *      be put into the skb
++ *
++ * This function allocates and pre-fills an skb for a reply to
++ * a vendor command. Since it is intended for a reply, calling
++ * it outside of a vendor command's doit() operation is invalid.
++ *
++ * The returned skb is pre-filled with some identifying data in
++ * a way that any data that is put into the skb (with skb_put(),
++ * nla_put() or similar) will end up being within the
++ * %NL80211_ATTR_VENDOR_DATA attribute, so all that needs to be done
++ * with the skb is adding data for the corresponding userspace tool
++ * which can then read that data out of the testdata attribute. You
++ * must not modify the skb in any other way.
++ *
++ * When done, call cfg80211_vendor_cmd_reply() with the skb and return
++ * its error code as the result of the doit() operation.
++ *
++ * Return: An allocated and pre-filled skb. %NULL if any errors happen.
++ */
++static inline struct sk_buff *
++cfg80211_vendor_cmd_alloc_reply_skb(struct wiphy *wiphy, int approxlen)
++{
++        return __cfg80211_alloc_reply_skb(wiphy, NL80211_CMD_TESTMODE,
++                                          NL80211_ATTR_TESTDATA, approxlen);
++}
++
++struct sk_buff *__cfg80211_alloc_event_skb(struct wiphy *wiphy,
++					   enum nl80211_commands cmd,
++					   enum nl80211_attrs attr,
++					   int vendor_event_idx,
++					   int approxlen, gfp_t gfp);
++
++void __cfg80211_send_event_skb(struct sk_buff *skb, gfp_t gfp);
++
++/**
++ * cfg80211_vendor_cmd_reply - send the reply skb
++ * @skb: The skb, must have been allocated with
++ *      cfg80211_vendor_cmd_alloc_reply_skb()
++ *
++ * Since calling this function will usually be the last thing
++ * before returning from the vendor command doit() you should
++ * return the error code.  Note that this function consumes the
++ * skb regardless of the return value.
++ *
++ * Return: An error code or 0 on success.
++ */
++int cfg80211_vendor_cmd_reply(struct sk_buff *skb);
++
++/**
++ * cfg80211_vendor_event_alloc - allocate vendor-specific event skb
++ * @wiphy: the wiphy
++ * @event_idx: index of the vendor event in the wiphy's vendor_events
++ * @approxlen: an upper bound of the length of the data that will
++ *      be put into the skb
++ * @gfp: allocation flags
++ *
++ * This function allocates and pre-fills an skb for an event on the
++ * vendor-specific multicast group.
++ *
++ * When done filling the skb, call cfg80211_vendor_event() with the
++ * skb to send the event.
++ *
++ * Return: An allocated and pre-filled skb. %NULL if any errors happen.
++ */
++static inline struct sk_buff *
++cfg80211_vendor_event_alloc(struct wiphy *wiphy, int approxlen,
++                            int event_idx, gfp_t gfp)
++{
++        return __cfg80211_alloc_event_skb(wiphy, NL80211_CMD_VENDOR,
++                                          NL80211_ATTR_VENDOR_DATA,
++                                          event_idx, approxlen, gfp);
++}
++
++/**
++ * cfg80211_vendor_event - send the event
++ * @skb: The skb, must have been allocated with cfg80211_vendor_event_alloc()
++ * @gfp: allocation flags
++ *
++ * This function sends the given @skb, which must have been allocated
++ * by cfg80211_vendor_event_alloc(), as an event. It always consumes it.
++ */
++static inline void cfg80211_vendor_event(struct sk_buff *skb, gfp_t gfp)
++{
++        __cfg80211_send_event_skb(skb, gfp);
++}
++
++
+ #ifdef CPTCFG_NL80211_TESTMODE
+ /**
+  * DOC: Test mode
+@@ -3844,8 +4099,12 @@
+  *
+  * Return: An allocated and pre-filled skb. %NULL if any errors happen.
+  */
+-struct sk_buff *cfg80211_testmode_alloc_reply_skb(struct wiphy *wiphy,
+-						  int approxlen);
++static inline struct sk_buff *
++cfg80211_testmode_alloc_reply_skb(struct wiphy *wiphy, int approxlen)
++{
++	return __cfg80211_alloc_reply_skb(wiphy, NL80211_CMD_TESTMODE,
++					  NL80211_ATTR_TESTDATA, approxlen);
++}
+ 
+ /**
+  * cfg80211_testmode_reply - send the reply skb
+@@ -3859,7 +4118,10 @@
+  *
+  * Return: An error code or 0 on success.
+  */
+-int cfg80211_testmode_reply(struct sk_buff *skb);
++static inline int cfg80211_testmode_reply(struct sk_buff *skb)
++{
++	return cfg80211_vendor_cmd_reply(skb);
++}
+ 
+ /**
+  * cfg80211_testmode_alloc_event_skb - allocate testmode event
+@@ -3882,8 +4144,13 @@
+  *
+  * Return: An allocated and pre-filled skb. %NULL if any errors happen.
+  */
+-struct sk_buff *cfg80211_testmode_alloc_event_skb(struct wiphy *wiphy,
+-						  int approxlen, gfp_t gfp);
++static inline struct sk_buff *
++cfg80211_testmode_alloc_event_skb(struct wiphy *wiphy, int approxlen, gfp_t gfp)
++{
++	return __cfg80211_alloc_event_skb(wiphy, NL80211_CMD_TESTMODE,
++					  NL80211_ATTR_TESTDATA, -1,
++					  approxlen, gfp);
++}
+ 
+ /**
+  * cfg80211_testmode_event - send the event
+@@ -3895,7 +4162,10 @@
+  * by cfg80211_testmode_alloc_event_skb(), as an event. It always
+  * consumes it.
+  */
+-void cfg80211_testmode_event(struct sk_buff *skb, gfp_t gfp);
++static inline void cfg80211_testmode_event(struct sk_buff *skb, gfp_t gfp)
++{
++	__cfg80211_send_event_skb(skb, gfp);
++}
+ 
+ #define CFG80211_TESTMODE_CMD(cmd)	.testmode_cmd = (cmd),
+ #define CFG80211_TESTMODE_DUMP(cmd)	.testmode_dump = (cmd),
+@@ -4059,7 +4329,6 @@
+  * @sig_dbm: signal strength in mBm, or 0 if unknown
+  * @buf: Management frame (header + body)
+  * @len: length of the frame data
+- * @flags: flags, as defined in enum nl80211_rxmgmt_flags
+  * @gfp: context flags
+  *
+  * This function is called whenever an Action frame is received for a station
+@@ -4071,7 +4340,7 @@
+  * driver is responsible for rejecting the frame.
+  */
+ bool cfg80211_rx_mgmt(struct wireless_dev *wdev, int freq, int sig_dbm,
+-		      const u8 *buf, size_t len, u32 flags, gfp_t gfp);
++		      const u8 *buf, size_t len, gfp_t gfp);
+ 
+ /**
+  * cfg80211_mgmt_tx_status - notification of TX status for management frame
+@@ -4380,6 +4649,16 @@
+  */
+ void cfg80211_crit_proto_stopped(struct wireless_dev *wdev, gfp_t gfp);
+ 
++/**
++ * cfg80211_is_gratuitous_arp_unsolicited_na - packet is grat. ARP/unsol. NA
++ * @skb: the input packet, must be an ethernet frame already
++ *
++ * Return: %true if the packet is a gratuitous ARP or unsolicited NA packet.
++ * This is used to drop packets that shouldn't occur because the AP implements
++ * a proxy service.
++ */
++bool cfg80211_is_gratuitous_arp_unsolicited_na(struct sk_buff *skb);
++
+ /* Logging, debugging and troubleshooting/diagnostic helpers. */
+ 
+ /* wiphy_printk helpers, similar to dev_printk */
+diff -urN backports.orig/include/uapi/linux/nl80211.h backports/include/uapi/linux/nl80211.h
+--- backports.orig/include/uapi/linux/nl80211.h	2015-09-24 15:25:20.401038328 +0800
++++ backports/include/uapi/linux/nl80211.h	2015-09-24 15:25:20.477038328 +0800
+@@ -686,6 +686,28 @@
+  *	other station that transmission must be blocked until the channel
+  *	switch is complete.
+  *
++ * @NL80211_CMD_GET_COALESCE: Get currently supported coalesce rules.
++ * @NL80211_CMD_SET_COALESCE: Configure coalesce rules or clear existing rules.
++ *
++ * @NL80211_CMD_CHANNEL_SWITCH: Perform a channel switch by announcing the
++ *	the new channel information (Channel Switch Announcement - CSA)
++ *	in the beacon for some time (as defined in the
++ *	%NL80211_ATTR_CH_SWITCH_COUNT parameter) and then change to the
++ *	new channel. Userspace provides the new channel information (using
++ *	%NL80211_ATTR_WIPHY_FREQ and the attributes determining channel
++ *	width). %NL80211_ATTR_CH_SWITCH_BLOCK_TX may be supplied to inform
++ *	other station that transmission must be blocked until the channel
++ *	switch is complete.
++ *
++ * @NL80211_CMD_VENDOR: Vendor-specified command/event. The command is specified
++ *	by the %NL80211_ATTR_VENDOR_ID attribute and a sub-command in
++ *	%NL80211_ATTR_VENDOR_SUBCMD. Parameter(s) can be transported in
++ *	%NL80211_ATTR_VENDOR_DATA.
++ *	For feature advertisement, the %NL80211_ATTR_VENDOR_DATA attribute is
++ *	used in the wiphy data as a nested attribute containing descriptions
++ *	(&struct nl80211_vendor_cmd_info) of the supported vendor commands.
++ *	This may also be sent as an event with the same attributes.
++ *
+  * @NL80211_CMD_MAX: highest used command number
+  * @__NL80211_CMD_AFTER_LAST: internal use
+  */
+@@ -853,6 +875,8 @@
+ 
+ 	NL80211_CMD_CHANNEL_SWITCH,
+ 
++	NL80211_CMD_VENDOR,
++
+ 	/* add new commands above here */
+ 
+ 	/* used to define NL80211_CMD_MAX below */
+@@ -1496,6 +1520,50 @@
+  * @NL80211_ATTR_RXMGMT_FLAGS: flags for nl80211_send_mgmt(), u32.
+  *	As specified in the &enum nl80211_rxmgmt_flags.
+  *
++ * @NL80211_ATTR_HANDLE_DFS: A flag indicating whether user space
++ *	controls DFS operation in IBSS mode. If the flag is included in
++ *	%NL80211_CMD_JOIN_IBSS request, the driver will allow use of DFS
++ *	channels and reports radar events to userspace. Userspace is required
++ *	to react to radar events, e.g. initiate a channel switch or leave the
++ *	IBSS network.
++ *
++ * @NL80211_ATTR_VENDOR_ID: The vendor ID, either a 24-bit OUI or, if
++ *	%NL80211_VENDOR_ID_IS_LINUX is set, a special Linux ID (not used yet)
++ * @NL80211_ATTR_VENDOR_SUBCMD: vendor sub-command
++ * @NL80211_ATTR_VENDOR_DATA: data for the vendor command, if any; this
++ *	attribute is also used for vendor command feature advertisement
++ * @NL80211_ATTR_VENDOR_EVENTS: used for event list advertising in the wiphy
++ *	info, containing a nested array of possible events
++ *
++ * @NL80211_ATTR_COALESCE_RULE: Coalesce rule information.
++ *
++ * @NL80211_ATTR_CH_SWITCH_COUNT: u32 attribute specifying the number of TBTT's
++ *	until the channel switch event.
++ * @NL80211_ATTR_CH_SWITCH_BLOCK_TX: flag attribute specifying that transmission
++ *	must be blocked on the current channel (before the channel switch
++ *	operation).
++ * @NL80211_ATTR_CSA_IES: Nested set of attributes containing the IE information
++ *	for the time while performing a channel switch.
++ * @NL80211_ATTR_CSA_C_OFF_BEACON: Offset of the channel switch counter
++ *	field in the beacons tail (%NL80211_ATTR_BEACON_TAIL).
++ * @NL80211_ATTR_CSA_C_OFF_PRESP: Offset of the channel switch counter
++ *	field in the probe response (%NL80211_ATTR_PROBE_RESP).
++ *
++ * @NL80211_ATTR_RXMGMT_FLAGS: flags for nl80211_send_mgmt(), u32.
++ *	As specified in the &enum nl80211_rxmgmt_flags.
++ *
++ * @NL80211_ATTR_STA_SUPPORTED_CHANNELS: array of supported channels.
++ *
++ * @NL80211_ATTR_STA_SUPPORTED_OPER_CLASSES: array of supported
++ *      supported operating classes.
++ *
++ * @NL80211_ATTR_MAX_AP_ASSOC_STA: Device attribute that indicates how many
++ *	associated stations are supported in AP mode (including P2P GO); u32.
++ *	Since drivers may not have a fixed limit on the maximum number (e.g.,
++ *	other concurrent operations may affect this), drivers are allowed to
++ *	advertise values that cannot always be met. In such cases, an attempt
++ *	to add a new station entry with @NL80211_CMD_NEW_STATION may fail.
++ *
+  * @NL80211_ATTR_MAX: highest attribute number currently defined
+  * @__NL80211_ATTR_AFTER_LAST: internal use
+  */
+@@ -1806,8 +1874,26 @@
+ 
+ 	NL80211_ATTR_RXMGMT_FLAGS,
+ 
++	NL80211_ATTR_STA_SUPPORTED_CHANNELS,
++
++	NL80211_ATTR_STA_SUPPORTED_OPER_CLASSES,
+ 	/* add attributes here, update the policy in nl80211.c */
+ 
++	NL80211_ATTR_HANDLE_DFS,
++
++	NL80211_ATTR_SUPPORT_5_MHZ,
++	NL80211_ATTR_SUPPORT_10_MHZ,
++
++	NL80211_ATTR_OPMODE_NOTIF,
++
++	NL80211_ATTR_VENDOR_ID,
++	NL80211_ATTR_VENDOR_SUBCMD,
++	NL80211_ATTR_VENDOR_DATA,
++
++	NL80211_ATTR_VENDOR_EVENTS,
++
++	NL80211_ATTR_MAX_AP_ASSOC_STA,
++
+ 	__NL80211_ATTR_AFTER_LAST,
+ 	NL80211_ATTR_MAX = __NL80211_ATTR_AFTER_LAST - 1
+ };
+@@ -2321,6 +2407,34 @@
+ };
+ 
+ /**
++ * enum nl80211_country_ie_pref - country IE processing preferences
++ *
++ * enumerates the different preferences a 802.11 card can advertize
++ * for parsing the country IEs. As per the current implementation
++ * country IEs are only used derive the apha2, the information
++ * for power settings that comes with the country IE is ignored
++ * and we use the power settings from regdb.
++ *
++ * @NL80211_COUNTRY_IE_FOLLOW_CORE - This is the default behaviour.
++ *	It allows the core to update channel flags according to the
++ *	ISO3166-alpha2 in the country IE. The applied power is -
++ *	MIN(power specified by custom domain, power obtained from regdb)
++ * @NL80211_COUNTRY_IE_FOLLOW_POWER - for devices that have a
++ *	preference that even though they may have programmed their own
++ *	custom power setting prior to wiphy registration, they want
++ *	to ensure their channel power settings are updated for this
++ *	connection with the power settings derived from alpha2 of the
++ *	country IE.
++ * @NL80211_COUNTRY_IE_IGNORE_CORE - for devices that have a preference to
++ *	to ignore all country IE information processed by the core.
++ */
++enum nl80211_country_ie_pref {
++	NL80211_COUNTRY_IE_FOLLOW_CORE,
++	NL80211_COUNTRY_IE_FOLLOW_POWER,
++	NL80211_COUNTRY_IE_IGNORE_CORE,
++};
++
++/**
+  * enum nl80211_reg_rule_attr - regulatory rule attributes
+  * @__NL80211_REG_RULE_ATTR_INVALID: attribute number 0 is reserved
+  * @NL80211_ATTR_REG_RULE_FLAGS: a set of flags which specify additional
+@@ -2363,9 +2477,15 @@
+  * enum nl80211_sched_scan_match_attr - scheduled scan match attributes
+  * @__NL80211_SCHED_SCAN_MATCH_ATTR_INVALID: attribute number 0 is reserved
+  * @NL80211_SCHED_SCAN_MATCH_ATTR_SSID: SSID to be used for matching,
+- * only report BSS with matching SSID.
++ *	only report BSS with matching SSID.
+  * @NL80211_SCHED_SCAN_MATCH_ATTR_RSSI: RSSI threshold (in dBm) for reporting a
+- *	BSS in scan results. Filtering is turned off if not specified.
++ *	BSS in scan results. Filtering is turned off if not specified. Note that
++ *	if this attribute is in a match set of its own, then it is treated as
++ *	the default value for all matchsets with an SSID, rather than being a
++ *	matchset of its own without an RSSI filter. This is due to problems with
++ *	how this API was implemented in the past. Also, due to the same problem,
++ *	the only way to create a matchset with only an RSSI filter (with this
++ *	attribute) is if there's only a single matchset with the RSSI attribute.
+  * @NL80211_SCHED_SCAN_MATCH_ATTR_MAX: highest scheduled scan filter
+  *	attribute number currently defined
+  * @__NL80211_SCHED_SCAN_MATCH_ATTR_AFTER_LAST: internal use
+@@ -3917,4 +4037,24 @@
+ 	NL80211_RXMGMT_FLAG_ANSWERED = 1 << 0,
+ };
+ 
++/*
++ * If this flag is unset, the lower 24 bits are an OUI, if set
++ * a Linux nl80211 vendor ID is used (no such IDs are allocated
++ * yet, so that's not valid so far)
++ */
++#define NL80211_VENDOR_ID_IS_LINUX	0x80000000
++
++/**
++ * struct nl80211_vendor_cmd_info - vendor command data
++ * @vendor_id: If the %NL80211_VENDOR_ID_IS_LINUX flag is clear, then the
++ *	value is a 24-bit OUI; if it is set then a separately allocated ID
++ *	may be used, but no such IDs are allocated yet. New IDs should be
++ *	added to this file when needed.
++ * @subcmd: sub-command ID for the command
++ */
++struct nl80211_vendor_cmd_info {
++	__u32 vendor_id;
++	__u32 subcmd;
++};
++
+ #endif /* __LINUX_NL80211_H */
+diff -urN backports.orig/Makefile backports/Makefile
+--- backports.orig/Makefile	2015-09-24 15:25:20.469038328 +0800
++++ backports/Makefile	2015-09-24 15:25:20.553038328 +0800
+@@ -12,10 +12,16 @@
+ ifneq ($(origin KLIB), undefined)
+ KMODPATH_ARG := "INSTALL_MOD_PATH=$(KLIB)"
+ else
++ifeq ($(KERNELARCH), arm)
++KLIB := $(KERNELPATH)
++KLIB_BUILD ?= $(KLIB)/
++else
+ KLIB := /lib/modules/$(shell uname -r)/
++KLIB_BUILD ?= $(KLIB)/build/
++endif
+ KMODPATH_ARG :=
+ endif
+-KLIB_BUILD ?= $(KLIB)/build/
++
+ KERNEL_CONFIG := $(KLIB_BUILD)/.config
+ KERNEL_MAKEFILE := $(KLIB_BUILD)/Makefile
+ CONFIG_MD5 := $(shell md5sum $(KERNEL_CONFIG) 2>/dev/null | sed 's/\s.*//')
+diff -urN backports.orig/net/bluetooth/af_bluetooth.c backports/net/bluetooth/af_bluetooth.c
+--- backports.orig/net/bluetooth/af_bluetooth.c	2015-09-24 15:25:20.465038328 +0800
++++ backports/net/bluetooth/af_bluetooth.c	2015-09-24 15:25:20.553038328 +0800
+@@ -733,6 +733,6 @@
+ 
+ MODULE_AUTHOR("Marcel Holtmann <marcel@holtmann.org>");
+ MODULE_DESCRIPTION("Bluetooth Core ver " VERSION);
+-MODULE_VERSION(VERSION);
++MODULE_VERSION("3.0.7.048");
+ MODULE_LICENSE("GPL");
+ MODULE_ALIAS_NETPROTO(PF_BLUETOOTH);
+diff -urN backports.orig/net/bluetooth/bnep/core.c backports/net/bluetooth/bnep/core.c
+--- backports.orig/net/bluetooth/bnep/core.c	2015-09-24 15:25:20.465038328 +0800
++++ backports/net/bluetooth/bnep/core.c	2015-09-24 15:25:20.553038328 +0800
+@@ -723,6 +723,6 @@
+ 
+ MODULE_AUTHOR("Marcel Holtmann <marcel@holtmann.org>");
+ MODULE_DESCRIPTION("Bluetooth BNEP ver " VERSION);
+-MODULE_VERSION(VERSION);
++MODULE_VERSION("3.0.7.048");
+ MODULE_LICENSE("GPL");
+ MODULE_ALIAS("bt-proto-4");
+diff -urN backports.orig/net/bluetooth/hci_conn.c backports/net/bluetooth/hci_conn.c
+--- backports.orig/net/bluetooth/hci_conn.c	2015-09-24 15:25:20.465038328 +0800
++++ backports/net/bluetooth/hci_conn.c	2015-09-24 15:25:20.553038328 +0800
+@@ -1,6 +1,7 @@
+ /*
+    BlueZ - Bluetooth protocol stack for Linux
+-   Copyright (c) 2000-2001, 2010, Code Aurora Forum. All rights reserved.
++   Copyright (c) 2000-2001, 2010, 2014, Code Aurora Forum. All rights
++   reserved.
+ 
+    Written 2000,2001 by Maxim Krasnyansky <maxk@qualcomm.com>
+ 
+@@ -114,6 +115,8 @@
+ 	}
+ 
+ 	cp.pkt_type = cpu_to_le16(conn->pkt_type);
++	/* Allow DUT to be MASTER for allow outgoing connection requests */
++	hdev->link_mode |= HCI_LM_MASTER;
+ 	if (lmp_rswitch_capable(hdev) && !(hdev->link_mode & HCI_LM_MASTER))
+ 		cp.role_switch = 0x01;
+ 	else
+@@ -492,8 +495,9 @@
+ 		amp_mgr_put(conn->amp_mgr);
+ 
+ 	hci_conn_hash_del(hdev, conn);
+-	if (hdev->notify)
+-		hdev->notify(hdev, HCI_NOTIFY_CONN_DEL);
++	if (hdev->notify &&
++		(conn->type == SCO_LINK || conn->type == ESCO_LINK))
++			hdev->notify(hdev, HCI_NOTIFY_CONN_DEL);
+ 
+ 	skb_queue_purge(&conn->data_q);
+ 
+@@ -822,6 +826,24 @@
+ }
+ EXPORT_SYMBOL(hci_conn_switch_role);
+ 
++/* Change ACL link policy */
++int hci_cfg_link_policy(struct hci_conn *conn)
++{
++	struct hci_cp_write_link_policy lp;
++
++	if (conn == NULL) {
++		BT_ERR("%s: NO HCI Connection handle available!", __func__);
++		return -ENODEV;
++	}
++	BT_INFO("%s: Disabling role switch on the ACL handle %d",
++		__func__, conn->handle);
++	lp.handle = conn->handle;
++	lp.policy = HCI_LP_HOLD|HCI_LP_SNIFF|HCI_LP_PARK;
++	hci_send_cmd(conn->hdev, HCI_OP_WRITE_LINK_POLICY, sizeof(lp), &lp);
++	return 0;
++}
++EXPORT_SYMBOL(hci_cfg_link_policy);
++
+ /* Enter active mode */
+ void hci_conn_enter_active_mode(struct hci_conn *conn, __u8 force_active)
+ {
+diff -urN backports.orig/net/bluetooth/hci_core.c backports/net/bluetooth/hci_core.c
+--- backports.orig/net/bluetooth/hci_core.c	2015-09-24 15:25:20.465038328 +0800
++++ backports/net/bluetooth/hci_core.c	2015-09-24 15:25:20.553038328 +0800
+@@ -1228,6 +1228,10 @@
+ {
+ 	BT_DBG("%s %p", hdev->name, hdev);
+ 
++	/* do not call cancel_delayed_work_sync for power_off here as
++	 * hci_dev_do_close function is called from work handler which might
++	 * cause deadlock. Instead to it in hci_unregister_dev
++	*/
+ 	cancel_delayed_work(&hdev->power_off);
+ 
+ 	hci_req_cancel(hdev, ENODEV);
+@@ -1244,13 +1248,13 @@
+ 	flush_work(&hdev->rx_work);
+ 
+ 	if (hdev->discov_timeout > 0) {
+-		cancel_delayed_work(&hdev->discov_off);
++		cancel_delayed_work_sync(&hdev->discov_off);
+ 		hdev->discov_timeout = 0;
+ 		clear_bit(HCI_DISCOVERABLE, &hdev->dev_flags);
+ 	}
+ 
+ 	if (test_and_clear_bit(HCI_SERVICE_CACHE, &hdev->dev_flags))
+-		cancel_delayed_work(&hdev->service_cache);
++		cancel_delayed_work_sync(&hdev->service_cache);
+ 
+ 	cancel_delayed_work_sync(&hdev->le_scan_disable);
+ 
+@@ -1267,8 +1271,7 @@
+ 	/* Reset device */
+ 	skb_queue_purge(&hdev->cmd_q);
+ 	atomic_set(&hdev->cmd_cnt, 1);
+-	if (!test_bit(HCI_RAW, &hdev->flags) &&
+-	    test_bit(HCI_QUIRK_RESET_ON_CLOSE, &hdev->quirks)) {
++	if (!test_bit(HCI_RAW, &hdev->flags)) {
+ 		set_bit(HCI_INIT, &hdev->flags);
+ 		__hci_req_sync(hdev, hci_reset_req, 0, HCI_CMD_TIMEOUT);
+ 		clear_bit(HCI_INIT, &hdev->flags);
+@@ -1440,7 +1443,7 @@
+ 
+ 	case HCISETLINKMODE:
+ 		hdev->link_mode = ((__u16) dr.dev_opt) &
+-					(HCI_LM_MASTER | HCI_LM_ACCEPT);
++					(HCI_LM_MASTER);
+ 		break;
+ 
+ 	case HCISETPTYPE:
+@@ -2110,7 +2113,7 @@
+ 
+ 	hdev->pkt_type  = (HCI_DM1 | HCI_DH1 | HCI_HV1);
+ 	hdev->esco_type = (ESCO_HV1);
+-	hdev->link_mode = (HCI_LM_ACCEPT);
++	hdev->link_mode = (HCI_LM_MASTER); /* Allow DUT to be in MASTER role */
+ 	hdev->io_capability = 0x03; /* No Input No Output */
+ 	hdev->inq_tx_power = HCI_TX_POWER_INVALID;
+ 	hdev->adv_tx_power = HCI_TX_POWER_INVALID;
+@@ -2271,6 +2274,11 @@
+ 
+ 	cancel_work_sync(&hdev->power_on);
+ 
++	/* hci_dev_do_close does not call cancel_delayed_work_sync on power_off
++	 * work, call it here while deregistration before wqs are destroyed
++	*/
++	cancel_delayed_work_sync(&hdev->power_off);
++
+ 	if (!test_bit(HCI_INIT, &hdev->flags) &&
+ 	    !test_bit(HCI_SETUP, &hdev->dev_flags)) {
+ 		hci_dev_lock(hdev);
+diff -urN backports.orig/net/bluetooth/hci_event.c backports/net/bluetooth/hci_event.c
+--- backports.orig/net/bluetooth/hci_event.c	2015-09-24 15:25:20.465038328 +0800
++++ backports/net/bluetooth/hci_event.c	2015-09-24 15:25:20.553038328 +0800
+@@ -1671,6 +1671,9 @@
+ 			hci_send_cmd(hdev, HCI_OP_CHANGE_CONN_PTYPE, sizeof(cp),
+ 				     &cp);
+ 		}
++
++		/* Change the ACL LINK POLICY to disable role switch */
++		hci_cfg_link_policy(conn);
+ 	} else {
+ 		conn->state = BT_CLOSED;
+ 		if (conn->type == ACL_LINK)
+@@ -2902,6 +2905,9 @@
+ 		conn->state  = BT_CONNECTED;
+ 
+ 		hci_conn_add_sysfs(conn);
++		BT_DBG("SCO conn complete");
++		if (hdev->notify)
++			hdev->notify(hdev, HCI_NOTIFY_SCO_COMPLETE);
+ 		break;
+ 
+ 	case 0x0d:	/* Connection Rejected due to Limited Resources */
+@@ -3348,6 +3354,7 @@
+ {
+ 	struct hci_ev_phy_link_complete *ev = (void *) skb->data;
+ 	struct hci_conn *hcon, *bredr_hcon;
++	struct amp_mgr *mgr;
+ 
+ 	BT_DBG("%s handle 0x%2.2x status 0x%2.2x", hdev->name, ev->phy_handle,
+ 	       ev->status);
+@@ -3366,6 +3373,14 @@
+ 		return;
+ 	}
+ 
++	BT_DBG("hcon %p mgr %p", hcon, hcon->amp_mgr);
++
++	mgr = hcon->amp_mgr;
++	if (!(mgr && mgr->l2cap_conn && mgr->l2cap_conn->hcon)) {
++		hci_dev_unlock(hdev);
++		BT_DBG("Amp Manager is not Initialized");
++		return;
++	}
+ 	bredr_hcon = hcon->amp_mgr->l2cap_conn->hcon;
+ 
+ 	hcon->state = BT_CONNECTED;
+diff -urN backports.orig/net/bluetooth/l2cap_core.c backports/net/bluetooth/l2cap_core.c
+--- backports.orig/net/bluetooth/l2cap_core.c	2015-09-24 15:25:20.465038328 +0800
++++ backports/net/bluetooth/l2cap_core.c	2015-09-24 15:25:20.553038328 +0800
+@@ -2102,10 +2102,12 @@
+ 					   tx_skb->data + L2CAP_HDR_SIZE);
+ 		}
+ 
++		/* Update FCS */
+ 		if (chan->fcs == L2CAP_FCS_CRC16) {
+-			u16 fcs = crc16(0, (u8 *) tx_skb->data, tx_skb->len);
+-			put_unaligned_le16(fcs, skb_put(tx_skb,
+-							L2CAP_FCS_SIZE));
++			u16 fcs = crc16(0, (u8 *) tx_skb->data,
++					tx_skb->len - L2CAP_FCS_SIZE);
++			put_unaligned_le16(fcs, skb_tail_pointer(tx_skb) -
++						L2CAP_FCS_SIZE);
+ 		}
+ 
+ 		l2cap_do_send(chan, tx_skb);
+@@ -2452,6 +2454,9 @@
+ 	int err;
+ 	struct sk_buff_head seg_queue;
+ 
++	if (!chan->conn)
++		return -ENOTCONN;
++
+ 	/* Connectionless channel */
+ 	if (chan->chan_type == L2CAP_CHAN_CONN_LESS) {
+ 		skb = l2cap_create_connless_pdu(chan, msg, len, priority);
+diff -urN backports.orig/net/bluetooth/rfcomm/core.c backports/net/bluetooth/rfcomm/core.c
+--- backports.orig/net/bluetooth/rfcomm/core.c	2015-09-24 15:25:20.465038328 +0800
++++ backports/net/bluetooth/rfcomm/core.c	2015-09-24 15:25:20.553038328 +0800
+@@ -2216,6 +2216,6 @@
+ 
+ MODULE_AUTHOR("Marcel Holtmann <marcel@holtmann.org>");
+ MODULE_DESCRIPTION("Bluetooth RFCOMM ver " VERSION);
+-MODULE_VERSION(VERSION);
++MODULE_VERSION("3.0.7.048");
+ MODULE_LICENSE("GPL");
+ MODULE_ALIAS("bt-proto-3");
+diff -urN backports.orig/net/wireless/core.c backports/net/wireless/core.c
+--- backports.orig/net/wireless/core.c	2015-09-24 15:25:20.465038328 +0800
++++ backports/net/wireless/core.c	2015-09-24 15:25:20.553038328 +0800
+@@ -462,13 +462,13 @@
+ 	wiphy->flags &= ~WIPHY_FLAG_SUPPORTS_5_10_MHZ;
+ 
+ #ifdef CONFIG_PM
+-	if (WARN_ON(wiphy->wowlan &&
+-		    (wiphy->wowlan->flags & WIPHY_WOWLAN_GTK_REKEY_FAILURE) &&
+-		    !(wiphy->wowlan->flags & WIPHY_WOWLAN_SUPPORTS_GTK_REKEY)))
+-		return -EINVAL;
+-	if (WARN_ON(wiphy->wowlan &&
+-		    !wiphy->wowlan->flags && !wiphy->wowlan->n_patterns &&
+-		    !wiphy->wowlan->tcp))
++	if (WARN_ON(&wiphy->wowlan &&
++		    (wiphy->wowlan.flags & WIPHY_WOWLAN_GTK_REKEY_FAILURE) &&
++		    !(wiphy->wowlan.flags & WIPHY_WOWLAN_SUPPORTS_GTK_REKEY)))
++		return -EINVAL;
++	if (WARN_ON(&wiphy->wowlan &&
++		    !wiphy->wowlan.flags && !wiphy->wowlan.n_patterns &&
++		    !wiphy->wowlan.tcp))
+ 		return -EINVAL;
+ #endif
+ 
+@@ -566,10 +566,10 @@
+ 	}
+ 
+ #ifdef CONFIG_PM
+-	if (WARN_ON(rdev->wiphy.wowlan && rdev->wiphy.wowlan->n_patterns &&
+-		    (!rdev->wiphy.wowlan->pattern_min_len ||
+-		     rdev->wiphy.wowlan->pattern_min_len >
+-				rdev->wiphy.wowlan->pattern_max_len)))
++	if (WARN_ON(&rdev->wiphy.wowlan && rdev->wiphy.wowlan.n_patterns &&
++		    (!rdev->wiphy.wowlan.pattern_min_len ||
++		     rdev->wiphy.wowlan.pattern_min_len >
++				rdev->wiphy.wowlan.pattern_max_len)))
+ 		return -EINVAL;
+ #endif
+ 
+diff -urN backports.orig/net/wireless/core.h backports/net/wireless/core.h
+--- backports.orig/net/wireless/core.h	2015-09-24 15:25:20.465038328 +0800
++++ backports/net/wireless/core.h	2015-09-24 15:25:20.553038328 +0800
+@@ -68,6 +68,7 @@
+ 	struct work_struct sched_scan_results_wk;
+ 
+ #ifdef CPTCFG_NL80211_TESTMODE
++	struct genl_info *cur_cmd_info;
+ 	struct genl_info *testmode_info;
+ #endif
+ 
+diff -urN backports.orig/net/wireless/db.txt backports/net/wireless/db.txt
+--- backports.orig/net/wireless/db.txt	2015-09-24 15:25:20.465038328 +0800
++++ backports/net/wireless/db.txt	2015-09-24 15:25:20.553038328 +0800
+@@ -1,17 +1,1470 @@
++# This is the world regulatory domain
++country 00:
++	(2402 - 2472 @ 40), (5, 20)
++	# Channel 12 - 13.
++	(2457 - 2482 @ 20), (5, 20), NO-IR
++	# Channel 14. Only JP enables this and for 802.11b only
++	(2474 - 2494 @ 20), (5, 20), NO-IR, NO-OFDM
++	# Channel 36 - 48
++	(5170 - 5250 @ 80), (5, 20), NO-IR, AUTO-BW
++	# Channel 52 - 64
++	(5250 - 5330 @ 80), (5, 20), NO-IR, DFS, AUTO-BW
++	# Channel 100 - 144
++	(5490 - 5730 @ 160), (5, 30, 20), NO-IR, DFS
++	# Channel 149 - 165
++	(5735 - 5835 @ 80), (5, 20), NO-IR
++	# IEEE 802.11ad (60GHz), channels 1..3
++	(57240 - 63720 @ 2160), (5, 0)
++
++
++country AD:
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20)
++	(5250 - 5330 @ 80), (30, 20), DFS
++	(5490 - 5710 @ 80), (30, 27), DFS
++	# 60 gHz band channels 1-4, ref: Etsi En 302 567
++	(57000 - 66000 @ 2160), (30, 40)
++
++country AE: DFS-FCC
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 17), AUTO-BW
++	(5250 - 5330 @ 80), (30, 24), DFS, AUTO-BW
++	(5490 - 5730 @ 160), (30, 24), DFS
++	(5735 - 5835 @ 80), (30, 30)
++
++country AF: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5330 @ 80), (30, 20), DFS, AUTO-BW
++	(5490 - 5710 @ 160), (30, 27), DFS
++
++# Source:
++# http://pucanguilla.org/Downloads/January2005-Anguilla%20Table%20of%20Allocations.pdf
++country AI: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5330 @ 80), (30, 20), DFS, AUTO-BW
++	(5490 - 5710 @ 160), (30, 27), DFS
++
++country AL: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20.00), AUTO-BW
++	(5250 - 5330 @ 80), (30, 20.00), DFS, AUTO-BW
++	(5490 - 5710 @ 160), (30, 27.00), DFS
++
++country AM: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 20), (30, 18)
++	(5250 - 5330 @ 20), (30, 18), DFS
++
++country AN: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5330 @ 80), (30, 20), DFS, AUTO-BW
++	(5490 - 5710 @ 160), (30, 27), DFS
++
++country AR: DFS-FCC
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 17), AUTO-BW
++	(5250 - 5330 @ 80), (30, 24), DFS, AUTO-BW
++	(5490 - 5730 @ 160), (30, 24), DFS
++	(5735 - 5835 @ 80), (30, 30)
++
++country AS: DFS-FCC
++	(2402 - 2472 @ 40), (5, 30)
++	(5170 - 5250 @ 80), (30, 24), AUTO-BW
++	(5250 - 5330 @ 80), (30, 24), DFS, AUTO-BW
++	(5490 - 5730 @ 160), (30, 24), DFS
++	(5735 - 5835 @ 80), (30, 30)
++
++country AT: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5330 @ 80), (30, 20), DFS, AUTO-BW
++	(5490 - 5710 @ 160), (30, 27), DFS
++	# 60 gHz band channels 1-4, ref: Etsi En 302 567
++	(57000 - 66000 @ 2160), (30, 40)
++
++country AU: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 17), AUTO-BW
++	(5250 - 5330 @ 80), (30, 24), DFS, AUTO-BW
++	(5490 - 5710 @ 160), (30, 24), DFS
++	(5735 - 5835 @ 80), (30, 30)
++
++country AW: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5330 @ 80), (30, 20), DFS, AUTO-BW
++	(5490 - 5710 @ 160), (30, 27), DFS
++
++country AZ: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 18), AUTO-BW
++	(5250 - 5330 @ 80), (30, 18), DFS, AUTO-BW
++
++country BA: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5330 @ 80), (30, 20), DFS, AUTO-BW
++	(5490 - 5710 @ 160), (30, 27), DFS
++	# 60 gHz band channels 1-4, ref: Etsi En 302 567
++	(57000 - 66000 @ 2160), (30, 40)
++
++country BB: DFS-FCC
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 23), AUTO-BW
++	(5250 - 5330 @ 80), (30, 23), DFS, AUTO-BW
++	(5735 - 5835 @ 80), (30, 30)
++
++country BD: DFS-JP
++	(2402 - 2482 @ 40), (5, 20)
++	(5735 - 5835 @ 80), (30, 30)
++
++country BE: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5330 @ 80), (30, 20), DFS, AUTO-BW
++	(5490 - 5710 @ 160), (30, 27), DFS
++	# 60 gHz band channels 1-4, ref: Etsi En 302 567
++	(57000 - 66000 @ 2160), (30, 40)
++
++country BF: DFS-FCC
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 17), AUTO-BW
++	(5250 - 5330 @ 80), (30, 24), DFS, AUTO-BW
++	(5490 - 5730 @ 160), (30, 24), DFS
++	(5735 - 5835 @ 80), (30, 30)
++
++country BG: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5330 @ 80), (30, 20), DFS, AUTO-BW
++	(5490 - 5710 @ 160), (30, 27), DFS
++	# 5 gHz Short Range Devices, ref:
++	# Etsi EN 300 440-1
++	# Etsi EN 300 440-2
++	# http://crc.bg/files/_bg/Spisak_2015.pdf
++	# http://crc.bg/files/_bg/Pravila_2015_resh24.pdf
++	(5725 - 5875 @ 80), (30, 14)
++	# 60 gHz band channels 1-4, ref: Etsi En 302 567
++	(57000 - 66000 @ 2160), (30, 40)
++
++country BH: DFS-JP
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 20), (30, 20)
++	(5250 - 5330 @ 20), (30, 20), DFS
++	(5735 - 5835 @ 20), (30, 20)
++
++country BL: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5330 @ 80), (30, 20), DFS, AUTO-BW
++	(5490 - 5710 @ 160), (30, 27), DFS
++
++country BM: DFS-FCC
++	(2402 - 2472 @ 40), (5, 30)
++	(5170 - 5250 @ 80), (30, 24), AUTO-BW
++	(5250 - 5330 @ 80), (30, 24), DFS, AUTO-BW
++	(5490 - 5730 @ 160), (30, 24), DFS
++	(5735 - 5835 @ 80), (30, 30)
++
++country BN: DFS-JP
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5330 @ 80), (30, 20), DFS, AUTO-BW
++	(5735 - 5835 @ 80), (30, 20)
++
++country BO: DFS-JP
++	(2402 - 2482 @ 40), (5, 20)
++	(5250 - 5330 @ 80), (30, 30), DFS
++	(5735 - 5835 @ 80), (30, 30)
++
++country BR: DFS-FCC
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 17), AUTO-BW
++	(5250 - 5330 @ 80), (30, 24), DFS, AUTO-BW
++	(5490 - 5730 @ 160), (30, 24), DFS
++	(5735 - 5835 @ 80), (30, 30)
++
++country BS: DFS-FCC
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 24), AUTO-BW
++	(5250 - 5330 @ 80), (30, 24), DFS, AUTO-BW
++	(5490 - 5730 @ 160), (30, 24), DFS
++	(5735 - 5835 @ 80), (30, 30)
++
++# Source:
++# http://www.bicma.gov.bt/paper/publication/nrrpart4.pdf
++country BT: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5330 @ 80), (30, 20), DFS, AUTO-BW
++	(5490 - 5710 @ 160), (30, 27), DFS
++
++country BY: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5330 @ 80), (30, 20), DFS, AUTO-BW
++	(5490 - 5710 @ 160), (30, 27), DFS
++
++country BZ: DFS-JP
++	(2402 - 2482 @ 40), (5, 30)
++	(5735 - 5835 @ 80), (30, 30)
++
++country CA: DFS-FCC
++	(2402 - 2472 @ 40), (5, 30)
++	(5170 - 5250 @ 80), (30, 17), AUTO-BW
++	(5250 - 5330 @ 80), (30, 24), DFS, AUTO-BW
++	(5490 - 5600 @ 80), (30, 24), DFS
++	(5650 - 5730 @ 80), (30, 24), DFS
++	(5735 - 5835 @ 80), (30, 30)
++
++# Source:
++# http://www.art-rca.org
++country CF: DFS-FCC
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 40), (30, 17)
++	(5250 - 5330 @ 40), (30, 24), DFS
++	(5490 - 5730 @ 40), (30, 24), DFS
++	(5735 - 5835 @ 40), (30, 30)
++
++country CH: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5330 @ 80), (30, 20), DFS, AUTO-BW
++	(5490 - 5710 @ 160), (30, 27), DFS
++	# 60 gHz band channels 1-4, ref: Etsi En 302 567
++	(57000 - 66000 @ 2160), (30, 40)
++
++country CI: DFS-FCC
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 17), AUTO-BW
++	(5250 - 5330 @ 80), (30, 24), DFS, AUTO-BW
++	(5490 - 5730 @ 160), (30, 24), DFS
++	(5735 - 5835 @ 80), (30, 30)
++
++country CL: DFS-JP
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5330 @ 80), (30, 20), DFS, AUTO-BW
++	(5735 - 5835 @ 80), (30, 20)
++
++country CN: DFS-FCC
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 23), AUTO-BW
++	(5250 - 5330 @ 80), (30, 23), DFS, AUTO-BW
++	(5735 - 5835 @ 80), (30, 30)
++	# 60 gHz band channels 1,4: 28dBm, channels 2,3: 44dBm
++	# ref: http://www.miit.gov.cn/n11293472/n11505629/n11506593/n11960250/n11960606/n11960700/n12330791.files/n12330790.pdf
++	(57240 - 59400 @ 2160), (30, 28)
++	(59400 - 63720 @ 2160), (30, 44)
++	(63720 - 65880 @ 2160), (30, 28)
++
++country CO: DFS-FCC
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 17), AUTO-BW
++	(5250 - 5330 @ 80), (30, 24), DFS, AUTO-BW
++	(5490 - 5730 @ 160), (30, 24), DFS
++	(5735 - 5835 @ 80), (30, 30)
++
++country CR: DFS-FCC
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 20), (30, 17)
++	(5250 - 5330 @ 20), (30, 24), DFS
++	(5490 - 5730 @ 20), (30, 24), DFS
++	(5735 - 5835 @ 20), (30, 30)
++
++country CX: DFS-FCC
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 24), AUTO-BW
++	(5250 - 5330 @ 80), (30, 24), DFS, AUTO-BW
++	(5490 - 5730 @ 160), (30, 24), DFS
++	(5735 - 5835 @ 80), (30, 30)
++
++country CY: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5330 @ 80), (30, 20), DFS, AUTO-BW
++	(5490 - 5710 @ 160), (30, 27), DFS
++	# 60 gHz band channels 1-4, ref: Etsi En 302 567
++	(57000 - 66000 @ 2160), (30, 40)
++
++# Data from http://www.ctu.eu/164/download/VOR/VOR-12-08-2005-34.pdf
++# and http://www.ctu.eu/164/download/VOR/VOR-12-05-2007-6-AN.pdf
++# Power at 5250 - 5350 MHz and 5470 - 5725 MHz can be doubled if TPC is
++# implemented.
++country CZ: DFS-ETSI
++	(2400 - 2483.5 @ 40), (5, 100 mW)
++	(5150 - 5250 @ 80), (30, 200 mW), NO-OUTDOOR, AUTO-BW
++	(5250 - 5350 @ 80), (30, 100 mW), NO-OUTDOOR, DFS, AUTO-BW
++	(5470 - 5725 @ 160), (30, 500 mW), DFS
++	# 60 gHz band channels 1-4, ref: Etsi En 302 567
++	(57000 - 66000 @ 2160), (30, 40)
++
++# Data from "Frequenznutzungsplan" (as published in April 2008), downloaded from
++# http://www.bundesnetzagentur.de/cae/servlet/contentblob/38448/publicationFile/2659/Frequenznutzungsplan2008_Id17448pdf.pdf
++# For the 5GHz range also see
++# http://www.bundesnetzagentur.de/cae/servlet/contentblob/38216/publicationFile/6579/WLAN5GHzVfg7_2010_28042010pdf.pdf
++# The values have been reduced by a factor of 2 (3db) for non TPC devices
++# (in other words: devices with TPC can use twice the tx power of this table).
++# Note that the docs do not require TPC for 5150--5250; the reduction to
++# 100mW thus is not strictly required -- however the conservative 100mW
++# limit is used here as the non-interference with radar and satellite
++# apps relies on the attenuation by the building walls only in the
++# absence of DFS; the neighbour countries have 100mW limit here as well.
++
++country DE: DFS-ETSI
++	# entries 279004 and 280006
++	(2400 - 2483.5 @ 40), (5, 100 mW)
++	# entry 303005
++	(5150 - 5250 @ 80), (30, 100 mW), NO-OUTDOOR, AUTO-BW
++	# entries 304002 and 305002
++	(5250 - 5350 @ 80), (30, 100 mW), NO-OUTDOOR, DFS, AUTO-BW
++	# entries 308002, 309001 and 310003
++	(5470 - 5725 @ 160), (30, 500 mW), DFS
++	# 60 gHz band channels 1-4, ref: Etsi En 302 567
++	(57000 - 66000 @ 2160), (30, 40)
++
++country DK: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5330 @ 80), (30, 20), DFS, AUTO-BW
++	(5490 - 5710 @ 160), (30, 27), DFS
++	# 60 gHz band channels 1-4, ref: Etsi En 302 567
++	(57000 - 66000 @ 2160), (30, 40)
++
++# Source:
++# http://www.ntrcdom.org/index.php?option=com_content&view=category&layout=blog&id=10&Itemid=55
++country DM: DFS-FCC
++	(2402 - 2472 @ 40), (5, 30)
++	(5170 - 5250 @ 80), (30, 17), AUTO-BW
++	(5250 - 5330 @ 80), (30, 23), DFS, AUTO-BW
++	(5735 - 5835 @ 80), (30, 30)
++
++country DO: DFS-FCC
++	(2402 - 2472 @ 40), (5, 30)
++	(5170 - 5250 @ 80), (30, 17), AUTO-BW
++	(5250 - 5330 @ 80), (30, 23), DFS, AUTO-BW
++	(5735 - 5835 @ 80), (30, 30)
++
++country DZ: DFS-JP
++	(2402 - 2482 @ 40), (5, 20)
++	(5170.000 - 5250.000 @ 80.000), (23.00), AUTO-BW
++	(5250.000 - 5330.000 @ 80.000), (23.00), DFS, AUTO-BW
++	(5490.000 - 5670.000 @ 160.000), (23.00), DFS
++
++country EC: DFS-FCC
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 20), (30, 17)
++	(5250 - 5330 @ 20), (30, 24), DFS
++	(5490 - 5730 @ 20), (30, 24), DFS
++	(5735 - 5835 @ 20), (30, 30)
++
++country EE: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5330 @ 80), (30, 20), DFS, AUTO-BW
++	(5490 - 5710 @ 160), (30, 27), DFS
++	# 60 gHz band channels 1-4, ref: Etsi En 302 567
++	(57000 - 66000 @ 2160), (30, 40)
++
++country EG: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 40), (30, 20)
++	(5250 - 5330 @ 40), (30, 20), DFS
++
++# Orden IET/787/2013, de 25 de abril, por la que se aprueba
++# el cuadro nacional de atribución de frecuencias.
++# http://www.boe.es/diario_boe/txt.php?id=BOE-A-2013-4845
+ #
+-# This file is a placeholder to prevent accidental build breakage if someone
+-# enables CPTCFG_CFG80211_INTERNAL_REGDB.  Almost no one actually needs to
+-# enable that build option.
+-#
+-# You should be using CRDA instead.  It is even better if you use the CRDA
+-# package provided by your distribution, since they will probably keep it
+-# up-to-date on your behalf.
+-#
+-# If you _really_ intend to use CPTCFG_CFG80211_INTERNAL_REGDB then you will
+-# need to replace this file with one containing appropriately formatted
+-# regulatory rules that cover the regulatory domains you will be using.  Your
+-# best option is to extract the db.txt file from the wireless-regdb git
+-# repository:
+-#
+-#   git://git.kernel.org/pub/scm/linux/kernel/git/linville/wireless-regdb.git
+-#
++# more info at "Cuadro nacional de atribución de frecuencias (CNAF)":
++# http://www.minetur.gob.es/telecomunicaciones/espectro/paginas/cnaf.aspx
++
++country ES: DFS-ETSI
++	(2400 - 2483.5 @ 40), (5, 100 mW)
++	(5150 - 5250 @ 80), (30, 200 mW), NO-OUTDOOR, AUTO-BW
++	(5250 - 5350 @ 80), (30, 100 mW), NO-OUTDOOR, DFS, AUTO-BW
++	(5470 - 5725 @ 160), (30, 500 mW), DFS
++	# 60 gHz band channels 1-4, ref: Etsi En 302 567
++	(57000 - 66000 @ 2160), (30, 40)
++
++country ET: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5330 @ 80), (30, 20), DFS, AUTO-BW
++	(5490 - 5710 @ 160), (30, 27), DFS
++
++country FI: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5330 @ 80), (30, 20), DFS, AUTO-BW
++	(5490 - 5710 @ 160), (30, 27), DFS
++	# 60 gHz band channels 1-4, ref: Etsi En 302 567
++	(57000 - 66000 @ 2160), (30, 40)
++
++country FM: DFS-FCC
++	(2402 - 2472 @ 40), (5, 30)
++	(5170 - 5250 @ 80), (30, 24), AUTO-BW
++	(5250 - 5330 @ 80), (30, 24), DFS, AUTO-BW
++	(5490 - 5730 @ 160), (30, 24), DFS
++	(5735 - 5835 @ 80), (30, 30)
++
++country FR: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5330 @ 80), (30, 20), DFS, AUTO-BW
++	(5490 - 5710 @ 160), (30, 27), DFS
++	# 60 gHz band channels 1-4, ref: Etsi En 302 567
++	(57000 - 66000 @ 2160), (30, 40)
++
++country GB: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5330 @ 80), (30, 20), DFS, AUTO-BW
++	(5490 - 5710 @ 160), (30, 27), DFS
++	# 60 gHz band channels 1-4, ref: Etsi En 302 567
++	(57000 - 66000 @ 2160), (30, 40)
++
++country GD: DFS-FCC
++	(2402 - 2472 @ 40), (5, 30)
++	(5170 - 5250 @ 80), (30, 17), AUTO-BW
++	(5250 - 5330 @ 80), (30, 24), DFS, AUTO-BW
++	(5490 - 5730 @ 160), (30, 24), DFS
++	(5735 - 5835 @ 80), (30, 30)
++
++country GE: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 18), AUTO-BW
++	(5250 - 5330 @ 80), (30, 18), DFS, AUTO-BW
++	# 60 gHz band channels 1-4, ref: Etsi En 302 567
++	(57000 - 66000 @ 2160), (30, 40)
++
++country GF: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5330 @ 80), (30, 20), DFS, AUTO-BW
++	(5490 - 5710 @ 160), (30, 27), DFS
++
++country GH: DFS-FCC
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 17), AUTO-BW
++	(5250 - 5330 @ 80), (30, 24), DFS, AUTO-BW
++	(5490 - 5730 @ 160), (30, 24), DFS
++	(5735 - 5835 @ 80), (30, 30)
++
++country GL: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20)
++	(5250 - 5330 @ 80), (30, 20), DFS
++	(5490 - 5710 @ 80), (30, 27), DFS
++
++country GP: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5330 @ 80), (30, 20), DFS, AUTO-BW
++	(5490 - 5710 @ 160), (30, 27), DFS
++
++country GR: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5330 @ 80), (30, 20), DFS, AUTO-BW
++	(5490 - 5710 @ 160), (30, 27), DFS
++	# 60 gHz band channels 1-4, ref: Etsi En 302 567
++	(57000 - 66000 @ 2160), (30, 40)
++
++country GT: DFS-FCC
++	(2402 - 2472 @ 40), (30, 30)
++	(5170 - 5250 @ 80), (30, 17), AUTO-BW
++	(5250 - 5330 @ 80), (30, 23), DFS, AUTO-BW
++	(5735 - 5835 @ 80), (30, 30)
++
++country GU: DFS-FCC
++	(2402 - 2472 @ 40), (30, 30)
++	(5170 - 5250 @ 20), (30, 17)
++	(5250 - 5330 @ 20), (30, 24), DFS
++	(5490 - 5730 @ 20), (30, 24), DFS
++	(5735 - 5835 @ 20), (30, 30)
++
++country GY:
++	(2402 - 2482 @ 40), (5, 30)
++	(5735 - 5835 @ 80), (30, 30)
++
++country HK:
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 17), AUTO-BW
++	(5250 - 5330 @ 80), (30, 24), DFS, AUTO-BW
++	(5490 - 5710 @ 160), (30, 24), DFS
++	(5735 - 5835 @ 80), (30, 30)
++
++country HN: DFS-FCC
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 17), AUTO-BW
++	(5250 - 5330 @ 80), (30, 24), DFS, AUTO-BW
++	(5490 - 5730 @ 160), (30, 24), DFS
++	(5735 - 5835 @ 80), (30, 30)
++
++country HR: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5330 @ 80), (30, 20), DFS, AUTO-BW
++	(5490 - 5710 @ 160), (30, 27), DFS
++	# 60 gHz band channels 1-4, ref: Etsi En 302 567
++	(57000 - 66000 @ 2160), (30, 40)
++
++country HT: DFS-FCC
++	(2402 - 2472 @ 40), (30, 30)
++	(5170 - 5250 @ 80), (30, 24), AUTO-BW
++	(5250 - 5330 @ 80), (30, 24), DFS, AUTO-BW
++	(5490 - 5730 @ 160), (30, 24), DFS
++	(5735 - 5835 @ 80), (30, 30)
++
++country HU: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5330 @ 80), (30, 20), DFS, AUTO-BW
++	(5490 - 5710 @ 160), (30, 27), DFS
++	# 60 gHz band channels 1-4, ref: Etsi En 302 567
++	(57000 - 66000 @ 2160), (30, 40)
++
++country ID: DFS-JP
++	# ref: http://www.postel.go.id/content/ID/regulasi/standardisasi/kepdir/bwa%205,8%20ghz.pdf
++	(2402 - 2482 @ 20), (30, 20)
++	(5735 - 5815 @ 20), (30, 23)
++
++country IE: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5330 @ 80), (30, 20), DFS, AUTO-BW
++	(5490 - 5710 @ 160), (30, 27), DFS
++	# 60 gHz band channels 1-4, ref: Etsi En 302 567
++	(57000 - 66000 @ 2160), (30, 40)
++
++country IL: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5150 - 5250 @ 80), (30, 200 mW), NO-OUTDOOR, AUTO-BW
++	(5250 - 5350 @ 80), (30, 200 mW), NO-OUTDOOR, DFS, AUTO-BW
++
++country IN: DFS-JP
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5330 @ 80), (30, 20), DFS, AUTO-BW
++	(5735 - 5835 @ 80), (30, 20)
++
++country IR: DFS-JP
++	(2402 - 2482 @ 40), (5, 20)
++	(5735 - 5835 @ 80), (30, 30)
++
++country IS: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5330 @ 80), (30, 20), DFS, AUTO-BW
++	(5490 - 5710 @ 160), (30, 27), DFS
++	# 60 gHz band channels 1-4, ref: Etsi En 302 567
++	(57000 - 66000 @ 2160), (30, 40)
++
++country IT: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5330 @ 80), (30, 20), DFS, AUTO-BW
++	(5490 - 5710 @ 160), (30, 27), DFS
++	# 60 gHz band channels 1-4, ref: Etsi En 302 567
++	(57000 - 66000 @ 2160), (30, 40)
++
++country JM: DFS-FCC
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 17), AUTO-BW
++	(5250 - 5330 @ 80), (30, 24), DFS, AUTO-BW
++	(5490 - 5730 @ 160), (30, 24), DFS
++	(5735 - 5835 @ 80), (30, 30)
++
++country JO: DFS-JP
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 23)
++	(5735 - 5835 @ 80), (30, 23)
++
++country JP: DFS-JP
++	(2402 - 2482 @ 40), (5, 20)
++	(2474 - 2494 @ 20), (5, 20), NO-OFDM
++	(4910 - 4990 @ 40), (30, 23)
++	(5030 - 5090 @ 40), (30, 23)
++	(5170 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5330 @ 80), (30, 20), DFS, AUTO-BW
++	(5490 - 5710 @ 160), (30, 23), DFS
++	# 60 GHz band channels 2-4 at 10mW,
++	# ref: http://www.arib.or.jp/english/html/overview/doc/1-STD-T74v1_1.pdf
++#	(59000 - 66000 @ 2160), (30, 10 mW)
++
++country KE: DFS-JP
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 23)
++	(5490 - 5570 @ 80), (30, 30), DFS
++	(5735 - 5775 @ 40), (30, 23)
++
++country KH: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5330 @ 80), (30, 20), DFS, AUTO-BW
++	(5490 - 5710 @ 160), (30, 27), DFS
++
++# Source
++# http://ntrc.kn/?page_id=7
++country KN: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5330 @ 80), (30, 20), DFS, AUTO-BW
++	(5490 - 5710 @ 160), (30, 30), DFS
++	(5735 - 5815 @ 80), (30, 30)
++
++country KP: DFS-JP
++	(2402 - 2482 @ 20), (5, 20)
++	(5170 - 5250 @ 20), (30, 20)
++	(5250 - 5330 @ 20), (30, 20), DFS
++	(5490 - 5630 @ 20), (30, 30), DFS
++	(5735 - 5815 @ 20), (30, 30)
++
++country KR: DFS-JP
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5330 @ 80), (30, 20), DFS, AUTO-BW
++	(5490 - 5710 @ 160), (30, 30), DFS
++	(5735 - 5835 @ 80), (30, 30)
++
++country KW: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5330 @ 80), (30, 20), DFS, AUTO-BW
++
++country KY: DFS-FCC
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 24), AUTO-BW
++	(5250 - 5330 @ 80), (30, 24), DFS, AUTO-BW
++	(5490 - 5730 @ 160), (30, 24), DFS
++	(5735 - 5835 @ 80), (30, 30)
++
++country KZ:
++	(2402 - 2482 @ 40), (5, 20)
++
++country LB: DFS-FCC
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 17), AUTO-BW
++	(5250 - 5330 @ 80), (30, 24), DFS, AUTO-BW
++	(5490 - 5730 @ 160), (30, 24), DFS
++	(5735 - 5835 @ 80), (30, 30)
++
++# Source:
++# http://www.ntrc.org.lc/operational_structures.htm
++country LC: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5330 @ 80), (30, 20), DFS, AUTO-BW
++	(5490 - 5710 @ 160), (30, 30), DFS
++	(5735 - 5815 @ 80), (30, 30)
++
++country LI: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5330 @ 80), (30, 20), DFS, AUTO-BW
++	(5490 - 5710 @ 160), (30, 27), DFS
++
++country LK: DFS-FCC
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 20), (30, 17)
++	(5250 - 5330 @ 20), (30, 24), DFS
++	(5490 - 5730 @ 20), (30, 24), DFS
++	(5735 - 5835 @ 20), (30, 30)
++
++# Source:
++# http://lca.org.ls/images/documents/lesotho_national_frequency_allocation_plan.pdf
++country LS: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5330 @ 80), (30, 20), DFS, AUTO-BW
++	(5490 - 5710 @ 160), (30, 27), DFS
++
++country LT: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5330 @ 80), (30, 20), DFS, AUTO-BW
++	(5490 - 5710 @ 160), (30, 27), DFS
++	# 60 gHz band channels 1-4, ref: Etsi En 302 567
++	(57000 - 66000 @ 2160), (30, 40)
++
++country LU: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5330 @ 80), (30, 20), DFS, AUTO-BW
++	(5490 - 5710 @ 160), (30, 27), DFS
++	# 60 gHz band channels 1-4, ref: Etsi En 302 567
++	(57000 - 66000 @ 2160), (30, 40)
++
++country LV: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5330 @ 80), (30, 20), DFS, AUTO-BW
++	(5490 - 5710 @ 160), (30, 27), DFS
++	# 60 gHz band channels 1-4, ref: Etsi En 302 567
++	(57000 - 66000 @ 2160), (30, 40)
++
++country MA: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5330 @ 80), (30, 20), DFS, AUTO-BW
++
++country MC: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5330 @ 80), (30, 20), DFS, AUTO-BW
++	(5490 - 5710 @ 160), (30, 27), DFS
++
++# Source:
++# http://www.cnfr.md/index.php?pag=sec&id=117&l=en
++country MD: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5330 @ 80), (30, 20), DFS, AUTO-BW
++	(5490 - 5710 @ 160), (30, 27), DFS
++
++# Source:
++# http://www.cept.org/files/1050/Tools%20and%20Services/EFIS%20-%20ECO%20Frequency%20Information%20System/National%20frequency%20tables/Montenegro%20NAFT%20-%202010.pdf
++country ME: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5330 @ 80), (30, 20), DFS, AUTO-BW
++	(5490 - 5710 @ 160), (30, 27), DFS
++
++country MF: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5330 @ 80), (30, 20), DFS, AUTO-BW
++	(5490 - 5710 @ 160), (30, 27), DFS
++
++country MH: DFS-FCC
++	(2402 - 2472 @ 40), (5, 30)
++	(5170 - 5250 @ 80), (30, 24), AUTO-BW
++	(5250 - 5330 @ 80), (30, 24), DFS, AUTO-BW
++	(5490 - 5730 @ 160), (30, 24), DFS
++	(5735 - 5835 @ 80), (30, 30)
++
++country MK: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5330 @ 80), (30, 20), DFS, AUTO-BW
++	(5490 - 5710 @ 160), (30, 27), DFS
++	# 60 gHz band channels 1-4, ref: Etsi En 302 567
++	(57000 - 66000 @ 2160), (30, 40)
++
++country MN: DFS-FCC
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 24), AUTO-BW
++	(5250 - 5330 @ 80), (30, 24), DFS, AUTO-BW
++	(5490 - 5730 @ 160), (30, 24), DFS
++	(5735 - 5835 @ 80), (30, 30)
++
++country MO: DFS-FCC
++	(2402 - 2482 @ 40), (5, 23)
++	(5170 - 5250 @ 80), (30, 23), AUTO-BW
++	(5250 - 5330 @ 80), (30, 23), DFS, AUTO-BW
++	(5490 - 5730 @ 160), (30, 30), DFS
++	(5735 - 5835 @ 80), (30, 30)
++
++country MP: DFS-FCC
++	(2402 - 2472 @ 40), (5, 30)
++	(5170 - 5250 @ 80), (30, 24), AUTO-BW
++	(5250 - 5330 @ 80), (30, 24), DFS, AUTO-BW
++	(5490 - 5730 @ 160), (30, 24), DFS
++	(5735 - 5835 @ 80), (30, 30)
++
++country MQ: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5330 @ 80), (30, 20), DFS, AUTO-BW
++	(5490 - 5710 @ 160), (30, 27), DFS
++
++# Source:
++# http://www.are.mr/pdfs/telec_freq_TNAbf_2010.pdf
++country MR: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5330 @ 80), (30, 20), DFS, AUTO-BW
++	(5490 - 5710 @ 160), (30, 27), DFS
++
++country MT: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5330 @ 80), (30, 20), DFS, AUTO-BW
++	(5490 - 5710 @ 160), (30, 27), DFS
++	# 60 gHz band channels 1-4, ref: Etsi En 302 567
++	(57000 - 66000 @ 2160), (30, 40)
++
++country MU: DFS-FCC
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 24), AUTO-BW
++	(5250 - 5330 @ 80), (30, 24), DFS, AUTO-BW
++	(5490 - 5730 @ 160), (30, 24), DFS
++	(5735 - 5835 @ 80), (30, 30)
++
++# Source:
++# http://www.cam.gov.mv/docs/tech_standards/TAM-TS-100-2004-WLAN.pdf
++country MV: DFS-ETSI
++	(2400 - 2483.5 @ 40), (5, 100 mW)
++	(5150 - 5250 @ 80), (30, 200 mW), AUTO-BW
++	(5250 - 5350 @ 80), (30, 100 mW), DFS, AUTO-BW
++	(5725 - 5850 @ 80), (30, 100 mW)
++
++country MW: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5330 @ 80), (30, 20), DFS, AUTO-BW
++	(5490 - 5710 @ 160), (30, 27), DFS
++
++country MX: DFS-FCC
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 17), AUTO-BW
++	(5250 - 5330 @ 80), (30, 24), DFS, AUTO-BW
++	(5490 - 5730 @ 160), (30, 24), DFS
++	(5735 - 5835 @ 80), (30, 30)
++
++country MY: DFS-FCC
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 17), AUTO-BW
++	(5250 - 5330 @ 80), (30, 23), DFS, AUTO-BW
++	(5735 - 5835 @ 80), (30, 30)
++
++country NG: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5250 - 5330 @ 80), (30, 30), DFS
++	(5735 - 5835 @ 80), (30, 30)
++
++country NI: DFS-FCC
++	(2402 - 2472 @ 40), (5, 30)
++	(5170 - 5250 @ 80), (30, 24), AUTO-BW
++	(5250 - 5330 @ 80), (30, 24), DFS, AUTO-BW
++	(5490 - 5730 @ 160), (30, 24), DFS
++	(5735 - 5835 @ 80), (30, 30)
++
++country NL: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20), NO-OUTDOOR, AUTO-BW
++	(5250 - 5330 @ 80), (30, 20), NO-OUTDOOR, DFS, AUTO-BW
++	(5490 - 5710 @ 160), (30, 27), DFS
++	# 60 gHz band channels 1-4, ref: Etsi En 302 567
++	(57000 - 66000 @ 2160), (30, 40)
++
++# Data from http://www.lovdata.no/dokument/SF/forskrift/2012-01-19-77
++# Power at 5250 - 5350 MHz, 5470 - 5725 MHz and 5815 – 5850 MHz can
++# be doubled if TPC is implemented.
++# Up to 2W (or 4W with TPC) is allowed in the 5725 – 5795 MHz band
++# which has been merged with 5470 - 5725 MHz to allow wide channels
++#country NO: DFS-ETSI
++#	(2400 - 2483.5 @ 40), (5, 100 mW)
++#	(5150 - 5250 @ 80), (30, 200 mW), AUTO-BW
++#	(5250 - 5350 @ 80), (30, 100 mW), DFS, AUTO-BW
++#	(5470 - 5795 @ 160), (30, 500 mW), DFS
++#	(5815 - 5850 @ 35), (30, 2000 mW), DFS
++#	(17100 - 17300 @ 200), (30, 100 mW)
++	# 60 gHz band channels 1-4, ref: Etsi En 302 567
++#	(57000 - 66000 @ 2160), (30, 40)
++
++country NP: DFS-JP
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5330 @ 80), (30, 20), DFS, AUTO-BW
++	(5735 - 5835 @ 80), (30, 20)
++
++country NZ: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 30)
++	(5170 - 5250 @ 80), (30, 17), AUTO-BW
++	(5250 - 5330 @ 80), (30, 24), DFS, AUTO-BW
++	(5490 - 5730 @ 160), (30, 24), DFS
++	(5735 - 5835 @ 80), (30, 30)
++
++country OM: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5330 @ 80), (30, 20), DFS, AUTO-BW
++	(5490 - 5710 @ 160), (30, 27), DFS
++
++country PA: DFS-FCC
++	(2402 - 2472 @ 40), (5, 30)
++	(5170 - 5250 @ 80), (30, 17), AUTO-BW
++	(5250 - 5330 @ 80), (30, 23), DFS, AUTO-BW
++	(5735 - 5835 @ 80), (30, 30)
++
++country PE: DFS-FCC
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 17), AUTO-BW
++	(5250 - 5330 @ 80), (30, 24), DFS, AUTO-BW
++	(5490 - 5730 @ 160), (30, 24), DFS
++	(5735 - 5835 @ 80), (30, 30)
++
++country PF: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5330 @ 80), (30, 20), DFS, AUTO-BW
++	(5490 - 5710 @ 160), (30, 27), DFS
++
++country PG: DFS-FCC
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 17), AUTO-BW
++	(5250 - 5330 @ 80), (30, 24), DFS, AUTO-BW
++	(5490 - 5730 @ 160), (30, 24), DFS
++	(5735 - 5835 @ 80), (30, 30)
++
++country PH: DFS-FCC
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 17), AUTO-BW
++	(5250 - 5330 @ 80), (30, 24), DFS, AUTO-BW
++	(5490 - 5730 @ 160), (30, 24), DFS
++	(5735 - 5835 @ 80), (30, 30)
++
++country PK: DFS-JP
++	(2402 - 2482 @ 40), (5, 20)
++	(5735 - 5835 @ 80), (30, 30)
++
++country PL: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5330 @ 80), (30, 20), DFS, AUTO-BW
++	(5490 - 5710 @ 160), (30, 27), DFS
++	# 60 gHz band channels 1-4, ref: Etsi En 302 567
++	(57000 - 66000 @ 2160), (30, 40)
++
++country PM: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5330 @ 80), (30, 20), DFS, AUTO-BW
++	(5490 - 5710 @ 160), (30, 27), DFS
++
++country PR: DFS-FCC
++	(2402 - 2472 @ 40), (30)
++	(5170 - 5250 @ 80), (30, 17), AUTO-BW
++	(5250 - 5330 @ 80), (30, 24), DFS, AUTO-BW
++	(5490 - 5730 @ 160), (30, 24), DFS
++	(5735 - 5835 @ 80), (30, 30)
++
++country PT: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5330 @ 80), (30, 20), DFS, AUTO-BW
++	(5490 - 5710 @ 160), (30, 27), DFS
++	# 60 gHz band channels 1-4, ref: Etsi En 302 567
++	(57000 - 66000 @ 2160), (30, 40)
++
++country PW: DFS-FCC
++	(2402 - 2472 @ 40), (5, 30)
++	(5170 - 5250 @ 80), (30, 24), AUTO-BW
++	(5250 - 5330 @ 80), (30, 24), DFS, AUTO-BW
++	(5490 - 5730 @ 160), (30, 24), DFS
++	(5735 - 5835 @ 80), (30, 30)
++
++country PY: DFS-FCC
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 24), AUTO-BW
++	(5250 - 5330 @ 80), (30, 24), DFS, AUTO-BW
++	(5490 - 5730 @ 160), (30, 24), DFS
++	(5735 - 5835 @ 80), (30, 30)
++
++country QA: DFS-JP
++	(2402 - 2482 @ 40), (5, 20)
++	(5735 - 5835 @ 80), (30, 30)
++
++country RE: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5330 @ 80), (30, 20), DFS, AUTO-BW
++	(5490 - 5710 @ 160), (30, 27), DFS
++
++country RO: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5330 @ 80), (30, 20), DFS, AUTO-BW
++	(5490 - 5710 @ 160), (30, 27), DFS
++	# 60 gHz band channels 1-4, ref: Etsi En 302 567
++	(57000 - 66000 @ 2160), (30, 40)
++
++
++# Source:
++# http://www.ratel.rs/upload/documents/Plan_namene/Plan_namene-sl_glasnik.pdf
++country RS: DFS-ETSI
++	(2400 - 2483.5 @ 40), (5, 100 mW)
++	(5150 - 5350 @ 40), (30, 200 mW), NO-OUTDOOR
++	(5470 - 5725 @ 20), (30, 1000 mW), DFS
++	# 60 gHz band channels 1-4, ref: Etsi En 302 567
++	(57000 - 66000 @ 2160), (30, 40)
++
++country RU: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 40), (30, 20)
++	(5250 - 5330 @ 40), (30, 20), DFS
++	(5650 - 5730 @ 40), (30, 30), DFS
++	(5735 - 5835 @ 40), (30, 30)
++	# 60 GHz band channels 1-4, ref: Changes to NLA 124_Order №129_22042015.pdf
++	(57000 - 66000 @ 2160), (30, 40)
++
++country RW: DFS-FCC
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 17), AUTO-BW
++	(5250 - 5330 @ 80), (30, 24), DFS, AUTO-BW
++	(5490 - 5730 @ 160), (30, 24), DFS
++	(5735 - 5835 @ 80), (30, 30)
++
++country SA: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5330 @ 80), (30, 20), DFS, AUTO-BW
++	(5490 - 5710 @ 160), (30, 27), DFS
++	
++country QN: DFS-FCC
++	(2402 - 2482 @ 40), (5, 20)
++	(5150 - 5250 @ 80), (30, 17), AUTO-BW
++	(5250 - 5350 @ 80), (30, 23), DFS, AUTO-BW
++	(5470 - 5725 @ 160), (30, 23), DFS
++	(5725 - 5825 @ 80), (30, 28)	
++	(5825 - 5850 @ 20), (30, 28)	
++
++country QO: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5150 - 5250 @ 80), (30, 17), AUTO-BW
++	(5250 - 5350 @ 80), (30, 23), DFS, AUTO-BW
++	(5470 - 5725 @ 160), (30, 30)
++	(5725 - 5825 @ 20), (30, 30)
++
++country QP: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5150 - 5250 @ 80), (30, 23), AUTO-BW
++	(5250 - 5350 @ 80), (30, 23), DFS, AUTO-BW
++	(5470 - 5725 @ 160), (30, 21), DFS
++	(5725 - 5825 @ 80), (30, 23)
++	(5825 - 5850 @ 20), (30, 23)
++
++country QQ: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5150 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5350 @ 80), (30, 20), DFS, AUTO-BW
++	(5470 - 5725 @ 160), (30, 20), DFS
++
++country QR: DFS-FCC
++	(2402 - 2482 @ 40), (5, 20)
++	(5150 - 5250 @ 80), (30, 22), AUTO-BW
++	(5250 - 5350 @ 80), (30, 22), DFS, AUTO-BW
++	(5725 - 5825 @ 80), (30, 22)
++	(5825 - 5850 @ 20), (30, 22)
++
++country QS: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 27)
++	(5150 - 5250 @ 80), (30, 23), AUTO-BW
++	(5250 - 5350 @ 80), (30, 23), DFS, AUTO-BW
++	(5725 - 5825 @ 80), (30, 24)
++
++country QT: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5150 - 5250 @ 80), (30, 23), AUTO-BW
++	(5250 - 5350 @ 80), (30, 23), DFS, AUTO-BW
++
++country QU: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5150 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5350 @ 80), (30, 20), DFS, AUTO-BW
++
++country QV: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5150 - 5250 @ 80), (30, 23), AUTO-BW
++	(5725 - 5825 @ 80), (30, 23)
++	(5825 - 5850 @ 20), (30, 23)
++
++country QW: DFS-FCC
++	(2402 - 2482 @ 40), (5, 20)
++	(5725 - 5825 @ 80), (30, 20)
++	(5825 - 5850 @ 20), (30, 20)
++
++country QX: DFS-FCC
++	(2402 - 2482 @ 40), (5, 21)
++	(5150 - 5250 @ 80), (30, 17), AUTO-BW
++	(5250 - 5350 @ 80), (30, 24), DFS, AUTO-BW
++	(5725 - 5825 @ 80), (30, 30)
++	(5825 - 5850 @ 20), (30, 30)
++
++country QY: DFS-FCC
++	(2402 - 2482 @ 40), (5, 20)
++	(5150 - 5250 @ 80), (30, 23), AUTO-BW
++	(5250 - 5350 @ 80), (30, 23), DFS, AUTO-BW
++	(5470 - 5725 @ 160), (30, 23), DFS
++	(5725 - 5825 @ 80), (30, 23)
++	(5825 - 5850 @ 20), (30, 23)
++	(5850 - 5875 @ 20), (30, 23)
++
++country QZ: DFS-FCC
++	(2402 - 2482 @ 40), (5, 20)
++	(5725 - 5825 @ 80), (30, 27)
++
++country XA: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 36)
++	(5150 - 5250 @ 80), (30, 23), AUTO-BW
++	(5250 - 5350 @ 80), (30, 23), DFS, AUTO-BW
++	(5470 - 5600 @ 80), (30, 30), DFS
++	(5650 - 5725 @ 40), (30, 30), DFS
++	(5725 - 5825 @ 80), (30, 30)
++	(5825 - 5850 @ 20), (30, 30)
++
++country XB: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 30)
++	(5250 - 5350 @ 80), (30, 23), DFS, AUTO-BW
++	(5470 - 5725 @ 160), (30, 30), DFS
++	(5725 - 5825 @ 80), (30, 30)
++
++country XC: DFS-FCC
++	(2402 - 2482 @ 40), (5, 20)
++	(5150 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5350 @ 80), (30, 20), DFS, AUTO-BW
++	(5470 - 5725 @ 160), (30, 20), DFS
++	(5725 - 5825 @ 80), (30, 20)
++	(5825 - 5850 @ 20), (30, 20)
++
++country XD: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5150 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5350 @ 80), (30, 20), DFS, AUTO-BW
++	(5470 - 5650 @ 160), (30, 20), DFS
++	(5650 - 5725 @ 40), (30, 23), DFS
++	(5725 - 5825 @ 80), (30, 30)
++	(5825 - 5850 @ 20), (30, 30)
++	(5850 - 6425 @ 80), (30, 30)
++
++country XE: DFS-FCC
++	(2402 - 2482 @ 40), (5, 30)
++	(5150 - 5250 @ 80), (30, 17), AUTO-BW
++	(5250 - 5350 @ 80), (30, 24), DFS, AUTO-BW
++	(5470 - 5725 @ 160), (30, 24), DFS
++	(5725 - 5825 @ 80), (30, 30)
++	(5825 - 5850 @ 20), (30, 30)
++
++country XF: DFS-JP
++	(2402 - 2482 @ 40), (5, 20)
++	(2474 - 2494 @ 20), (30, 20), NO-OFDM
++	(5150 - 5250 @ 80), (30, 23), AUTO-BW
++	(5250 - 5350 @ 80), (30, 23), DFS, AUTO-BW
++	(5470 - 5725 @ 160), (30, 23), DFS
++
++country XG: DFS-JP
++	(2402 - 2482 @ 40), (5, 30)
++	(5250 - 5350 @ 80), (30, 17), DFS, AUTO-BW
++	(5470 - 5725 @ 160), (30, 24), DFS
++	(5725 - 5825 @ 80), (30, 30)
++	(5825 - 5850 @ 20), (30, 30)
++
++country XH: DFS-JP
++	(2402 - 2482 @ 40), (5, 20)
++	(5150 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5350 @ 80), (30, 20), DFS, AUTO-BW
++	(5470 - 5725 @ 160), (30, 20), DFS
++	(5725 - 5825 @ 80), (30, 20)
++
++country XI: DFS-FCC
++	(2402 - 2482 @ 40), (5, 20)
++	(5470 - 5725 @ 160), (30, 23), DFS
++	(5725 - 5825 @ 80), (30, 23)
++	(5825 - 5850 @ 20), (30, 23)
++	(5850 - 5875 @ 20), (30, 23)
++
++country XJ: DFS-ETSI
++	(5150 - 5250 @ 80), (30, 23), AUTO-BW
++	(5250 - 5350 @ 80), (30, 23), DFS, AUTO-BW
++	(5470 - 5725 @ 160), (30, 23), DFS
++	(5725 - 5825 @ 80), (30, 23)
++	(5825 - 5850 @ 20), (30, 23)
++
++country XK: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5150 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5350 @ 80), (30, 20), DFS, AUTO-BW
++	(5470 - 5650 @ 160), (30, 23), DFS
++	(5650 - 5725 @ 40), (30, 30), DFS
++	(5725 - 5825 @ 80), (30, 30)
++
++country XL: DFS-FCC
++	(2402 - 2482 @ 40), (5, 20)
++	(5150 - 5250 @ 80), (30, 23), AUTO-BW
++	(5250 - 5350 @ 80), (30, 23), DFS, AUTO-BW
++	(5470 - 5725 @ 160), (30, 23), DFS
++	(5725 - 5825 @ 80), (30, 23)
++
++country XM: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5725 - 5825 @ 80), (30, 30)
++	(5825 - 5850 @ 20), (30, 30)
++	(5850 - 5925 @ 40), (30, 30)
++
++country XN: DFS-FCC
++	(2402 - 2482 @ 40), (5, 27)
++	(5150 - 5250 @ 80), (30, 23), AUTO-BW
++	(5250 - 5350 @ 80), (30, 23), DFS, AUTO-BW
++	(5725 - 5825 @ 80), (30, 23)
++	(5825 - 5850 @ 20), (30, 23)
++	(5850 - 5875 @ 20), (30, 23)
++
++country XO: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5150 - 5250 @ 80), (30, 23), AUTO-BW
++	(5250 - 5350 @ 80), (30, 23), DFS, AUTO-BW
++	(5725 - 5825 @ 80), (30, 23)
++	(5825 - 5850 @ 20), (30, 23)
++	(5850 - 5875 @ 20), (30, 23)
++
++country XP: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5150 - 5250 @ 80), (30, 23), AUTO-BW
++	(5250 - 5350 @ 80), (30, 23), DFS, AUTO-BW
++	(5470 - 5650 @ 160), (30, 23), DFS
++
++country XQ: DFS-FCC
++	(2402 - 2482 @ 40), (5, 30)
++	(5150 - 5250 @ 80), (30, 17), AUTO-BW
++	(5250 - 5350 @ 80), (30, 24), DFS, AUTO-BW
++	(5470 - 5600 @ 80), (30, 24), DFS
++	(5650 - 5725 @ 40), (30, 24), DFS
++
++country XR: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5150 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5350 @ 80), (30, 20), DFS, AUTO-BW
++	(5470 - 5670 @ 160), (30, 20), DFS
++
++country SE: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5330 @ 80), (30, 20), DFS, AUTO-BW
++	(5490 - 5710 @ 160), (30, 27), DFS
++	# 60 gHz band channels 1-4, ref: Etsi En 302 567
++	(57000 - 66000 @ 2160), (30, 40)
++
++country SG: DFS-FCC
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 17), AUTO-BW
++	(5250 - 5330 @ 80), (30, 24), DFS, AUTO-BW
++	(5490 - 5730 @ 160), (30, 24), DFS
++	(5735 - 5835 @ 80), (30, 30)
++
++country SI: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5330 @ 80), (30, 20), DFS, AUTO-BW
++	(5490 - 5710 @ 160), (30, 27), DFS
++	# 60 gHz band channels 1-4, ref: Etsi En 302 567
++	(57000 - 66000 @ 2160), (30, 40)
++
++country SK: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5330 @ 80), (30, 20), DFS, AUTO-BW
++	(5490 - 5710 @ 160), (30, 27), DFS
++	# 60 gHz band channels 1-4, ref: Etsi En 302 567
++	(57000 - 66000 @ 2160), (30, 40)
++
++# Source:
++# Regulation N° 2004-005 ART/DG/DRC/D.Rég
++country SN: DFS-FCC
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 17), AUTO-BW
++	(5250 - 5330 @ 80), (30, 24), DFS, AUTO-BW
++	(5490 - 5730 @ 160), (30, 24), DFS
++	(5735 - 5835 @ 80), (30, 30)
++
++country SR: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5330 @ 80), (30, 20), DFS, AUTO-BW
++	(5490 - 5710 @ 160), (30, 27), DFS
++
++country SV: DFS-FCC
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 20), (30, 17)
++	(5250 - 5330 @ 20), (30, 23), DFS
++	(5735 - 5835 @ 20), (30, 30)
++
++country SY:
++	(2402 - 2482 @ 40), (5, 20)
++
++# Source:
++# http://www.telecommission.tc/Spectrum-plan20110324-101210.html
++country TC: DFS-FCC
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 24), AUTO-BW
++	(5250 - 5330 @ 80), (30, 24), DFS, AUTO-BW
++	(5490 - 5730 @ 160), (30, 24), DFS
++	(5735 - 5835 @ 80), (30, 30)
++
++country TD: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5330 @ 80), (30, 20), DFS, AUTO-BW
++	(5490 - 5710 @ 160), (30, 27), DFS
++
++country TG: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 40), (30, 20)
++	(5250 - 5330 @ 40), (30, 20), DFS
++	(5490 - 5710 @ 40), (30, 27), DFS
++
++country TH: DFS-FCC
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 17), AUTO-BW
++	(5250 - 5330 @ 80), (30, 24), DFS, AUTO-BW
++	(5490 - 5730 @ 160), (30, 24), DFS
++	(5735 - 5835 @ 80), (30, 30)
++
++country TN: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5330 @ 80), (30, 20), DFS, AUTO-BW
++
++country TR: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5330 @ 80), (30, 20), DFS, AUTO-BW
++	(5490 - 5710 @ 160), (30, 27), DFS
++	# 60 gHz band channels 1-4, ref: Etsi En 302 567
++	(57000 - 66000 @ 2160), (30, 40)
++
++country TT: DFS-FCC
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 17), AUTO-BW
++	(5250 - 5330 @ 80), (30, 24), DFS, AUTO-BW
++	(5490 - 5730 @ 160), (30, 24), DFS
++	(5735 - 5835 @ 80), (30, 30)
++
++country TW: DFS-JP
++	(2402 - 2472 @ 40), (30, 30)
++	(5270 - 5330 @ 40), (30, 17), DFS
++	(5490 - 5590 @ 80), (30, 30), DFS
++	(5650 - 5710 @ 40), (30, 30), DFS
++	(5735 - 5835 @ 80), (30, 30)
++ 
++country TZ:
++	(2402 - 2482 @ 40), (5, 20)
++	(5735 - 5835 @ 80), (30, 30)
++
++# Source:
++# #914 / 06 Sep 2007: http://www.ucrf.gov.ua/uk/doc/nkrz/1196068874
++# #1174 / 23 Oct 2008: http://www.nkrz.gov.ua/uk/activities/ruling/1225269361
++# (appendix 8)
++# Listed 5GHz range is a lowest common denominator for all related
++# rules in the referenced laws. Such a range is used because of
++# disputable definitions there.
++country UA: DFS-ETSI
++	(2400 - 2483.5 @ 40), (5, 20), NO-OUTDOOR
++	(5150 - 5350 @ 40), (30, 20), NO-OUTDOOR
++	(5490 - 5670 @ 80), (30, 20), DFS
++	(5735 - 5835 @ 80), (30, 20)
++	# 60 gHz band channels 1-4, ref: Etsi En 302 567
++	(57000 - 66000 @ 2160), (30, 40)
++
++country UG: DFS-FCC
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 24), AUTO-BW
++	(5250 - 5330 @ 80), (30, 24), DFS, AUTO-BW
++	(5490 - 5730 @ 160), (30, 24), DFS
++	(5735 - 5835 @ 80), (30, 30)
++
++country US: DFS-FCC
++	(2402 - 2472 @ 40), (5, 30)
++	(5170 - 5250 @ 80), (30, 17), AUTO-BW
++	(5250 - 5330 @ 80), (30, 23), DFS, AUTO-BW
++	(5490 - 5730 @ 160), (30, 23), DFS
++	(5735 - 5835 @ 80), (30, 30)
++	# 60g band
++	# reference: http://cfr.regstoday.com/47cfr15.aspx#47_CFR_15p255
++	# channels 1,2,3, EIRP=40dBm(43dBm peak)
++	(57240 - 63720 @ 2160), (30, 40)
++
++country UY: DFS-FCC
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 17), AUTO-BW
++	(5250 - 5330 @ 80), (30, 24), DFS, AUTO-BW
++	(5490 - 5730 @ 160), (30, 24), DFS
++	(5735 - 5835 @ 80), (30, 30)
++
++# Source:
++# http://cemc.uz/article/1976/
++country UZ: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5330 @ 80), (30, 20), DFS, AUTO-BW
++
++# Source:
++# http://www.ntrc.vc/regulations/Jun_2006_Spectrum_Managment_Regulations.pdf
++country VC: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5330 @ 80), (30, 20), DFS, AUTO-BW
++	(5490 - 5710 @ 160), (30, 27), DFS
++
++# Source:
++# Official Gazette (Gaceta Oficial) concerning Unlicensed transmitter use
++# (10 June 2013)
++# http://www.conatel.gob.ve/
++country VE: DFS-FCC
++	(2402 - 2482 @ 40), (5, 30)
++	(5170 - 5250 @ 80), (30, 23), AUTO-BW
++	(5250 - 5330 @ 80), (30, 23), DFS, AUTO-BW
++	(5735 - 5835 @ 80), (30, 30)
++
++country VI: DFS-FCC
++	(2402 - 2472 @ 40), (30, 30)
++	(5170 - 5250 @ 80), (30, 24), AUTO-BW
++	(5250 - 5330 @ 80), (30, 24), DFS, AUTO-BW
++	(5490 - 5730 @ 160), (30, 24), DFS
++	(5735 - 5835 @ 80), (30, 30)
++
++country VN: DFS-FCC
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 17)
++	(5250 - 5330 @ 80), (30, 24), DFS
++	(5490 - 5730 @ 80), (30, 24), DFS
++	(5735 - 5835 @ 80), (30, 30)
++
++# Source:
++# http://www.trr.vu/attachments/category/130/GURL_for_Short-range_Radiocommunication_Devices2.pdf
++country VU: DFS-FCC
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 17), AUTO-BW
++	(5250 - 5330 @ 80), (30, 24), DFS, AUTO-BW
++	(5490 - 5730 @ 160), (30, 24), DFS
++	(5735 - 5835 @ 80), (30, 30)
++
++country WF: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5330 @ 80), (30, 20), DFS, AUTO-BW
++	(5490 - 5710 @ 160), (30, 27), DFS
++
++country WS: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 40), (30, 20)
++	(5250 - 5330 @ 40), (30, 20), DFS
++	(5490 - 5710 @ 40), (30, 27), DFS
++
++country YE:
++	(2402 - 2482 @ 40), (5, 20)
++
++country QM:
++	(2402 - 2482 @ 40), (5, 20)
++
++country YT: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5330 @ 80), (30, 20), DFS, AUTO-BW
++	(5490 - 5710 @ 160), (30, 27), DFS
++
++country ZA: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5330 @ 80), (30, 20), DFS, AUTO-BW
++	(5490 - 5710 @ 160), (30, 27), DFS
++
++country ZW: DFS-ETSI
++	(2402 - 2482 @ 40), (5, 20)
++	(5170 - 5250 @ 80), (30, 20), AUTO-BW
++	(5250 - 5330 @ 80), (30, 20), DFS, AUTO-BW
++	(5490 - 5710 @ 160), (30, 27), DFS
++
+diff -urN backports.orig/net/wireless/mlme.c backports/net/wireless/mlme.c
+--- backports.orig/net/wireless/mlme.c	2015-09-24 15:25:20.465038328 +0800
++++ backports/net/wireless/mlme.c	2015-09-24 15:25:20.553038328 +0800
+@@ -621,7 +621,7 @@
+ }
+ 
+ bool cfg80211_rx_mgmt(struct wireless_dev *wdev, int freq, int sig_mbm,
+-		      const u8 *buf, size_t len, u32 flags, gfp_t gfp)
++		      const u8 *buf, size_t len, gfp_t gfp)
+ {
+ 	struct wiphy *wiphy = wdev->wiphy;
+ 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
+@@ -664,7 +664,7 @@
+ 		/* Indicate the received Action frame to user space */
+ 		if (nl80211_send_mgmt(rdev, wdev, reg->nlportid,
+ 				      freq, sig_mbm,
+-				      buf, len, flags, gfp))
++				      buf, len, gfp))
+ 			continue;
+ 
+ 		result = true;
+diff -urN backports.orig/net/wireless/nl80211.c backports/net/wireless/nl80211.c
+--- backports.orig/net/wireless/nl80211.c	2015-09-24 15:25:20.469038328 +0800
++++ backports/net/wireless/nl80211.c	2015-09-24 15:25:20.553038328 +0800
+@@ -349,11 +349,16 @@
+ 	[NL80211_ATTR_IE_RIC] = { .type = NLA_BINARY,
+ 				  .len = IEEE80211_MAX_DATA_LEN },
+ 	[NL80211_ATTR_PEER_AID] = { .type = NLA_U16 },
++	[NL80211_ATTR_STA_SUPPORTED_CHANNELS] = { .type = NLA_BINARY },
++	[NL80211_ATTR_STA_SUPPORTED_OPER_CLASSES] = { .type = NLA_BINARY },
+ 	[NL80211_ATTR_CH_SWITCH_COUNT] = { .type = NLA_U32 },
+ 	[NL80211_ATTR_CH_SWITCH_BLOCK_TX] = { .type = NLA_FLAG },
+ 	[NL80211_ATTR_CSA_IES] = { .type = NLA_NESTED },
+ 	[NL80211_ATTR_CSA_C_OFF_BEACON] = { .type = NLA_U16 },
+ 	[NL80211_ATTR_CSA_C_OFF_PRESP] = { .type = NLA_U16 },
++	[NL80211_ATTR_VENDOR_ID] = { .type = NLA_U32 },
++	[NL80211_ATTR_VENDOR_SUBCMD] = { .type = NLA_U32 },
++	[NL80211_ATTR_VENDOR_DATA] = { .type = NLA_BINARY },
+ };
+ 
+ /* policy for the key attributes */
+@@ -920,7 +925,7 @@
+ static int nl80211_send_wowlan_tcp_caps(struct cfg80211_registered_device *rdev,
+ 					struct sk_buff *msg)
+ {
+-	const struct wiphy_wowlan_tcp_support *tcp = rdev->wiphy.wowlan->tcp;
++	const struct wiphy_wowlan_tcp_support *tcp = rdev->wiphy.wowlan.tcp;
+ 	struct nlattr *nl_tcp;
+ 
+ 	if (!tcp)
+@@ -963,37 +968,37 @@
+ {
+ 	struct nlattr *nl_wowlan;
+ 
+-	if (!dev->wiphy.wowlan)
++	if (&dev->wiphy.wowlan)
+ 		return 0;
+ 
+ 	nl_wowlan = nla_nest_start(msg, NL80211_ATTR_WOWLAN_TRIGGERS_SUPPORTED);
+ 	if (!nl_wowlan)
+ 		return -ENOBUFS;
+ 
+-	if (((dev->wiphy.wowlan->flags & WIPHY_WOWLAN_ANY) &&
++	if (((dev->wiphy.wowlan.flags & WIPHY_WOWLAN_ANY) &&
+ 	     nla_put_flag(msg, NL80211_WOWLAN_TRIG_ANY)) ||
+-	    ((dev->wiphy.wowlan->flags & WIPHY_WOWLAN_DISCONNECT) &&
++	    ((dev->wiphy.wowlan.flags & WIPHY_WOWLAN_DISCONNECT) &&
+ 	     nla_put_flag(msg, NL80211_WOWLAN_TRIG_DISCONNECT)) ||
+-	    ((dev->wiphy.wowlan->flags & WIPHY_WOWLAN_MAGIC_PKT) &&
++	    ((dev->wiphy.wowlan.flags & WIPHY_WOWLAN_MAGIC_PKT) &&
+ 	     nla_put_flag(msg, NL80211_WOWLAN_TRIG_MAGIC_PKT)) ||
+-	    ((dev->wiphy.wowlan->flags & WIPHY_WOWLAN_SUPPORTS_GTK_REKEY) &&
++	    ((dev->wiphy.wowlan.flags & WIPHY_WOWLAN_SUPPORTS_GTK_REKEY) &&
+ 	     nla_put_flag(msg, NL80211_WOWLAN_TRIG_GTK_REKEY_SUPPORTED)) ||
+-	    ((dev->wiphy.wowlan->flags & WIPHY_WOWLAN_GTK_REKEY_FAILURE) &&
++	    ((dev->wiphy.wowlan.flags & WIPHY_WOWLAN_GTK_REKEY_FAILURE) &&
+ 	     nla_put_flag(msg, NL80211_WOWLAN_TRIG_GTK_REKEY_FAILURE)) ||
+-	    ((dev->wiphy.wowlan->flags & WIPHY_WOWLAN_EAP_IDENTITY_REQ) &&
++	    ((dev->wiphy.wowlan.flags & WIPHY_WOWLAN_EAP_IDENTITY_REQ) &&
+ 	     nla_put_flag(msg, NL80211_WOWLAN_TRIG_EAP_IDENT_REQUEST)) ||
+-	    ((dev->wiphy.wowlan->flags & WIPHY_WOWLAN_4WAY_HANDSHAKE) &&
++	    ((dev->wiphy.wowlan.flags & WIPHY_WOWLAN_4WAY_HANDSHAKE) &&
+ 	     nla_put_flag(msg, NL80211_WOWLAN_TRIG_4WAY_HANDSHAKE)) ||
+-	    ((dev->wiphy.wowlan->flags & WIPHY_WOWLAN_RFKILL_RELEASE) &&
++	    ((dev->wiphy.wowlan.flags & WIPHY_WOWLAN_RFKILL_RELEASE) &&
+ 	     nla_put_flag(msg, NL80211_WOWLAN_TRIG_RFKILL_RELEASE)))
+ 		return -ENOBUFS;
+ 
+-	if (dev->wiphy.wowlan->n_patterns) {
++	if (dev->wiphy.wowlan.n_patterns) {
+ 		struct nl80211_pattern_support pat = {
+-			.max_patterns = dev->wiphy.wowlan->n_patterns,
+-			.min_pattern_len = dev->wiphy.wowlan->pattern_min_len,
+-			.max_pattern_len = dev->wiphy.wowlan->pattern_max_len,
+-			.max_pkt_offset = dev->wiphy.wowlan->max_pkt_offset,
++			.max_patterns = dev->wiphy.wowlan.n_patterns,
++			.min_pattern_len = dev->wiphy.wowlan.pattern_min_len,
++			.max_pattern_len = dev->wiphy.wowlan.pattern_max_len,
++			.max_pkt_offset = dev->wiphy.wowlan.max_pkt_offset,
+ 		};
+ 
+ 		if (nla_put(msg, NL80211_WOWLAN_TRIG_PKT_PATTERN,
+@@ -1523,6 +1528,44 @@
+ 				dev->wiphy.max_acl_mac_addrs))
+ 			goto nla_put_failure;
+ 
++		if (dev->wiphy.max_ap_assoc_sta &&
++		    nla_put_u32(msg, NL80211_ATTR_MAX_AP_ASSOC_STA,
++				dev->wiphy.max_ap_assoc_sta))
++			goto nla_put_failure;
++
++		if (dev->wiphy.n_vendor_commands) {
++			const struct nl80211_vendor_cmd_info *info;
++			struct nlattr *nested;
++
++			nested = nla_nest_start(msg, NL80211_ATTR_VENDOR_DATA);
++			if (!nested)
++				goto nla_put_failure;
++
++			for (i = 0; i < dev->wiphy.n_vendor_commands; i++) {
++				info = &dev->wiphy.vendor_commands[i].info;
++				if (nla_put(msg, i + 1, sizeof(*info), info))
++					goto nla_put_failure;
++			}
++				nla_nest_end(msg, nested);
++		}
++
++		if (dev->wiphy.n_vendor_events) {
++			const struct nl80211_vendor_cmd_info *info;
++			struct nlattr *nested;
++
++			nested = nla_nest_start(msg,
++				NL80211_ATTR_VENDOR_EVENTS);
++			if (!nested)
++				goto nla_put_failure;
++
++			for (i = 0; i < dev->wiphy.n_vendor_events; i++) {
++				info = &dev->wiphy.vendor_events[i];
++				if (nla_put(msg, i + 1, sizeof(*info), info))
++					goto nla_put_failure;
++			}
++			nla_nest_end(msg, nested);
++		}
++
+ 		/*
+ 		 * Any information below this point is only available to
+ 		 * applications that can deal with it being split. This
+@@ -3858,6 +3901,41 @@
+ 	return ERR_PTR(ret);
+ }
+ 
++static int nl80211_parse_sta_channel_info(struct genl_info *info,
++				      struct station_parameters *params)
++{
++	if (info->attrs[NL80211_ATTR_STA_SUPPORTED_CHANNELS]) {
++		params->supported_channels =
++		     nla_data(info->attrs[NL80211_ATTR_STA_SUPPORTED_CHANNELS]);
++		params->supported_channels_len =
++		     nla_len(info->attrs[NL80211_ATTR_STA_SUPPORTED_CHANNELS]);
++		/*
++		 * Need to include at least one (first channel, number of
++		 * channels) tuple for each subband, and must have proper
++		 * tuples for the rest of the data as well.
++		 */
++		if (params->supported_channels_len < 2)
++			return -EINVAL;
++		if (params->supported_channels_len % 2)
++			return -EINVAL;
++	}
++
++	if (info->attrs[NL80211_ATTR_STA_SUPPORTED_OPER_CLASSES]) {
++		params->supported_oper_classes =
++		 nla_data(info->attrs[NL80211_ATTR_STA_SUPPORTED_OPER_CLASSES]);
++		params->supported_oper_classes_len =
++		  nla_len(info->attrs[NL80211_ATTR_STA_SUPPORTED_OPER_CLASSES]);
++		/*
++		 * The value of the Length field of the Supported Operating
++		 * Classes element is between 2 and 253.
++		 */
++		if (params->supported_oper_classes_len < 2 ||
++		    params->supported_oper_classes_len > 253)
++			return -EINVAL;
++	}
++	return 0;
++}
++
+ static struct nla_policy
+ nl80211_sta_wme_policy[NL80211_STA_WME_MAX + 1] __read_mostly = {
+ 	[NL80211_STA_WME_UAPSD_QUEUES] = { .type = NLA_U8 },
+@@ -3901,6 +3979,7 @@
+ static int nl80211_set_station_tdls(struct genl_info *info,
+ 				    struct station_parameters *params)
+ {
++	int err;
+ 	/* Dummy STA entry gets updated once the peer capabilities are known */
+ 	if (info->attrs[NL80211_ATTR_PEER_AID])
+ 		params->aid = nla_get_u16(info->attrs[NL80211_ATTR_PEER_AID]);
+@@ -3911,6 +3990,10 @@
+ 		params->vht_capa =
+ 			nla_data(info->attrs[NL80211_ATTR_VHT_CAPABILITY]);
+ 
++	err = nl80211_parse_sta_channel_info(info, params);
++	if (err)
++		return err;
++
+ 	return nl80211_parse_sta_wme(info, params);
+ }
+ 
+@@ -4091,6 +4174,10 @@
+ 			return -EINVAL;
+ 	}
+ 
++	err = nl80211_parse_sta_channel_info(info, &params);
++	if (err)
++		return err;
++
+ 	err = nl80211_parse_sta_wme(info, &params);
+ 	if (err)
+ 		return err;
+@@ -5343,6 +5430,7 @@
+ 	enum ieee80211_band band;
+ 	size_t ie_len;
+ 	struct nlattr *tb[NL80211_SCHED_SCAN_MATCH_ATTR_MAX + 1];
++	s32 default_match_rssi = NL80211_SCAN_RSSI_THOLD_OFF;
+ 
+ 	if (!(rdev->wiphy.flags & WIPHY_FLAG_SUPPORTS_SCHED_SCAN) ||
+ 	    !rdev->ops->sched_scan_start)
+@@ -5381,11 +5469,40 @@
+ 	if (n_ssids > wiphy->max_sched_scan_ssids)
+ 		return -EINVAL;
+ 
+-	if (info->attrs[NL80211_ATTR_SCHED_SCAN_MATCH])
++	/*
++	 * First, count the number of 'real' matchsets. Due to an issue with
++	 * the old implementation, matchsets containing only the RSSI attribute
++	 * (NL80211_SCHED_SCAN_MATCH_ATTR_RSSI) are considered as the 'default'
++	 * RSSI for all matchsets, rather than their own matchset for reporting
++	 * all APs with a strong RSSI. This is needed to be compatible with
++	 * older userspace that treated a matchset with only the RSSI as the
++	 * global RSSI for all other matchsets - if there are other matchsets.
++	 */
++	if (info->attrs[NL80211_ATTR_SCHED_SCAN_MATCH]) {
+ 		nla_for_each_nested(attr,
+ 				    info->attrs[NL80211_ATTR_SCHED_SCAN_MATCH],
+-				    tmp)
+-			n_match_sets++;
++				    tmp) {
++			struct nlattr *rssi;
++
++			err = nla_parse(tb, NL80211_SCHED_SCAN_MATCH_ATTR_MAX,
++					nla_data(attr), nla_len(attr),
++					nl80211_match_policy);
++			if (err)
++				return err;
++			/* add other standalone attributes here */
++			if (tb[NL80211_SCHED_SCAN_MATCH_ATTR_SSID]) {
++				n_match_sets++;
++				continue;
++			}
++			rssi = tb[NL80211_SCHED_SCAN_MATCH_ATTR_RSSI];
++			if (rssi)
++				default_match_rssi = nla_get_s32(rssi);
++		}
++	}
++
++	/* However, if there's no other matchset, add the RSSI one */
++	if (!n_match_sets && default_match_rssi != NL80211_SCAN_RSSI_THOLD_OFF)
++		n_match_sets = 1;
+ 
+ 	if (n_match_sets > wiphy->max_match_sets)
+ 		return -EINVAL;
+@@ -5511,6 +5628,15 @@
+ 				  nl80211_match_policy);
+ 			ssid = tb[NL80211_SCHED_SCAN_MATCH_ATTR_SSID];
+ 			if (ssid) {
++				if (WARN_ON(i >= n_match_sets)) {
++					/* this indicates a programming error,
++					 * the loop above should have verified
++					 * things properly
++					 */
++					err = -EINVAL;
++					goto out_free;
++				}
++
+ 				if (nla_len(ssid) > IEEE80211_MAX_SSID_LEN) {
+ 					err = -EINVAL;
+ 					goto out_free;
+@@ -5519,17 +5645,32 @@
+ 				       nla_data(ssid), nla_len(ssid));
+ 				request->match_sets[i].ssid.ssid_len =
+ 					nla_len(ssid);
++				/* special attribute - old implemenation w/a */
++				request->match_sets[i].rssi_thold =
++					default_match_rssi;
++				rssi = tb[NL80211_SCHED_SCAN_MATCH_ATTR_RSSI];
++				if (rssi)
++					request->match_sets[i].rssi_thold =
++						nla_get_s32(rssi);
+ 			}
+-			rssi = tb[NL80211_SCHED_SCAN_MATCH_ATTR_RSSI];
+-			if (rssi)
+-				request->rssi_thold = nla_get_u32(rssi);
+-			else
+-				request->rssi_thold =
+-						   NL80211_SCAN_RSSI_THOLD_OFF;
+ 			i++;
+ 		}
++
++		/* there was no other matchset, so the RSSI one is alone */
++		if (i == 0)
++			request->match_sets[0].rssi_thold = default_match_rssi;
++
++		request->min_rssi_thold = INT_MAX;
++		for (i = 0; i < n_match_sets; i++)
++			request->min_rssi_thold =
++				min(request->match_sets[i].rssi_thold,
++				    request->min_rssi_thold);
++	} else {
++		request->min_rssi_thold = NL80211_SCAN_RSSI_THOLD_OFF;
+ 	}
+ 
++	request->rssi_thold = request->min_rssi_thold;
++
+ 	if (info->attrs[NL80211_ATTR_IE]) {
+ 		request->ie_len = nla_len(info->attrs[NL80211_ATTR_IE]);
+ 		memcpy((void *)request->ie,
+@@ -6588,12 +6729,62 @@
+ 	return err;
+ }
+ 
++static struct sk_buff *
++__cfg80211_alloc_vendor_skb(struct cfg80211_registered_device *rdev,
++			    int approxlen, u32 portid, u32 seq,
++			    enum nl80211_commands cmd,
++			    enum nl80211_attrs attr,
++			    const struct nl80211_vendor_cmd_info *info,
++			    gfp_t gfp)
++{
++	struct sk_buff *skb;
++	void *hdr;
++	struct nlattr *data;
++
++	skb = nlmsg_new(approxlen + 100, gfp);
++	if (!skb)
++		return NULL;
++
++	hdr = nl80211hdr_put(skb, portid, seq, 0, cmd);
++	if (!hdr) {
++		kfree_skb(skb);
++		return NULL;
++	}
++
++	if (nla_put_u32(skb, NL80211_ATTR_WIPHY, rdev->wiphy_idx))
++		goto nla_put_failure;
++
++	if (info) {
++		if (nla_put_u32(skb, NL80211_ATTR_VENDOR_ID,
++				info->vendor_id))
++			goto nla_put_failure;
++		if (nla_put_u32(skb, NL80211_ATTR_VENDOR_SUBCMD,
++				info->subcmd))
++			goto nla_put_failure;
++	}
++
++	data = nla_nest_start(skb, attr);
++
++	((void **)skb->cb)[0] = rdev;
++	((void **)skb->cb)[1] = hdr;
++	((void **)skb->cb)[2] = data;
++
++	return skb;
++
++ nla_put_failure:
++	kfree_skb(skb);
++	return NULL;
++}
+ 
+ #ifdef CPTCFG_NL80211_TESTMODE
+ static struct genl_multicast_group nl80211_testmode_mcgrp = {
+ 	.name = "testmode",
+ };
+ 
++static struct genl_multicast_group nl80211_vendor_mcgrp = {
++	.name = "vendor",
++};
++
+ static int nl80211_testmode_do(struct sk_buff *skb, struct genl_info *info)
+ {
+ 	struct cfg80211_registered_device *rdev = info->user_ptr[0];
+@@ -6616,11 +6807,11 @@
+ 	if (!info->attrs[NL80211_ATTR_TESTDATA])
+ 		return -EINVAL;
+ 
+-	rdev->testmode_info = info;
++	rdev->cur_cmd_info = info;
+ 	err = rdev_testmode_cmd(rdev, wdev,
+ 				nla_data(info->attrs[NL80211_ATTR_TESTDATA]),
+ 				nla_len(info->attrs[NL80211_ATTR_TESTDATA]));
+-	rdev->testmode_info = NULL;
++	rdev->cur_cmd_info = NULL;
+ 
+ 	return err;
+ }
+@@ -6720,92 +6911,53 @@
+ 	return err;
+ }
+ 
+-static struct sk_buff *
+-__cfg80211_testmode_alloc_skb(struct cfg80211_registered_device *rdev,
+-			      int approxlen, u32 portid, u32 seq, gfp_t gfp)
+-{
+-	struct sk_buff *skb;
+-	void *hdr;
+-	struct nlattr *data;
+-
+-	skb = nlmsg_new(approxlen + 100, gfp);
+-	if (!skb)
+-		return NULL;
+-
+-	hdr = nl80211hdr_put(skb, portid, seq, 0, NL80211_CMD_TESTMODE);
+-	if (!hdr) {
+-		kfree_skb(skb);
+-		return NULL;
+-	}
+-
+-	if (nla_put_u32(skb, NL80211_ATTR_WIPHY, rdev->wiphy_idx))
+-		goto nla_put_failure;
+-	data = nla_nest_start(skb, NL80211_ATTR_TESTDATA);
+-
+-	((void **)skb->cb)[0] = rdev;
+-	((void **)skb->cb)[1] = hdr;
+-	((void **)skb->cb)[2] = data;
+-
+-	return skb;
+-
+- nla_put_failure:
+-	kfree_skb(skb);
+-	return NULL;
+-}
+-
+-struct sk_buff *cfg80211_testmode_alloc_reply_skb(struct wiphy *wiphy,
+-						  int approxlen)
+-{
+-	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
+-
+-	if (WARN_ON(!rdev->testmode_info))
+-		return NULL;
+-
+-	return __cfg80211_testmode_alloc_skb(rdev, approxlen,
+-				genl_info_snd_portid(rdev->testmode_info),
+-				rdev->testmode_info->snd_seq,
+-				GFP_KERNEL);
+-}
+-EXPORT_SYMBOL(cfg80211_testmode_alloc_reply_skb);
+-
+-int cfg80211_testmode_reply(struct sk_buff *skb)
+-{
+-	struct cfg80211_registered_device *rdev = ((void **)skb->cb)[0];
+-	void *hdr = ((void **)skb->cb)[1];
+-	struct nlattr *data = ((void **)skb->cb)[2];
+-
+-	if (WARN_ON(!rdev->testmode_info)) {
+-		kfree_skb(skb);
+-		return -EINVAL;
+-	}
+-
+-	nla_nest_end(skb, data);
+-	genlmsg_end(skb, hdr);
+-	return genlmsg_reply(skb, rdev->testmode_info);
+-}
+-EXPORT_SYMBOL(cfg80211_testmode_reply);
+-
+-struct sk_buff *cfg80211_testmode_alloc_event_skb(struct wiphy *wiphy,
+-						  int approxlen, gfp_t gfp)
+-{
+-	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
+-
+-	return __cfg80211_testmode_alloc_skb(rdev, approxlen, 0, 0, gfp);
+-}
+-EXPORT_SYMBOL(cfg80211_testmode_alloc_event_skb);
+-
+-void cfg80211_testmode_event(struct sk_buff *skb, gfp_t gfp)
+-{
+-	struct cfg80211_registered_device *rdev = ((void **)skb->cb)[0];
+-	void *hdr = ((void **)skb->cb)[1];
+-	struct nlattr *data = ((void **)skb->cb)[2];
+-
+-	nla_nest_end(skb, data);
+-	genlmsg_end(skb, hdr);
+-	genlmsg_multicast_netns(wiphy_net(&rdev->wiphy), skb, 0,
+-				nl80211_testmode_mcgrp.id, gfp);
++struct sk_buff *__cfg80211_alloc_event_skb(struct wiphy *wiphy,
++                                           enum nl80211_commands cmd,
++                                           enum nl80211_attrs attr,
++                                           int vendor_event_idx,
++                                           int approxlen, gfp_t gfp)
++{
++        struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
++        const struct nl80211_vendor_cmd_info *info;
++
++        switch (cmd) {
++        case NL80211_CMD_TESTMODE:
++                if (WARN_ON(vendor_event_idx != -1))
++                        return NULL;
++                info = NULL;
++                break;
++        case NL80211_CMD_VENDOR:
++                if (WARN_ON(vendor_event_idx < 0 ||
++                            vendor_event_idx >= wiphy->n_vendor_events))
++                        return NULL;
++                info = &wiphy->vendor_events[vendor_event_idx];
++                break;
++        default:
++                WARN_ON(1);
++                return NULL;
++        }
++        return __cfg80211_alloc_vendor_skb(rdev, approxlen, 0, 0,
++                                           cmd, attr, info, gfp);
++}
++EXPORT_SYMBOL(__cfg80211_alloc_event_skb);
++
++void __cfg80211_send_event_skb(struct sk_buff *skb, gfp_t gfp)
++{
++        struct cfg80211_registered_device *rdev = ((void **)skb->cb)[0];
++        void *hdr = ((void **)skb->cb)[1];
++        struct nlattr *data = ((void **)skb->cb)[2];
++
++        nla_nest_end(skb, data);
++        genlmsg_end(skb, hdr);
++
++        if (data->nla_type == NL80211_ATTR_VENDOR_DATA)
++                genlmsg_multicast_netns(wiphy_net(&rdev->wiphy), skb, 0,
++                        nl80211_vendor_mcgrp.id, gfp);
++        else
++                genlmsg_multicast_netns(wiphy_net(&rdev->wiphy), skb, 0,
++                        nl80211_testmode_mcgrp.id, gfp);
+ }
+-EXPORT_SYMBOL(cfg80211_testmode_event);
++EXPORT_SYMBOL(__cfg80211_send_event_skb);
+ #endif
+ 
+ static int nl80211_connect(struct sk_buff *skb, struct genl_info *info)
+@@ -7835,7 +7987,7 @@
+ 	void *hdr;
+ 	u32 size = NLMSG_DEFAULT_SIZE;
+ 
+-	if (!rdev->wiphy.wowlan)
++	if (&rdev->wiphy.wowlan)
+ 		return -EOPNOTSUPP;
+ 
+ 	if (rdev->wiphy.wowlan_config && rdev->wiphy.wowlan_config->tcp) {
+@@ -7908,7 +8060,7 @@
+ 	u32 data_size, wake_size, tokens_size = 0, wake_mask_size;
+ 	int err, port;
+ 
+-	if (!rdev->wiphy.wowlan->tcp)
++	if (&rdev->wiphy.wowlan.tcp)
+ 		return -EINVAL;
+ 
+ 	err = nla_parse(tb, MAX_NL80211_WOWLAN_TCP,
+@@ -7928,16 +8080,16 @@
+ 		return -EINVAL;
+ 
+ 	data_size = nla_len(tb[NL80211_WOWLAN_TCP_DATA_PAYLOAD]);
+-	if (data_size > rdev->wiphy.wowlan->tcp->data_payload_max)
++	if (data_size > rdev->wiphy.wowlan.tcp->data_payload_max)
+ 		return -EINVAL;
+ 
+ 	if (nla_get_u32(tb[NL80211_WOWLAN_TCP_DATA_INTERVAL]) >
+-			rdev->wiphy.wowlan->tcp->data_interval_max ||
++			rdev->wiphy.wowlan.tcp->data_interval_max ||
+ 	    nla_get_u32(tb[NL80211_WOWLAN_TCP_DATA_INTERVAL]) == 0)
+ 		return -EINVAL;
+ 
+ 	wake_size = nla_len(tb[NL80211_WOWLAN_TCP_WAKE_PAYLOAD]);
+-	if (wake_size > rdev->wiphy.wowlan->tcp->wake_payload_max)
++	if (wake_size > rdev->wiphy.wowlan.tcp->wake_payload_max)
+ 		return -EINVAL;
+ 
+ 	wake_mask_size = nla_len(tb[NL80211_WOWLAN_TCP_WAKE_MASK]);
+@@ -7952,13 +8104,13 @@
+ 
+ 		if (!tok->len || tokens_size % tok->len)
+ 			return -EINVAL;
+-		if (!rdev->wiphy.wowlan->tcp->tok)
++		if (!rdev->wiphy.wowlan.tcp->tok)
+ 			return -EINVAL;
+-		if (tok->len > rdev->wiphy.wowlan->tcp->tok->max_len)
++		if (tok->len > rdev->wiphy.wowlan.tcp->tok->max_len)
+ 			return -EINVAL;
+-		if (tok->len < rdev->wiphy.wowlan->tcp->tok->min_len)
++		if (tok->len < rdev->wiphy.wowlan.tcp->tok->min_len)
+ 			return -EINVAL;
+-		if (tokens_size > rdev->wiphy.wowlan->tcp->tok->bufsize)
++		if (tokens_size > rdev->wiphy.wowlan.tcp->tok->bufsize)
+ 			return -EINVAL;
+ 		if (tok->offset + tok->len > data_size)
+ 			return -EINVAL;
+@@ -7966,7 +8118,7 @@
+ 
+ 	if (tb[NL80211_WOWLAN_TCP_DATA_PAYLOAD_SEQ]) {
+ 		seq = nla_data(tb[NL80211_WOWLAN_TCP_DATA_PAYLOAD_SEQ]);
+-		if (!rdev->wiphy.wowlan->tcp->seq)
++		if (!rdev->wiphy.wowlan.tcp->seq)
+ 			return -EINVAL;
+ 		if (seq->len == 0 || seq->len > 4)
+ 			return -EINVAL;
+@@ -8047,7 +8199,7 @@
+ 	struct nlattr *tb[NUM_NL80211_WOWLAN_TRIG];
+ 	struct cfg80211_wowlan new_triggers = {};
+ 	struct cfg80211_wowlan *ntrig;
+-	const struct wiphy_wowlan_support *wowlan = rdev->wiphy.wowlan;
++	const struct wiphy_wowlan_support *wowlan = &rdev->wiphy.wowlan;
+ 	int err, i;
+ 	bool prev_enabled = rdev->wiphy.wowlan_config;
+ 
+@@ -8774,6 +8926,109 @@
+ 	return 0;
+ }
+ 
++static int nl80211_vendor_cmd(struct sk_buff *skb, struct genl_info *info)
++{
++	struct cfg80211_registered_device *rdev = info->user_ptr[0];
++	struct wireless_dev *wdev =
++		__cfg80211_wdev_from_attrs(genl_info_net(info), info->attrs);
++	int i, err;
++	u32 vid, subcmd;
++
++	if (!rdev->wiphy.vendor_commands)
++		return -EOPNOTSUPP;
++
++	if (IS_ERR(wdev)) {
++		err = PTR_ERR(wdev);
++		if (err != -EINVAL)
++			return err;
++		wdev = NULL;
++	} else if (wdev->wiphy != &rdev->wiphy) {
++		return -EINVAL;
++	}
++
++	if (!info->attrs[NL80211_ATTR_VENDOR_ID] ||
++	    !info->attrs[NL80211_ATTR_VENDOR_SUBCMD])
++		return -EINVAL;
++
++	vid = nla_get_u32(info->attrs[NL80211_ATTR_VENDOR_ID]);
++	subcmd = nla_get_u32(info->attrs[NL80211_ATTR_VENDOR_SUBCMD]);
++	for (i = 0; i < rdev->wiphy.n_vendor_commands; i++) {
++		const struct wiphy_vendor_command *vcmd;
++		void *data = NULL;
++		int len = 0;
++
++		vcmd = &rdev->wiphy.vendor_commands[i];
++
++		if (vcmd->info.vendor_id != vid || vcmd->info.subcmd != subcmd)
++			continue;
++
++		if (vcmd->flags & (WIPHY_VENDOR_CMD_NEED_WDEV |
++				   WIPHY_VENDOR_CMD_NEED_NETDEV)) {
++			if (!wdev)
++				return -EINVAL;
++			if (vcmd->flags & WIPHY_VENDOR_CMD_NEED_NETDEV &&
++			    !wdev->netdev)
++				return -EINVAL;
++
++			if (vcmd->flags & WIPHY_VENDOR_CMD_NEED_RUNNING) {
++				if (wdev->netdev &&
++				    !netif_running(wdev->netdev))
++					return -ENETDOWN;
++			}
++		} else {
++			wdev = NULL;
++		}
++
++		if (info->attrs[NL80211_ATTR_VENDOR_DATA]) {
++			data = nla_data(info->attrs[NL80211_ATTR_VENDOR_DATA]);
++			len = nla_len(info->attrs[NL80211_ATTR_VENDOR_DATA]);
++		}
++
++		rdev->cur_cmd_info = info;
++		err = rdev->wiphy.vendor_commands[i].doit(&rdev->wiphy, wdev,
++							   data, len);
++		rdev->cur_cmd_info = NULL;
++
++		return err;
++	}
++
++	return -EOPNOTSUPP;
++}
++
++struct sk_buff *__cfg80211_alloc_reply_skb(struct wiphy *wiphy,
++					   enum nl80211_commands cmd,
++					   enum nl80211_attrs attr,
++					   int approxlen)
++{
++	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
++
++	if (WARN_ON(!rdev->cur_cmd_info))
++		return NULL;
++
++	return __cfg80211_alloc_vendor_skb(rdev, approxlen,
++					   genl_info_snd_portid(rdev->cur_cmd_info),
++					   rdev->cur_cmd_info->snd_seq,
++					   cmd, attr, NULL, GFP_KERNEL);
++}
++EXPORT_SYMBOL(__cfg80211_alloc_reply_skb);
++
++int cfg80211_vendor_cmd_reply(struct sk_buff *skb)
++{
++	struct cfg80211_registered_device *rdev = ((void **)skb->cb)[0];
++	void *hdr = ((void **)skb->cb)[1];
++	struct nlattr *data = ((void **)skb->cb)[2];
++
++	if (WARN_ON(!rdev->cur_cmd_info)) {
++		kfree_skb(skb);
++		return -EINVAL;
++	}
++
++	nla_nest_end(skb, data);
++	genlmsg_end(skb, hdr);
++	return genlmsg_reply(skb, rdev->cur_cmd_info);
++}
++EXPORT_SYMBOL(cfg80211_vendor_cmd_reply);
++
+ #define NL80211_FLAG_NEED_WIPHY		0x01
+ #define NL80211_FLAG_NEED_NETDEV	0x02
+ #define NL80211_FLAG_NEED_RTNL		0x04
+@@ -9063,7 +9318,8 @@
+ 		.doit = nl80211_set_reg,
+ 		.policy = nl80211_policy,
+ 		.flags = GENL_ADMIN_PERM,
+-		.internal_flags = NL80211_FLAG_NEED_RTNL,
++		.internal_flags = NL80211_FLAG_NEED_WIPHY |
++				  NL80211_FLAG_NEED_RTNL,
+ 	},
+ 	{
+ 		.cmd = NL80211_CMD_REQ_SET_REG,
+@@ -9498,6 +9754,15 @@
+ 		.internal_flags = NL80211_FLAG_NEED_NETDEV_UP |
+ 				  NL80211_FLAG_NEED_RTNL,
+ 	},
++	{
++		.cmd = NL80211_CMD_VENDOR,
++		.doit = nl80211_vendor_cmd,
++		.policy = nl80211_policy,
++		.flags = GENL_ADMIN_PERM,
++		.internal_flags = NL80211_FLAG_NEED_WIPHY |
++				  NL80211_FLAG_NEED_RTNL,
++	},
++
+ };
+ 
+ static struct genl_multicast_group nl80211_mlme_mcgrp = {
+@@ -9870,6 +10135,32 @@
+ }
+ EXPORT_SYMBOL(cfg80211_rx_unprot_mlme_mgmt);
+ 
++void cfg80211_send_unprot_deauth(struct net_device *dev, const u8 *buf,
++				 size_t len)
++{
++	struct wireless_dev *wdev = dev->ieee80211_ptr;
++	struct wiphy *wiphy = wdev->wiphy;
++	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
++
++//	trace_cfg80211_send_unprot_deauth(dev);
++	nl80211_send_mlme_event(rdev, dev, buf, len,
++				NL80211_CMD_UNPROT_DEAUTHENTICATE, GFP_ATOMIC);
++}
++EXPORT_SYMBOL(cfg80211_send_unprot_deauth);
++
++void cfg80211_send_unprot_disassoc(struct net_device *dev, const u8 *buf,
++				   size_t len)
++{
++	struct wireless_dev *wdev = dev->ieee80211_ptr;
++	struct wiphy *wiphy = wdev->wiphy;
++	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
++
++//	trace_cfg80211_send_unprot_disassoc(dev);
++	nl80211_send_mlme_event(rdev, dev, buf, len,
++				NL80211_CMD_UNPROT_DISASSOCIATE, GFP_ATOMIC);
++}
++EXPORT_SYMBOL(cfg80211_send_unprot_disassoc);
++
+ static void nl80211_send_mlme_timeout(struct cfg80211_registered_device *rdev,
+ 				      struct net_device *netdev, int cmd,
+ 				      const u8 *addr, gfp_t gfp)
+@@ -10454,7 +10745,7 @@
+ int nl80211_send_mgmt(struct cfg80211_registered_device *rdev,
+ 		      struct wireless_dev *wdev, u32 nlportid,
+ 		      int freq, int sig_dbm,
+-		      const u8 *buf, size_t len, u32 flags, gfp_t gfp)
++		      const u8 *buf, size_t len, gfp_t gfp)
+ {
+ 	struct net_device *netdev = wdev->netdev;
+ 	struct sk_buff *msg;
+@@ -10477,9 +10768,7 @@
+ 	    nla_put_u32(msg, NL80211_ATTR_WIPHY_FREQ, freq) ||
+ 	    (sig_dbm &&
+ 	     nla_put_u32(msg, NL80211_ATTR_RX_SIGNAL_DBM, sig_dbm)) ||
+-	    nla_put(msg, NL80211_ATTR_FRAME, len, buf) ||
+-	    (flags &&
+-	     nla_put_u32(msg, NL80211_ATTR_RXMGMT_FLAGS, flags)))
++	    nla_put(msg, NL80211_ATTR_FRAME, len, buf))
+ 		goto nla_put_failure;
+ 
+ 	genlmsg_end(msg, hdr);
+diff -urN backports.orig/net/wireless/nl80211.h backports/net/wireless/nl80211.h
+--- backports.orig/net/wireless/nl80211.h	2015-09-24 15:25:20.465038328 +0800
++++ backports/net/wireless/nl80211.h	2015-09-24 15:25:20.553038328 +0800
+@@ -66,7 +66,7 @@
+ int nl80211_send_mgmt(struct cfg80211_registered_device *rdev,
+ 		      struct wireless_dev *wdev, u32 nlpid,
+ 		      int freq, int sig_dbm,
+-		      const u8 *buf, size_t len, u32 flags, gfp_t gfp);
++		      const u8 *buf, size_t len, gfp_t gfp);
+ 
+ void
+ nl80211_radar_notify(struct cfg80211_registered_device *rdev,
+diff -urN backports.orig/net/wireless/rdev-ops.h backports/net/wireless/rdev-ops.h
+--- backports.orig/net/wireless/rdev-ops.h	2015-09-24 15:25:20.465038328 +0800
++++ backports/net/wireless/rdev-ops.h	2015-09-24 15:25:20.553038328 +0800
+@@ -521,7 +521,7 @@
+ {
+ 	int ret;
+ 	trace_rdev_testmode_cmd(&rdev->wiphy, wdev);
+-	ret = rdev->ops->testmode_cmd(&rdev->wiphy, wdev, data, len);
++	ret = rdev->ops->testmode_cmd(&rdev->wiphy,data, len);
+ 	trace_rdev_return_int(&rdev->wiphy, ret);
+ 	return ret;
+ }
+diff -urN backports.orig/net/wireless/reg.c backports/net/wireless/reg.c
+--- backports.orig/net/wireless/reg.c	2015-09-24 15:25:20.465038328 +0800
++++ backports/net/wireless/reg.c	2015-09-24 15:25:20.553038328 +0800
+@@ -845,6 +845,18 @@
+ 
+ 		REG_DBG_PRINT("Disabling freq %d MHz\n", chan->center_freq);
+ 		chan->flags |= IEEE80211_CHAN_DISABLED;
++		if (lr->initiator == NL80211_REGDOM_SET_BY_DRIVER &&
++		    request_wiphy && request_wiphy == wiphy &&
++		    request_wiphy->flags & WIPHY_FLAG_STRICT_REGULATORY) {
++			REG_DBG_PRINT("Disabling freq %d MHz for good\n",
++				      chan->center_freq);
++			chan->orig_flags |= IEEE80211_CHAN_DISABLED;
++			chan->flags = chan->orig_flags;
++		} else {
++			REG_DBG_PRINT("Disabling freq %d MHz\n",
++				      chan->center_freq);
++			chan->flags |= IEEE80211_CHAN_DISABLED;
++			}
+ 		return;
+ 	}
+ 
+@@ -888,13 +900,11 @@
+ 	chan->max_reg_power = (int) MBM_TO_DBM(power_rule->max_eirp);
+ 	if (chan->orig_mpwr) {
+ 		/*
+-		 * Devices that have their own custom regulatory domain
+-		 * but also use WIPHY_FLAG_STRICT_REGULATORY will follow the
+-		 * passed country IE power settings.
++		 * Devices that use NL80211_COUNTRY_IE_FOLLOW_POWER will always
++		 * follow the passed country IE power settings.
+ 		 */
+ 		if (initiator == NL80211_REGDOM_SET_BY_COUNTRY_IE &&
+-		    wiphy->flags & WIPHY_FLAG_CUSTOM_REGULATORY &&
+-		    wiphy->flags & WIPHY_FLAG_STRICT_REGULATORY)
++		    wiphy->country_ie_pref & NL80211_COUNTRY_IE_FOLLOW_POWER)
+ 			chan->max_power = chan->max_reg_power;
+ 		else
+ 			chan->max_power = min(chan->orig_mpwr,
+@@ -1240,7 +1250,9 @@
+ 	if (IS_ERR(reg_rule)) {
+ 		REG_DBG_PRINT("Disabling freq %d MHz as custom regd has no rule that fits it\n",
+ 			      chan->center_freq);
+-		chan->flags = IEEE80211_CHAN_DISABLED;
++		chan->orig_flags |= IEEE80211_CHAN_DISABLED;
++		chan->flags = chan->orig_flags;
++
+ 		return;
+ 	}
+ 
+@@ -1314,6 +1326,9 @@
+ 	case NL80211_REGDOM_SET_BY_CORE:
+ 		return REG_REQ_OK;
+ 	case NL80211_REGDOM_SET_BY_COUNTRY_IE:
++		if (wiphy->country_ie_pref & NL80211_COUNTRY_IE_IGNORE_CORE)
++			return REG_REQ_IGNORE;
++
+ 		if (reg_request_cell_base(lr)) {
+ 			/* Trust a Cell base station over the AP's country IE */
+ 			if (regdom_changes(pending_request->alpha2))
+@@ -1664,6 +1679,7 @@
+ 
+ 	return 0;
+ }
++EXPORT_SYMBOL(regulatory_hint_user);
+ 
+ /* Driver hints */
+ int regulatory_hint(struct wiphy *wiphy, const char *alpha2)
+diff -urN backports.orig/net/wireless/reg.h backports/net/wireless/reg.h
+--- backports.orig/net/wireless/reg.h	2015-09-24 15:25:20.469038328 +0800
++++ backports/net/wireless/reg.h	2015-09-24 15:25:20.553038328 +0800
+@@ -21,9 +21,6 @@
+ bool is_world_regdom(const char *alpha2);
+ bool reg_supported_dfs_region(u8 dfs_region);
+ 
+-int regulatory_hint_user(const char *alpha2,
+-			 enum nl80211_user_reg_hint_type user_reg_hint_type);
+-
+ int reg_device_uevent(struct device *dev, struct kobj_uevent_env *env);
+ void wiphy_regulatory_register(struct wiphy *wiphy);
+ void wiphy_regulatory_deregister(struct wiphy *wiphy);
+diff -urN backports.orig/net/wireless/util.c backports/net/wireless/util.c
+--- backports.orig/net/wireless/util.c	2015-09-24 15:25:20.465038328 +0800
++++ backports/net/wireless/util.c	2015-09-24 15:25:20.553038328 +0800
+@@ -10,6 +10,8 @@
+ #include <net/cfg80211.h>
+ #include <net/ip.h>
+ #include <net/dsfield.h>
++#include <net/ndisc.h>
++#include <linux/if_arp.h>
+ #include "core.h"
+ #include "rdev-ops.h"
+ 
+@@ -1457,3 +1459,54 @@
+ const unsigned char bridge_tunnel_header[] __aligned(2) =
+ 	{ 0xaa, 0xaa, 0x03, 0x00, 0x00, 0xf8 };
+ EXPORT_SYMBOL(bridge_tunnel_header);
++
++bool cfg80211_is_gratuitous_arp_unsolicited_na(struct sk_buff *skb)
++{
++	const struct ethhdr *eth = (void *)skb->data;
++	const struct {
++		struct arphdr hdr;
++		u8 ar_sha[ETH_ALEN];
++		u8 ar_sip[4];
++		u8 ar_tha[ETH_ALEN];
++		u8 ar_tip[4];
++	} __packed *arp;
++	const struct ipv6hdr *ipv6;
++	const struct icmp6hdr *icmpv6;
++
++	switch (eth->h_proto) {
++	case cpu_to_be16(ETH_P_ARP):
++		/* can't say - but will probably be dropped later anyway */
++		if (!pskb_may_pull(skb, sizeof(*eth) + sizeof(*arp)))
++			return false;
++
++		arp = (void *)(eth + 1);
++
++		if ((arp->hdr.ar_op == cpu_to_be16(ARPOP_REPLY) ||
++		     arp->hdr.ar_op == cpu_to_be16(ARPOP_REQUEST)) &&
++		    !memcmp(arp->ar_sip, arp->ar_tip, sizeof(arp->ar_sip)))
++			return true;
++		break;
++	case cpu_to_be16(ETH_P_IPV6):
++		/* can't say - but will probably be dropped later anyway */
++		if (!pskb_may_pull(skb, sizeof(*eth) + sizeof(*ipv6) +
++					sizeof(*icmpv6)))
++			return false;
++
++		ipv6 = (void *)(eth + 1);
++		icmpv6 = (void *)(ipv6 + 1);
++
++		if (icmpv6->icmp6_type == NDISC_NEIGHBOUR_ADVERTISEMENT &&
++		    !memcmp(&ipv6->saddr, &ipv6->daddr, sizeof(ipv6->saddr)))
++			return true;
++		break;
++	default:
++		/*
++		 * no need to support other protocols, proxy service isn't
++		 * specified for any others
++		 */
++		break;
++	}
++
++	return false;
++}
++EXPORT_SYMBOL(cfg80211_is_gratuitous_arp_unsolicited_na);
+diff -urN backports.orig/net/wireless/wext-core.c backports/net/wireless/wext-core.c
+--- backports.orig/net/wireless/wext-core.c	2015-09-24 15:25:20.469038328 +0800
++++ backports/net/wireless/wext-core.c	2015-09-24 15:25:20.553038328 +0800
+@@ -19,6 +19,7 @@
+ #include <net/netlink.h>
+ #include <net/wext.h>
+ #include <net/net_namespace.h>
++#include <linux/version.h>
+ 
+ typedef int (*wext_ioctl_func)(struct net_device *, struct iwreq *,
+ 			       unsigned int, struct iw_request_info *,

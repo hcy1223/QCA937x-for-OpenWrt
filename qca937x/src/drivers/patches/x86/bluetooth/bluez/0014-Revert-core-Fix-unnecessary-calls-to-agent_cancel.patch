@@ -1,0 +1,68 @@
+From b21f59ecdf851ecf7391dc489aaff89e9988cab1 Mon Sep 17 00:00:00 2001
+From: Luiz Augusto von Dentz <luiz.von.dentz@intel.com>
+Date: Tue, 28 Oct 2014 13:31:26 +0200
+Subject: [PATCH 14/14] Revert "core: Fix unnecessary calls to agent_cancel()"
+
+agent_cancel calls are necessary since agent_unref only call it in case
+the last reference is dropped.
+---
+ src/adapter.c |    8 ++++++--
+ src/agent.c   |    1 +
+ src/device.c  |    1 +
+ 3 files changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/src/adapter.c b/src/adapter.c
+index 86c7aef..e275054 100644
+--- a/src/adapter.c
++++ b/src/adapter.c
+@@ -1075,8 +1075,10 @@ static void service_auth_cancel(struct service_auth *auth)
+ 
+ 	dbus_error_free(&derr);
+ 
+-	if (auth->agent != NULL)
++	if (auth->agent != NULL) {
++		agent_cancel(auth->agent);
+ 		agent_unref(auth->agent);
++	}
+ 
+ 	g_free(auth);
+ }
+@@ -4787,8 +4789,10 @@ int btd_cancel_authorization(guint id)
+ 
+ 	g_queue_remove(auth->adapter->auths, auth);
+ 
+-	if (auth->agent)
++	if (auth->agent) {
++		agent_cancel(auth->agent);
+ 		agent_unref(auth->agent);
++	}
+ 
+ 	g_free(auth);
+ 
+diff --git a/src/agent.c b/src/agent.c
+index 8c1211c..bf9d2cc 100644
+--- a/src/agent.c
++++ b/src/agent.c
+@@ -349,6 +349,7 @@ static void simple_agent_reply(DBusPendingCall *call, void *user_data)
+ 
+ 		if (dbus_error_has_name(&err, DBUS_ERROR_NO_REPLY)) {
+ 			error("Timed out waiting for reply from agent");
++			agent_cancel(agent);
+ 			dbus_message_unref(message);
+ 			dbus_error_free(&err);
+ 			agent_unref(agent);
+diff --git a/src/device.c b/src/device.c
+index 8222610..19046c5 100644
+--- a/src/device.c
++++ b/src/device.c
+@@ -1835,6 +1835,7 @@ static void bonding_request_free(struct bonding_req *bonding)
+ 		g_free(bonding->cb_iter);
+ 
+ 	if (bonding->agent) {
++		agent_cancel(bonding->agent);
+ 		agent_unref(bonding->agent);
+ 		bonding->agent = NULL;
+ 	}
+-- 
+1.7.9.5
+

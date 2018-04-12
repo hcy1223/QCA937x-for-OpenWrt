@@ -1,0 +1,269 @@
+# Build list
+
+SHELL := /bin/bash
+targetList := drivers drivers_firmware bt_obj
+targetList += wpa_supplicant rootfs_build 
+
+default: ${targetList}
+
+wlan_obj: drivers drivers_firmware wpa_supplicant rootfs_build
+
+wlan_x86_obj: drivers drivers_firmware rootfs_build copy_binary
+#################################################################################################################################
+export SIGMADUT_TOPDIR=${ATH_TOPDIR}/apps/sigma-dut
+export BE_TEST_TOPDIR=${ATH_TOPDIR}/build/scripts/x86
+export WLAN_DRIVER_TOPDIR=$(ATH_TOPDIR)/drivers
+export ATHDIAG_TOPDIR=${ATH_TOPDIR}/drivers/qcacld-new/tools/athdiag
+export BT_PATCH_FILE_TOPDIR=${ATH_TOPDIR}/drivers/patches/cus07-23/BT
+export BUILD_OUTPUT_DIR=${ATH_TOPDIR}/build/out
+export BUILD_OUTPUT_BT_DIR=${BUILD_OUTPUT_DIR}/BT
+
+#################################################################################################################################
+#
+# driver patch
+#
+rome_usb_fw_to_h:
+	@echo Transforming Rome usb firmware binaries to header files
+	@cd ${ATH_TOPDIR}/build/tools && sudo chmod +x ./bin2hex.sh
+	@cd ${ATH_TOPDIR}/build/tools && ./bin2hex.sh ${WLAN_DRIVER_TOPDIR}/firmware/WLAN-firmware/athsetup.bin ${WLAN_DRIVER_TOPDIR}/qcacld-new/CORE/SERVICES/BMI/athsetup.h athsetup_bin
+	@cd ${ATH_TOPDIR}/build/tools && ./bin2hex.sh ${WLAN_DRIVER_TOPDIR}/firmware/WLAN-firmware/athwlan.bin ${WLAN_DRIVER_TOPDIR}/qcacld-new/CORE/SERVICES/BMI/athwlan.h athwlan_bin
+	@cd ${ATH_TOPDIR}/build/tools && ./bin2hex.sh ${WLAN_DRIVER_TOPDIR}/firmware/WLAN-firmware/fakeboar.bin ${WLAN_DRIVER_TOPDIR}/qcacld-new/CORE/SERVICES/BMI/fakeboar.h fakeboar_bin
+	@cd ${ATH_TOPDIR}/build/tools && ./bin2hex.sh ${WLAN_DRIVER_TOPDIR}/firmware/WLAN-firmware/otp.bin ${WLAN_DRIVER_TOPDIR}/qcacld-new/CORE/SERVICES/BMI/otp.h otp_bin
+	@cd ${ATH_TOPDIR}/build/tools && ./bin2hex.sh ${WLAN_DRIVER_TOPDIR}/firmware/WLAN-firmware/qca61x4.bin ${WLAN_DRIVER_TOPDIR}/qcacld-new/CORE/SERVICES/BMI/qca61x4.h qca61x4_bin
+	@cd ${ATH_TOPDIR}/build/tools && ./bin2hex.sh ${WLAN_DRIVER_TOPDIR}/firmware/WLAN-firmware/utf.bin ${WLAN_DRIVER_TOPDIR}/qcacld-new/CORE/SERVICES/BMI/utf.h utf_bin
+	@cd ${ATH_TOPDIR}/build/tools && ./bin2hex.sh ${WLAN_DRIVER_TOPDIR}/qcacld-new/firmware_bin/WCNSS_cfg.dat ${WLAN_DRIVER_TOPDIR}/qcacld-new/CORE/SERVICES/BMI/cfg.h cfg_dat
+	@cd ${ATH_TOPDIR}/build/tools && ./bin2hex.sh ${WLAN_DRIVER_TOPDIR}/qcacld-new/firmware_bin/WCNSS_qcom_cfg.usb.ini ${WLAN_DRIVER_TOPDIR}/qcacld-new/CORE/SERVICES/BMI/qcom_cfg.h qcom_cfg_ini
+	@cd ${ATH_TOPDIR}/build/tools && ./bin2hex.sh ${WLAN_DRIVER_TOPDIR}/qcacld-new/firmware_bin/WCNSS_qcom_wlan_nv.bin ${WLAN_DRIVER_TOPDIR}/qcacld-new/CORE/SERVICES/BMI/qcom_wlan_nv.h qcom_wlan_nv_bin
+	
+
+drivers_patch:
+	@echo Patch drivers
+	@cd ${WLAN_DRIVER_TOPDIR} && patch -s -p0 < patches/
+	@echo Patch wpa_supplicant_8
+	@cd ${WLAN_DRIVER_TOPDIR}/../apps/ && patch -s -p0 < ${WLAN_DRIVER_TOPDIR}/patches/002-wpa_supplicant-for-aio.patch
+	@cd ${WPA_SUPPLICANT_TOPDIR} && cp wpa_supplicant/android.config wpa_supplicant/.config
+	@cd ${WPA_SUPPLICANT_TOPDIR} && cp hostapd/android.config hostapd/.config
+drivers_patch_R:
+	@echo Revert drivers patch
+	@cd ${WLAN_DRIVER_TOPDIR} && patch -R -p0 < patches/003-cfg80211-backports-3.16.2-1.patch
+	@echo Revert wpa_supplicant_8 patch
+	@cd ${WLAN_DRIVER_TOPDIR}/../apps/ && patch -R -p0 < ${WLAN_DRIVER_TOPDIR}/patches/002-wpa_supplicant-for-aio.patch
+	@cd ${WPA_SUPPLICANT_TOPDIR} && rm wpa_supplicant/.config
+	@cd ${WPA_SUPPLICANT_TOPDIR} && rm hostapd/.config
+
+
+custom_patch: 
+	@echo Patch CLD driver
+	@cd ${WLAN_DRIVER_TOPDIR} && patch -s -p0 < ${WLAN_DRIVER_TOPDIR}/patches/${BOARD_TYPE}/cus07-23-002-CLD-driver.patch
+	@echo Patch backports
+	@cd ${WLAN_DRIVER_TOPDIR} && patch -s -p0 < ${WLAN_DRIVER_TOPDIR}/patches/${BOARD_TYPE}/cus07-23-003-backports.patch
+	@echo Patch cfg80211
+	@cd ${WLAN_DRIVER_TOPDIR} && patch -s -p0 < ${WLAN_DRIVER_TOPDIR}/patches/${BOARD_TYPE}/cus07-23-006-cfg80211.patch
+	@echo Patch wpa_supplicant
+	@cd ${WPA_SUPPLICANT_TOPDIR} && patch -s -p1 < ${WLAN_DRIVER_TOPDIR}/patches/${BOARD_TYPE}/cus07-23-001-wpa_supplicant.patch
+	@echo Patch athdiag
+	@cd ${WLAN_DRIVER_TOPDIR} && patch -s -p0 < ${WLAN_DRIVER_TOPDIR}/patches/${BOARD_TYPE}/cus07-23-005-athdiag_btdump.patch
+	
+
+#################################################################################################################################
+#
+# Sigma-DUT package
+#
+sigmadut_build: rootfs_prep sigmadut_clean
+	@echo Build Sigma-DUT
+	cd $(SIGMADUT_TOPDIR) && \
+	${MAKEARCH} && \
+	cp $(SIGMADUT_TOPDIR)/sigma_dut $(INSTALL_ROOT)/sbin
+
+sigmadut_clean:
+	@echo Clean Sigma-DUT
+	cd $(SIGMADUT_TOPDIR) && \
+	${MAKEARCH} clean
+
+#################################################################################################################################
+#
+# athdiag
+#
+athdiag_build: rootfs_prep athdiag_clean
+	@echo Build athdiag tool
+	cd $(ATHDIAG_TOPDIR) && \
+	${MAKEARCH} && \
+	cp $(ATHDIAG_TOPDIR)/athdiag $(INSTALL_ROOT)/sbin
+
+athdiag_clean:
+	@echo Clean athdiag tool
+	cd $(ATHDIAG_TOPDIR) && \
+	${MAKEARCH} clean
+
+#
+# SPE_BE_TEST package
+#
+spe_package:
+	@echo Build SPE_BE_TEST
+	cd ${BE_TEST_TOPDIR} && \
+	./gen_spe_package.sh
+
+
+# for ss {
+bt_clean_src:
+	@echo rm the kernel/ bluedroid/ bt/
+	cd ${CUST_PROJ_PATH} && \
+	rm -rf bluetooth-frwk/bt-oal/bluedroid/external/bluetooth/bluedroid && \
+	rm -rf bluetooth-frwk/bt-oal/bluedroid/hardware/qcom/bt && \
+	rm -rf kernel_drivers/btusb
+	@echo rm the  bluedroid/ bt/ btusb/ done
+
+prepare_codebase: bt_clean_src
+	@echo prepare bluedroid codebase
+	cp -rf ${ATH_TOPDIR}/apps/bluedroid ${CUST_PROJ_PATH}/bluetooth-frwk/bt-oal/bluedroid/external/bluetooth
+	@echo prepare bluedroid codebase done
+	@echo prepare hardware bt codebase
+	cp -rf ${ATH_TOPDIR}/apps/bt ${CUST_PROJ_PATH}/bluetooth-frwk/bt-oal/bluedroid/hardware/qcom
+	@echo prepare hardware bt codebase done
+	@echo prepare btusb codebase
+	cp -rf ${CLEAN_BTUSB_PATH} ${CUST_PROJ_PATH}/kernel_drivers/btusb
+	@echo prepare btusb codebase done
+
+cp_bt_patch: prepare_codebase
+	@echo copy Bluetooth patch to workspace
+	cp ${BT_PATCH_FILE_TOPDIR}/${BOARD_TYPE}-kernel-*.patch ${CUST_PROJ_PATH}/kernel_drivers/btusb
+	cp ${BT_PATCH_FILE_TOPDIR}/${BOARD_TYPE}-bluedroid.patch ${CUST_PROJ_PATH}/bluetooth-frwk/bt-oal/bluedroid/external/bluetooth/bluedroid
+	cp ${BT_PATCH_FILE_TOPDIR}/${BOARD_TYPE}-hardware-bt.patch ${CUST_PROJ_PATH}/bluetooth-frwk/bt-oal/bluedroid/hardware/qcom/bt
+	@echo copy Bluetooth patch done	
+
+
+patch_bt_usb:
+	@echo patch btusb
+	cd ${CUST_PROJ_PATH}/kernel_drivers/btusb && \
+	patch -p1 < cus07-23-kernel-drivers-bluetooth-btusb.patch
+	@echo patch btusb done
+
+patch_bluedroid:
+	@echo patch bluedroid
+	cd ${CUST_PROJ_PATH}/bluetooth-frwk/bt-oal/bluedroid/external/bluetooth/bluedroid && \
+	patch -p1 < ${BOARD_TYPE}-bluedroid.patch
+	@echo patch bluedroid done
+	
+patch_hardware_bt:
+	@echo patch hardware bt
+	cd ${CUST_PROJ_PATH}/bluetooth-frwk/bt-oal/bluedroid/hardware/qcom/bt && \
+	patch -p1 < ${BOARD_TYPE}-hardware-bt.patch
+	rm -rf ${CUST_PROJ_PATH}/bluetooth-frwk/bt-oal/bluedroid/hardware/qcom/bt/.git
+	@echo patch hardware bt done
+
+
+#bt_obj: cp_bt_patch patch_bt_usb patch_bluedroid patch_hardware_bt
+bt_target: cp_bt_patch patch_bt_usb patch_bluedroid patch_hardware_bt
+	@echo build cus07-23 bluetooth user components
+	cd ${CUST_PROJ_PATH} && \
+	gbs -c ./.gbs.conf build -A armv7l -R ./tizen-localrepo/ -B ./ --include-all && \
+	cp ./local/BUILD-ROOTS/scratch.armv7l.0/home/abuild/rpmbuild/BUILD/bluetooth-frwk-0.2.71+tv/bt-oal/bluedroid/external/bluetooth/bluedroid/main/libbluetooth.default.so ./out && \
+	cp ./local/BUILD-ROOTS/scratch.armv7l.0/home/abuild/rpmbuild/BUILD/bluetooth-frwk-0.2.71+tv/bt-oal/bluedroid/hardware/qcom/bt/libbt-vendor/libbt-vendor.so ./out 
+	@echo build cus07-23 bluetooth user components done
+	@echo build cus07-23 bluetooth kernel components 
+	cd ${CUST_PROJ_PATH} && \
+	${MAKEARCH} -C ${KERNELPATH} SUBDIRS=${CUST_PROJ_PATH}/kernel_drivers/btusb modules && \
+	cp ./kernel_drivers/btusb/btusb.ko ./out
+	@echo build cus07-23 bluetooth kernel components done
+	@echo Build BT DONE!
+# } For ss
+
+# For android-x86 {
+android_bt_clean_src:
+	@echo rm the kernel/ bluedroid/ bt/
+	cd ${ANDROID_X86_PATH} && \
+	rm -rf external/bluetooth/bluedroid && \
+	rm -rf hardware/qcom/bt && \
+	rm -rf kernel/drivers/bluetooth/btusb
+	@echo rm the  bluedroid/ bt/ btusb/ done
+
+android_prepare_codebase: android_bt_clean_src
+	@echo prepare bluedroid codebase
+	cp -rf ${ATH_TOPDIR}/apps/bluedroid ${ANDROID_X86_PATH}/external/bluetooth
+	@echo prepare bluedroid codebase done
+	@echo prepare hardware bt codebase
+	mkdir -p ${ANDROID_X86_PATH}/hardware/qcom
+	cp -rf ${ATH_TOPDIR}/apps/bt ${ANDROID_X86_PATH}/hardware/qcom/
+	cp -f ${SSVD_BTHAL_PATH}/* ${ANDROID_X86_PATH}/hardware/libhardware/include/hardware/
+	@echo prepare hardware bt codebase done
+	@echo prepare btusb codebase
+	cp -rf ${CLEAN_BTUSB_PATH}/* ${ANDROID_X86_PATH}/kernel/drivers/bluetooth/
+	@echo prepare btusb codebase done
+
+android_cp_bt_patch: android_prepare_codebase
+	@echo copy Bluetooth patch to workspace
+	cp ${ATH_TOPDIR}/build/scripts/${BOARD_TYPE}/build_bt_driver.sh ${ANDROID_X86_PATH}/
+	cp ${BT_PATCH_FILE_TOPDIR}/${BOARD_TYPE}-kernel-*.patch ${ANDROID_X86_PATH}/kernel/drivers/bluetooth/btusb
+	cp ${BT_PATCH_FILE_TOPDIR}/${BOARD_TYPE}-bluedroid.patch ${ANDROID_X86_PATH}/external/bluetooth/bluedroid
+	cp ${BT_PATCH_FILE_TOPDIR}/android-x86/android-x86-bluedroid.patch ${ANDROID_X86_PATH}/external/bluetooth/bluedroid
+	cp ${BT_PATCH_FILE_TOPDIR}/${BOARD_TYPE}-hardware-bt.patch ${ANDROID_X86_PATH}/hardware/qcom/bt
+	cp ${BT_PATCH_FILE_TOPDIR}/android-x86/android-x86-hardware-bt.patch ${ANDROID_X86_PATH}/hardware/qcom/bt
+	@echo copy Bluetooth patch done	
+
+android_patch_bt_usb:
+	@echo patch btusb
+	cd ${ANDROID_X86_PATH}/kernel/drivers/bluetooth/btusb && \
+	patch -p1 < cus07-23-kernel-drivers-bluetooth-btusb.patch
+	@echo patch btusb done
+
+android_patch_bluedroid:
+	@echo patch bluedroid
+	cd ${ANDROID_X86_PATH}/external/bluetooth/bluedroid && \
+	patch -p1 < ${BOARD_TYPE}-bluedroid.patch && \
+	patch -p1 < android-x86-bluedroid.patch
+	@echo patch bluedroid done
+	
+android_patch_hardware_bt:
+	@echo patch hardware bt
+	cd ${ANDROID_X86_PATH}/hardware/qcom/bt && \
+	patch -p1 < ${BOARD_TYPE}-hardware-bt.patch && \
+	patch -p1 < android-x86-hardware-bt.patch
+	@echo patch hardware bt done
+
+
+bt_obj: android_cp_bt_patch android_patch_bt_usb android_patch_bluedroid android_patch_hardware_bt
+	@echo build android-x86 bluetooth user components
+	cd ${ANDROID_X86_PATH} && \
+	source build/envsetup.sh && \
+	lunch 5 && \
+	mmm external/bluetooth/bluedroid && \
+	mmm hardware/qcom/bt
+	mkdir -p ${BUILD_OUTPUT_BT_DIR}
+	cp ${ANDROID_X86_PATH}/out/target/product/x86/obj/lib/bluetooth.default.so ${BUILD_OUTPUT_BT_DIR}/
+	cp ${ANDROID_X86_PATH}/out/target/product/x86/obj/lib/libbt-vendor.so ${BUILD_OUTPUT_BT_DIR}/
+	cp ${ANDROID_X86_PATH}/out/target/product/x86/obj/lib/libbt-hci.so ${BUILD_OUTPUT_BT_DIR}/
+	@echo build android-x86 bluetooth user components done
+
+#	@echo build android-x86 bluetooth kernel components 
+#	cd ${ANDROID_X86_PATH} && \
+#	rm hardware/broadcom -rf && \
+#	rm out/target/product/x86/kernel -rf && \
+#	make -j4 kernel TARGET_PRODUCT=android_x86
+#	cp ${ANDROID_X86_PATH}/out/target/product/x86/obj/kernel/drivers/bluetooth/btusb/btusb.ko ${BUILD_OUTPUT_BT_DIR}/
+#	cp ${ANDROID_X86_PATH}/out/target/product/x86/obj/kernel/drivers/bluetooth/btusb/btsbc.ko ${BUILD_OUTPUT_BT_DIR}/
+#	cp ${ANDROID_X86_PATH}/out/target/product/x86/obj/kernel/drivers/bluetooth/btusb/btpcm.ko ${BUILD_OUTPUT_BT_DIR}/
+#	@echo build android-x86 bluetooth kernel components done
+#	@echo Build BT DONE!
+# } For android-x86
+#
+# copy binary to custom project
+#
+copy_binary:
+	@echo Copy BINARY to Android-x86 project
+	cp ${INSTALL_ROOT}/lib/modules/* ${ANDROID_X86_PROJ_VENDOR_PATH} && \
+	cp ${INSTALL_ROOT}/lib/firmware/WLAN-firmware/* ${ANDROID_X86_PROJ_WLANFW_PATH} && \
+	cp -rf ${INSTALL_ROOT}/lib/firmware/wlan ${ANDROID_X86_PROJ_WLAN_PATH}
+	@echo Copy BINARY DONE!
+#
+# Patch android-x86-kk wpa_supplicant
+#
+android_kk_wlan_patch: custom_patch
+	@echo Patch libnl and wpa_supplicant to be compatible with hostap_2_4
+	cd ${ANDROID_X86_PATH} && rm -rf external/wpa_supplicant_8
+	cd ${WPA_SUPPLICANT_TOPDIR} && patch -s -p1 < ${WLAN_DRIVER_TOPDIR}/patches/${BOARD_TYPE}/cus07-23-007-wpa_supplicant.patch
+	cd .. && cp -rf ${WPA_SUPPLICANT_TOPDIR} ${ANDROID_X86_PATH}/external
+	cd ${ANDROID_X86_PATH}/external && patch -s -p0 < ${WLAN_DRIVER_TOPDIR}/patches/${BOARD_TYPE}/cus07-23-008-libnl.patch
+	cd ${ANDROID_X86_PATH}/external && mv hostap_2_4 wpa_supplicant_8
+	cd ${ANDROID_X86_PATH}/external/wpa_supplicant_8/hostapd && ln -s ../src src
+	cd ${ANDROID_X86_PATH}/external/wpa_supplicant_8/wpa_supplicant && ln -s ../src src
+	@echo Patch wpa_supplicant and libnl done!

@@ -1,0 +1,80 @@
+/*
+* Copyright (c) 2015 Qualcomm Atheros, Inc.
+* All Rights Reserved.
+* Qualcomm Atheros Confidential and Proprietary.
+* NOT A CONTRIBUTION
+*/
+
+diff -Nuar a/kernel/arch/x86/configs/android-x86_defconfig b/kernel/arch/x86/configs/android-x86_defconfig
+--- a/kernel/arch/x86/configs/android-x86_defconfig	2015-06-16 16:01:29.844605255 +0800
++++ b/kernel/arch/x86/configs/android-x86_defconfig	2015-06-16 17:18:03.396595551 +0800
+@@ -1052,7 +1052,7 @@
+ #
+ # Bluetooth device drivers
+ #
+-CONFIG_BT_HCIBTUSB=m
++#CONFIG_BT_HCIBTUSB=m
+ CONFIG_BT_HCIBTSDIO=m
+ CONFIG_BT_HCIUART=m
+ CONFIG_BT_HCIUART_H4=y
+@@ -1128,7 +1128,7 @@
+ # Generic Driver Options
+ #
+ CONFIG_UEVENT_HELPER_PATH="/sbin/hotplug"
+-# CONFIG_DEVTMPFS is not set
++CONFIG_DEVTMPFS=y
+ CONFIG_STANDALONE=y
+ CONFIG_PREVENT_FIRMWARE_BUILD=y
+ CONFIG_FW_LOADER=y
+@@ -2038,6 +2038,7 @@
+ #
+ # USB Network Adapters
+ #
++CONFIG_SS1BTUSB=m
+ CONFIG_USB_CATC=m
+ CONFIG_USB_KAWETH=m
+ CONFIG_USB_PEGASUS=m
+diff -Nuar a/kernel/drivers/usb/misc/Kconfig b/kernel/drivers/usb/misc/Kconfig
+--- a/kernel/drivers/usb/misc/Kconfig	2015-06-16 16:01:23.716605268 +0800
++++ b/kernel/drivers/usb/misc/Kconfig	2015-06-16 17:18:03.404595551 +0800
+@@ -3,6 +3,17 @@
+ #
+ comment "USB Miscellaneous drivers"
+ 
++config SS1BTUSB
++	tristate "SS1 BT USB driver"
++	depends on USB
++	help
++	  Bluetooth SS1 BT USB driver.
++	  This driver is required if you want to use Bluetooth devices with
++	  USB interface.
++
++	  Say Y here to compile support for Bluetooth USB devices into the
++	  kernel or say M to compile it as module (SS1BTUSB).
++
+ config USB_EMI62
+ 	tristate "EMI 6|2m USB Audio interface support"
+ 	---help---
+diff -Nuar a/kernel/drivers/usb/misc/Makefile b/kernel/drivers/usb/misc/Makefile
+--- a/kernel/drivers/usb/misc/Makefile	2015-06-16 16:01:23.712605268 +0800
++++ b/kernel/drivers/usb/misc/Makefile	2015-06-16 17:18:03.404595551 +0800
+@@ -5,6 +5,7 @@
+ 
+ ccflags-$(CONFIG_USB_DEBUG) := -DDEBUG
+ 
++obj-$(CONFIG_SS1BTUSB)			+= SS1BTUSB.o
+ obj-$(CONFIG_USB_ADUTUX)		+= adutux.o
+ obj-$(CONFIG_USB_APPLEDISPLAY)		+= appledisplay.o
+ obj-$(CONFIG_USB_CYPRESS_CY7C63)	+= cypress_cy7c63.o
+diff -Naur a/kernel/drivers/usb/core/hub.c b/kernel/drivers/usb/core/hub.c
+--- a/kernel/drivers/usb/core/hub.c	2015-08-24 10:58:46.368927646 +0800
++++ b/kernel/drivers/usb/core/hub.c	2015-08-24 11:25:06.556917867 +0800
+@@ -140,7 +140,7 @@
+ 	/* USB 2.1 (and greater) devices indicate LPM support through
+ 	 * their USB 2.0 Extended Capabilities BOS descriptor.
+ 	 */
+-	if (udev->speed == USB_SPEED_HIGH) {
++	if (udev->speed == USB_SPEED_HIGH || udev->speed == USB_SPEED_FULL) {
+ 		if (udev->bos->ext_cap &&
+ 			(USB_LPM_SUPPORT &
+ 			 le32_to_cpu(udev->bos->ext_cap->bmAttributes)))

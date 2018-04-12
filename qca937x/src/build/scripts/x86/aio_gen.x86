@@ -1,0 +1,193 @@
+#!/bin/bash
+# Add x86 specific patches
+
+# subverion
+BRD_TYPE_VER=.86.0.01
+
+#
+# For each board type,
+# determine which components should be downloaded.
+# The settings here will overwrite the default in aio_gen_bit.sh.
+# 
+# ONLY add/enable those components need download.
+#
+# 1. patch files
+DOWNLOAD_PATCH=y
+
+# 2. kernel
+DOWNLOAD_KERNEL_BACKPORT_3_12=y
+
+# 3. WLAN/BT host drivers
+DOWNLOAD_DRIVER_WLAN_HOST=y
+
+# 4. APPs
+DOWNLOAD_APP_WLAN_WPA_SUPPLICANT_8=y
+DOWNLOAD_APP_WLAN_LIBNL_3_2_25=y
+DOWNLOAD_APP_WLAN_IW_3_0=y
+
+
+BOARD_TYPE_PREFIX=${INPUT_BOARD_TYPE}
+
+# The format of array should be composed of "BOARD_TYPE_PREFIX + BOARD_TYPE_POSTFIX"
+declare -a x86_aio_patch_arr=(
+"x86-001-wpa_supplicant_support_vendor_cmd.patch"
+)
+
+# Please add the correct link on CAF if related folder released
+BOARD_TYPE_AIO_PATCH_CAF="https://www.codeaurora.org/patches/external/wlan/fixce/3rdparty/patches/x86"
+
+
+function bypass_get_backports_bluez_source_patch
+{
+    if [ -d "${TOPDIR}/drivers/patches.old/x86/bluetooth" ]
+    then
+        echo "copy existent bluetooth patches ..."
+        cp -rf ${TOPDIR}/drivers/patches.old/x86/bluetooth ${TOPDIR}/drivers/patches/x86/
+        cp -rf ${TOPDIR}/drivers/patches.old/x86/bluetooth ${AIO_TOP}/drivers/patches/x86/
+    else
+        echo "You choose to bypass BlueZ source code download. Make sure:"
+        echo "1. you don't want to test BlueZ"
+        echo "2. you want to test BlueZ and you've had the BlueZ related patches.\
+                 Please refer to porting guide for detail actions."
+    fi
+}
+
+# Generate patches for BlueZ part of backports 
+# 1. get all linux kernel source code
+# 2. generate patch files locally
+# 3. save patch files for reuse
+function get_backports_source_patch
+{
+    # save the original folder
+    OLD_DIR=`pwd`
+    cd ${AIO_TOP}/drivers
+
+    
+    echo "================================================="
+    echo " Generate Patches for BlueZ part of backports..."
+    echo "================================================="
+    rm -rf linux
+    git clone https://github.com/torvalds/linux.git 
+    cd linux
+    git checkout v3.10 
+    git branch x86build
+    git remote add caf git://codeaurora.org/quic/la/kernel/msm-3.10
+    git remote update
+    
+    git cherry-pick f38c173fe1d78dee7a9f6dd3aad661d42304150f
+    git cherry-pick 65dc80a6d9311f82a423a0d54d597ec08099b24c
+    git cherry-pick 9701a092dbba4907bebe582a9d060297cdefdbd3
+    git cherry-pick 8b88cdecaf81d50f1209df4c7a8981a79ba09446
+    git cherry-pick eb1bf87592f707f08a853bd31693638e5628e3bf
+    git cherry-pick eb448d5bb8c1592e6c1d5fed3a611a2516528843
+    git cherry-pick 194612b82a4fd770ae7a3d54a3bf6b8140b96483
+    git cherry-pick ad71719ab5c47ec9c228faa1971726c73f9293f8
+    git cherry-pick fc7d4ab76583c4baaec72c2837c48e4c54cc2764
+    git cherry-pick a4d23c5f6e20ae73220fbdf9b06df806ddebfe6d
+    git cherry-pick a3c6464f9c1cd29467b44ded1a8df5c2320348ca
+    git cherry-pick 3a5291901a59b7de7780a2a1f1164764c244f38c
+    git cherry-pick c8c6259b62964e35d8faad586d683e601162b088
+    git cherry-pick e2452ddd14b4f1d4e31fe1ea93df284ab6bb5e79
+    git cherry-pick 52f33ca808d2d229bb10d3b47238aac2ff78996f
+    git cherry-pick 33c5f3595a11d6510cd6719b9db5dfd2e309921c
+    git cherry-pick bc3522c532147ba1258edec52f8c9f0ce1656149
+    git cherry-pick d119b066225d8f86ace922626de35e5ad2243ef0
+    git cherry-pick 672feced02a0d645065e08e945ba2174675fb892
+    git cherry-pick 6bc14767620b9ef79140de5fe73cd25006e2da5f
+    git cherry-pick 209369c27258dcd1172af111c6a6c65179a09ef0
+    git cherry-pick 460646929b23ff95827c404a43d2c2a9dd66f358
+    git cherry-pick 6de13bdbdeb971b7dc377dd508d2461b5728fb93
+    git cherry-pick f5c3608c67bccf4d7b6156506ce9ea2192fb21e8
+    git cherry-pick c9b040a6fabdfcf2ae1c3334c192d94effa692d8
+    
+    # generate patches for each gerrits above
+    git format-patch -25
+
+    #because the macro is different between linux kernel and backport, remove the lines
+    #in the patch files, and handle these by scripts
+    sed -i '50,59 d' 0007-Bluetooth-add-Qualcomm-In-Band-Sleep-support-to-hci_.patch
+    sed -i 's/CONFIG_BT_HCIUART_IBS/CPTCFG_BT_HCIUART_IBS/g' 0007-Bluetooth-add-Qualcomm-In-Band-Sleep-support-to-hci_.patch
+    sed -i '81,92 d' 0009-bluetooth-use-corect-struct-member-and-number-of-pro.patch
+
+    # save patch files to reuse
+    install -d ${TOPDIR}/drivers/patches/x86/bluetooth/backports
+    cp *.patch ${TOPDIR}/drivers/patches/x86/bluetooth/backports
+    install -d ${AIO_TOP}/drivers/patches/x86/bluetooth/backports
+    cp *.patch ${AIO_TOP}/drivers/patches/x86/bluetooth/backports
+
+    # back to the original folder
+    cd "$OLD_DIR"
+} #end of get_backports_source_patch
+
+# Generate patches for BlueZ Application
+# 1. get BlueZ source code
+# 2. generate patch files locally
+# 3. save patch files for reuse
+function get_bluez_source_patch
+{
+    # save the original folder
+    OLD_DIR=`pwd`
+    cd ${AIO_TOP}/apps
+
+    echo ================================
+    echo "Download bluez source code ..."
+    echo ================================
+    rm -rf bluez
+    git clone git://git.kernel.org/pub/scm/bluetooth/bluez.git
+    if [ "$?" != "0" ]; then
+            echo  NOT able to clone the Bluez Code
+            exit 1
+    fi
+    cd bluez
+    if [ "$?" != "0" ]; then
+            echo  Not able to create bluez Source Code.
+            exit 1
+    fi
+    git checkout tags/5.19
+    if [ "$?" != "0" ]; then
+            echo  Not able to pointing to Bluez5.19
+            exit 1
+    fi
+    
+    git remote add caf git://codeaurora.org/quic/le/platform/external/bluetooth/bluez
+    if [ "$?" != "0" ]; then
+            echo  Not able to add caf remote
+            exit 1
+    fi
+    
+    git remote update
+    if [ "$?" != "0" ]; then
+            echo  Not able to update caf remote 
+            exit 1
+    fi
+
+    echo "================================="
+    echo " Generate Patches for BlueZ..."
+    echo "================================="
+    git cherry-pick bb96f3b759e0b99db70014302ca12929fb42f554
+    git cherry-pick 6d13cb1ce518b13ee413f58ed7eaa0b57952f902
+    git cherry-pick 0410fb881dafca2f98356ecd4f328f0c6b7d978f
+    git cherry-pick 377fc8d9c6581ada5630556463501179bda9a21b
+    git cherry-pick 3690828e27818525f91508452cf3880e8d616e31
+    git cherry-pick 4f4ae148dd494de4fbdfe381c67807c83c4ca9bb
+    git cherry-pick d61a530efd1af188675735b193ddfc669e0d8278
+    git cherry-pick 6bf24205c90dc7ec29b39745037879bfba51bc83
+    git cherry-pick 028a95c3100039f182826811d91c9dde90dbe7dc
+    git cherry-pick 24864a7661013826711c234f742e0267f1e0036a
+    git cherry-pick 1e603f836e795767ebc1a9bb3867ecda906a3abe
+    git cherry-pick f17e6f316c3e3466686df1b34d10da02da12cd90
+    git cherry-pick 8bbd9ed42847fc8f301fc3302b248979b9729bee
+    git cherry-pick a67b0480a2c45b0d11e4db4142fc95fb36287dda
+    
+    git format-patch -14
+
+    # save patch files to reuse
+    install -d ${TOPDIR}/drivers/patches/x86/bluetooth/bluez
+    cp *.patch ${TOPDIR}/drivers/patches/x86/bluetooth/bluez
+    install -d ${AIO_TOP}/drivers/patches/x86/bluetooth/bluez
+    cp *.patch ${AIO_TOP}/drivers/patches/x86/bluetooth/bluez
+
+    # back to the original folder
+    cd "$OLD_DIR"
+} #end of get_bluez_source_patch
+

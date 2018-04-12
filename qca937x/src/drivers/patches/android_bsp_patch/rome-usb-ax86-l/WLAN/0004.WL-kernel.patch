@@ -1,0 +1,26 @@
+/*
+* Copyright (c) 2015 Qualcomm Atheros, Inc.
+* All Rights Reserved.
+* Qualcomm Atheros Confidential and Proprietary.
+* NOT A CONTRIBUTION
+*/
+
+diff -Nuar l-wlan-orig/kernel/arch/x86/configs/android-x86_defconfig l-wlan-work/kernel/arch/x86/configs/android-x86_defconfig
+--- l-wlan-orig/kernel/arch/x86/configs/android-x86_defconfig	2015-03-06 10:48:04.672505607 +0800
++++ l-wlan-work/kernel/arch/x86/configs/android-x86_defconfig	2015-03-06 10:50:54.012512060 +0800
+@@ -3,6 +3,7 @@
+ # Linux/x86 3.10.58 Kernel Configuration
+ #
+ # CONFIG_64BIT is not set
++CONFIG_NL80211_TESTMODE=y
+ CONFIG_X86_32=y
+ CONFIG_X86=y
+ CONFIG_INSTRUCTION_DECODER=y
+@@ -1081,7 +1082,6 @@
+ CONFIG_WEXT_SPY=y
+ CONFIG_WEXT_PRIV=y
+ CONFIG_CFG80211=m
+-# CONFIG_NL80211_TESTMODE is not set
+ # CONFIG_CFG80211_DEVELOPER_WARNINGS is not set
+ # CONFIG_CFG80211_REG_DEBUG is not set
+ # CONFIG_CFG80211_CERTIFICATION_ONUS is not set
