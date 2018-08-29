@@ -1,0 +1,6 @@
+version.lo: version.c /usr/include/stdc-predef.h \
+ ../include/netlink/version.h
+
+/usr/include/stdc-predef.h:
+
+../include/netlink/version.h:
