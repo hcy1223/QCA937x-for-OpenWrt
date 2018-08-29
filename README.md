@@ -1,7 +1,9 @@
 # QCA937x-for-OpenWrt
 qca937x driver for openwrt
 
-QCA9377/QCA9378 WLAN driver for openwrt(based on "Chaos Calmer-15.05,**linux-3.18.45**"), it tested on x86, use USB.  
+QCA9377/QCA9378 WLAN driver for openwrt(based on "Chaos Calmer-15.05,**linux-3.18.45**"), it tested on x86, use USB.
+## update
+add application:hostapd and wpa supplicant
 ## 1. Before build
 #### 1. choose CPU Type  
 `$vi package/qca937x/src/Makefile`
@@ -43,8 +45,7 @@ $iwconfig
 ```
 you can see wlanX p2p0
 
-
----------  
+---------
 First time use github,please make valuable suggestions.. 0_0
 
  
